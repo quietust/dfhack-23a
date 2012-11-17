@@ -38,6 +38,35 @@ distribution.
 
 struct WINDOW;
 
+DFHACK_EXPORT void * __cdecl df_realloc (void *p, size_t size);
+DFHACK_EXPORT void * __cdecl df_malloc (size_t size);
+DFHACK_EXPORT void df_free (void *pBlock);
+inline void* operator new (size_t size)
+{
+    void *p = df_malloc(size);
+    if (!p)
+        throw std::bad_alloc();
+    return p;
+}
+
+inline void operator delete (void *p)
+{
+    df_free(p);
+}
+
+inline void* operator new[] (size_t size)
+{
+    void *p = df_malloc(size);
+    if (!p)
+        throw std::bad_alloc();
+    return p;
+}
+
+inline void operator delete[] (void *p)
+{
+    df_free(p);
+}
+
 namespace tthread
 {
     class mutex;
@@ -79,29 +108,15 @@ namespace DFHack
         SC_UNPAUSED = 8
     };
 
-    // Core is a singleton. Why? Because it is closely tied to SDL calls. It tracks the global state of DF.
+    // Core is a singleton. Why? Because it tracks the global state of DF.
     // There should never be more than one instance
     // Better than tracking some weird variables all over the place.
     class DFHACK_EXPORT Core
     {
-#ifdef _DARWIN
-        friend int  ::DFH_SDL_NumJoysticks(void);
-        friend void ::DFH_SDL_Quit(void);
-        friend int  ::DFH_SDL_PollEvent(SDL::Event *);
-        friend int  ::DFH_SDL_Init(uint32_t flags);
-#else
-        friend int  ::SDL_NumJoysticks(void);
-        friend void ::SDL_Quit(void);
-        friend int  ::SDL_PollEvent(SDL::Event *);
-        friend int  ::SDL_Init(uint32_t flags);
-#endif
-        friend int  ::wgetch(WINDOW * w);
-        friend int  ::egg_init(void);
-        friend int  ::egg_shutdown(void);
-        friend int  ::egg_tick(void);
-        friend int  ::egg_prerender(void);
-        friend int  ::egg_sdl_event(SDL::Event* event);
-        friend int  ::egg_curses_event(int orig_return);
+        friend void  ::dfhackInit(void);
+        friend void  ::dfhackUnload(void);
+        friend void  ::dfhackUpdate(void);
+        friend void  ::dfhackRender(void);
     public:
         /// Get the single Core instance or make one.
         static Core& getInstance()
@@ -179,8 +194,6 @@ namespace DFHack
         int Update (void);
         int TileUpdate (void);
         int Shutdown (void);
-        int DFH_SDL_Event(SDL::Event* event);
-        bool ncurses_wgetch(int in, int & out);
 
         void doUpdate(color_ostream &out, bool first_update);
         void onUpdate(color_ostream &out);

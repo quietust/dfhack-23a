@@ -47,15 +47,13 @@ using namespace DFHack;
 #include "df/world.h"
 #include "df/ui.h"
 #include "df/ui_look_list.h"
-#include "df/d_init.h"
+#include "df/init.h"
 #include "df/item.h"
 #include "df/unit.h"
 #include "df/job.h"
-#include "df/job_item.h"
 #include "df/general_ref_building_holderst.h"
 #include "df/buildings_other_id.h"
 #include "df/building_design.h"
-#include "df/building_def.h"
 #include "df/building_axle_horizontalst.h"
 #include "df/building_trapst.h"
 #include "df/building_bridgest.h"
@@ -67,15 +65,13 @@ using namespace DFHack;
 #include "df/building_screw_pumpst.h"
 #include "df/building_water_wheelst.h"
 #include "df/building_wellst.h"
-#include "df/building_rollersst.h"
 
 using namespace df::enums;
 using df::global::ui;
 using df::global::world;
-using df::global::d_init;
+using df::global::init;
 using df::global::building_next_id;
 using df::global::process_jobs;
-using df::building_def;
 
 static uint8_t *getExtentTile(df::building_extents &extent, df::coord2d tile)
 {
@@ -119,24 +115,8 @@ void buildings_onUpdate(color_ostream &out)
 
         if (job->job_type != job_type::ConstructBuilding)
             continue;
-        if (job->job_items.empty())
-            continue;
 
         buildings_do_onupdate = true;
-
-        for (size_t i = 0; i < job->items.size(); i++)
-        {
-            df::job_item_ref *iref = job->items[i];
-            if (iref->role != df::job_item_ref::Reagent)
-                continue;
-            df::job_item *item = vector_get(job->job_items, iref->job_item_idx);
-            if (!item)
-                continue;
-            // Convert Reagent to Hauled, while decrementing quantity
-            item->quantity = std::max(0, item->quantity-1);
-            iref->role = df::job_item_ref::Hauled;
-            iref->job_item_idx = -1;
-        }
     }
 }
 
@@ -155,26 +135,11 @@ bool Buildings::Read (const uint32_t index, t_building & building)
     building.y1 = bld->y1;
     building.y2 = bld->y2;
     building.z = bld->z;
-    building.material.index = bld->mat_index;
-    building.material.type = bld->mat_type;
+    building.material.type = bld->material;
+    building.material.subtype = bld->matgloss;
     building.type = bld->getType();
     building.subtype = bld->getSubtype();
-    building.custom_type = bld->getCustomType();
     building.origin = bld;
-    return true;
-}
-
-bool Buildings::ReadCustomWorkshopTypes(map <uint32_t, string> & btypes)
-{
-    vector <building_def *> & bld_def = world->raws.buildings.all;
-    uint32_t size = bld_def.size();
-    btypes.clear();
-
-    for (auto iter = bld_def.begin(); iter != bld_def.end();iter++)
-    {
-        building_def * temp = *iter;
-        btypes[temp->id] = temp->code;
-    }
     return true;
 }
 
@@ -266,7 +231,7 @@ bool Buildings::findCivzonesAt(std::vector<df::building_civzonest*> *pvec, df::c
 {
     pvec->clear();
 
-    auto &vec = world->buildings.other[buildings_other_id::ANY_ZONE];
+    auto &vec = world->buildings.other[buildings_other_id::CIVZONE];
 
     for (size_t i = 0; i < vec.size(); i++)
     {
@@ -281,7 +246,7 @@ bool Buildings::findCivzonesAt(std::vector<df::building_civzonest*> *pvec, df::c
     return !pvec->empty();
 }
 
-df::building *Buildings::allocInstance(df::coord pos, df::building_type type, int subtype, int custom)
+df::building *Buildings::allocInstance(df::coord pos, df::building_type type, int subtype)
 {
     if (!building_next_id)
         return NULL;
@@ -308,8 +273,6 @@ df::building *Buildings::allocInstance(df::coord pos, df::building_type type, in
 
     if (subtype != -1)
         bld->setSubtype(subtype);
-    if (custom != -1)
-        bld->setCustomType(custom);
 
     bld->setMaterialAmount(1);
 
@@ -325,7 +288,7 @@ df::building *Buildings::allocInstance(df::coord pos, df::building_type type, in
     case building_type::Furnace:
         {
             auto obj = (df::building_furnacest*)bld;
-            obj->melt_remainder.resize(df::inorganic_raw::get_vector().size(), 0);
+            obj->melt_remainder.resize(df::matgloss_metal::get_vector().size(), 0);
             break;
         }
     case building_type::Coffin:
@@ -358,7 +321,7 @@ static void makeOneDim(df::coord2d &size, df::coord2d &center, bool vertical)
 }
 
 bool Buildings::getCorrectSize(df::coord2d &size, df::coord2d &center,
-                               df::building_type type, int subtype, int custom, int direction)
+                               df::building_type type, int subtype, int direction)
 {
     using namespace df::enums::building_type;
 
@@ -395,10 +358,6 @@ bool Buildings::getCorrectSize(df::coord2d &size, df::coord2d &center,
         makeOneDim(size, center, direction);
         return true;
 
-    case Rollers:
-        makeOneDim(size, center, (direction&1) == 0);
-        return true;
-
     case WaterWheel:
         size = df::coord2d(3,3);
         makeOneDim(size, center, direction);
@@ -412,7 +371,6 @@ bool Buildings::getCorrectSize(df::coord2d &size, df::coord2d &center,
         {
             case Quern:
             case Millstone:
-            case Tool:
                 size = df::coord2d(1,1);
                 center = df::coord2d(0,0);
                 break;
@@ -422,14 +380,6 @@ bool Buildings::getCorrectSize(df::coord2d &size, df::coord2d &center,
                 size = df::coord2d(5,5);
                 center = df::coord2d(2,2);
                 break;
-
-            case Custom:
-                if (auto def = df::building_def::find(custom))
-                {
-                    size = df::coord2d(def->dim_x, def->dim_y);
-                    center = df::coord2d(def->workloc_x, def->workloc_y);
-                    break;
-                }
 
             default:
                 size = df::coord2d(3,3);
@@ -443,20 +393,8 @@ bool Buildings::getCorrectSize(df::coord2d &size, df::coord2d &center,
     {
         using namespace df::enums::furnace_type;
 
-        switch ((df::furnace_type)subtype)
-        {
-            case Custom:
-                if (auto def = df::building_def::find(custom))
-                {
-                    size = df::coord2d(def->dim_x, def->dim_y);
-                    center = df::coord2d(def->workloc_x, def->workloc_y);
-                    break;
-                }
-
-            default:
-                size = df::coord2d(3,3);
-                center = df::coord2d(1,1);
-        }
+        size = df::coord2d(3,3);
+        center = df::coord2d(1,1);
 
         return false;
     }
@@ -671,7 +609,7 @@ bool Buildings::setSize(df::building *bld, df::coord2d size, int direction)
     // Compute correct size and apply it
     df::coord2d center;
     getCorrectSize(size, center, bld->getType(), bld->getSubtype(),
-                   bld->getCustomType(), direction);
+                   direction);
 
     bld->x2 = bld->x1 + size.x - 1;
     bld->y2 = bld->y1 + size.y - 1;
@@ -699,12 +637,6 @@ bool Buildings::setSize(df::building *bld, df::coord2d size, int direction)
     case ScrewPump:
         {
             auto obj = (df::building_screw_pumpst*)bld;
-            obj->direction = (df::screw_pump_direction)direction;
-            break;
-        }
-    case Rollers:
-        {
-            auto obj = (df::building_rollersst*)bld;
             obj->direction = (df::screw_pump_direction)direction;
             break;
         }
@@ -796,9 +728,6 @@ static void linkRooms(df::building *bld)
 
         // TODO: the game updates room rent here if economy is enabled
     }
-
-    if (changed)
-        df::global::ui->equipment.update.bits.buildings = true;
 }
 
 static void unlinkRooms(df::building *bld)
@@ -832,8 +761,8 @@ static void createDesign(df::building *bld, bool rough)
 {
     auto job = bld->jobs[0];
 
-    job->mat_type = bld->mat_type;
-    job->mat_index = bld->mat_index;
+    job->material = bld->material;
+    job->matgloss = bld->matgloss;
 
     if (bld->needsDesign())
     {
@@ -884,7 +813,7 @@ bool Buildings::constructAbstract(df::building *bld)
     if (!bld->flags.bits.exists)
     {
         bld->flags.bits.exists = true;
-        bld->initFarmSeasons();
+        bld->initSettingsEnable(0);
     }
 
     return true;
@@ -959,59 +888,13 @@ bool Buildings::constructWithItems(df::building *bld, std::vector<df::item*> ite
     {
         Job::attachJobItem(job, items[i], df::job_item_ref::Hauled);
 
-        if (items[i]->getType() == item_type::BOULDER)
+        if (items[i]->getType() == item_type::STONE)
             rough = true;
-        if (bld->mat_type == -1)
-            bld->mat_type = items[i]->getMaterial();
-        if (bld->mat_index == -1)
-            bld->mat_index = items[i]->getMaterialIndex();
+        if (bld->material == -1)
+            bld->material = items[i]->getMaterial();
+        if (bld->matgloss == -1)
+            bld->matgloss = items[i]->getMatgloss();
     }
-
-    createDesign(bld, rough);
-    return true;
-}
-
-bool Buildings::constructWithFilters(df::building *bld, std::vector<df::job_item*> items)
-{
-    CHECK_NULL_POINTER(bld);
-    CHECK_INVALID_ARGUMENT(bld->id == -1);
-    CHECK_INVALID_ARGUMENT(bld->isActual());
-    CHECK_INVALID_ARGUMENT(!items.empty() == needsItems(bld));
-
-    for (size_t i = 0; i < items.size(); i++)
-        CHECK_NULL_POINTER(items[i]);
-
-    df::job *job = NULL;
-    if (!linkForConstruct(job, bld))
-    {
-        for (size_t i = 0; i < items.size(); i++)
-            delete items[i];
-
-        return false;
-    }
-
-    bool rough = false;
-
-    for (size_t i = 0; i < items.size(); i++)
-    {
-        if (items[i]->quantity < 0)
-            items[i]->quantity = computeMaterialAmount(bld);
-
-        /* The game picks up explicitly listed items in reverse
-         * order, but processes filters straight. This reverses
-         * the order of filters so as to produce the same final
-         * contained_items ordering as the normal ui way. */
-        vector_insert_at(job->job_items, 0, items[i]);
-
-        if (items[i]->item_type == item_type::BOULDER)
-            rough = true;
-        if (bld->mat_type == -1)
-            bld->mat_type = items[i]->mat_type;
-        if (bld->mat_index == -1)
-            bld->mat_index = items[i]->mat_index;
-    }
-
-    buildings_do_onupdate = true;
 
     createDesign(bld, rough);
     return true;
@@ -1037,7 +920,7 @@ bool Buildings::deconstruct(df::building *bld)
     if (bld->isSettingOccupancy())
     {
         markBuildingTiles(bld, true);
-        bld->cleanupMap();
+        bld->updatePathfinding();
     }
 
     bld->removeUses(false, false);

@@ -40,7 +40,6 @@ distribution.
 #include "df/building_actual.h"
 #include "df/body_part_raw.h"
 #include "df/unit_inventory_item.h"
-#include "df/job_item_vector_id.h"
 
 namespace df
 {
@@ -86,9 +85,6 @@ namespace DFHack
         std::string toString();
 
         bool find(const std::string &token);
-
-        bool matches(df::job_item_vector_id vec_id);
-        bool matches(const df::job_item &item, MaterialInfo *mat = NULL, bool skip_vector = false);
     };
 
     inline bool operator== (const ItemTypeInfo &a, const ItemTypeInfo &b) {
@@ -125,7 +121,8 @@ struct dfh_item
 namespace Items
 {
 
-DFHACK_EXPORT bool isCasteMaterial(df::item_type itype);
+DFHACK_EXPORT bool isCreatureMaterial(df::item_type itype);
+DFHACK_EXPORT bool isPlantMaterial(df::item_type itype);
 DFHACK_EXPORT int getSubtypeCount(df::item_type itype);
 DFHACK_EXPORT df::itemdef *getSubtypeDef(df::item_type itype, int subtype);
 
@@ -173,5 +170,9 @@ DFHACK_EXPORT bool remove(MapExtras::MapCache &mc, df::item *item, bool no_uncat
 
 /// Detaches the items from its current location and turns it into a projectile
 DFHACK_EXPORT df::proj_itemst *makeProjectile(MapExtras::MapCache &mc, df::item *item);
+
+DFHACK_EXPORT void item_categorize(df::item *item, bool in_play);
+DFHACK_EXPORT void item_uncategorize(df::item *item);
+
 }
 }

@@ -45,20 +45,14 @@ using namespace std;
 
 #include "DataDefs.h"
 #include "df/world_data.h"
-#include "df/world_underground_region.h"
 #include "df/world_geo_biome.h"
 #include "df/world_geo_layer.h"
 #include "df/feature_init.h"
 #include "df/world_data.h"
-#include "df/burrow.h"
-#include "df/block_burrow.h"
-#include "df/block_burrow_link.h"
 #include "df/world_region_details.h"
-#include "df/builtin_mats.h"
-#include "df/block_square_event_grassst.h"
-#include "df/z_level_flags.h"
 #include "df/region_map_entry.h"
 #include "df/flow_info.h"
+#include "df/matgloss_stone.h"
 
 using namespace DFHack;
 using namespace df::enums;
@@ -70,24 +64,20 @@ const char * DFHack::sa_feature(df::feature_type index)
     {
     case feature_type::outdoor_river:
         return "River";
-    case feature_type::cave:
-        return "Cave";
-    case feature_type::pit:
-        return "Pit";
+    case feature_type::underground_river:
+        return "Underground river";
+    case feature_type::underground_pool:
+        return "Underground pool";
     case feature_type::magma_pool:
         return "Magma pool";
-    case feature_type::volcano:
-        return "Volcano";
-    case feature_type::deep_special_tube:
-        return "Adamantine deposit";
-    case feature_type::deep_surface_portal:
-        return "Underworld portal";
-    case feature_type::subterranean_from_layer:
-        return "Cavern";
-    case feature_type::magma_core_from_layer:
-        return "Magma sea";
-    case feature_type::feature_underworld_from_layer:
-        return "Underworld";
+    case feature_type::magma_pipe:
+        return "Magma pipe";
+    case feature_type::chasm:
+        return "Chasm";
+    case feature_type::bottomless_pit:
+        return "Bottomless pit";
+    case feature_type::glowing_pit:
+        return "Other feature";
     default:
         return "Unknown/Error";
     }
@@ -210,7 +200,7 @@ df::tile_occupancy *Maps::getTileOccupancy(int32_t x, int32_t y, int32_t z)
 
 df::region_map_entry *Maps::getRegionBiome(df::coord2d rgn_pos)
 {
-    auto data = world->world_data;
+    auto data = &world->world_data;
     if (!data)
         return NULL;
 
@@ -226,26 +216,16 @@ void Maps::enableBlockUpdates(df::map_block *blk, bool flow, bool temperature)
     if (!blk || !(flow || temperature)) return;
 
     if (temperature)
-        blk->flags.bits.update_temperature = true;
+        blk->flags.set(block_flags::update_temperature);
 
     if (flow)
     {
-        blk->flags.bits.update_liquid = true;
-        blk->flags.bits.update_liquid_twice = true;
-    }
-
-    auto z_flags = world->map.z_level_flags;
-    int z_level = blk->map_pos.z;
-
-    if (z_flags && z_level >= 0 && z_level < world->map.z_count_block)
-    {
-        z_flags += z_level;
-        z_flags->bits.update = true;
-        z_flags->bits.update_twice = true;
+        blk->flags.set(block_flags::update_liquid);
+        blk->flags.set(block_flags::update_liquid_twice);
     }
 }
 
-df::flow_info *Maps::spawnFlow(df::coord pos, df::flow_type type, int mat_type, int mat_index, int density)
+df::flow_info *Maps::spawnFlow(df::coord pos, df::flow_type type, int mat_type, int mat_subtype, int density)
 {
     using df::global::flows;
 
@@ -255,8 +235,8 @@ df::flow_info *Maps::spawnFlow(df::coord pos, df::flow_type type, int mat_type, 
 
     auto flow = new df::flow_info();
     flow->type = type;
-    flow->mat_type = mat_type;
-    flow->mat_index = mat_index;
+    flow->material = (df::material_type)mat_type;
+    flow->matgloss = mat_subtype;
     flow->density = std::min(100, density);
     flow->pos = pos;
 
@@ -265,37 +245,9 @@ df::flow_info *Maps::spawnFlow(df::coord pos, df::flow_type type, int mat_type, 
     return flow;
 }
 
-df::feature_init *Maps::getGlobalInitFeature(int32_t index)
+df::feature_init *Maps::getInitFeature(df::coord2d rgn_pos, int32_t index)
 {
-    auto data = world->world_data;
-    if (!data || index < 0)
-        return NULL;
-
-    auto rgn = vector_get(data->underground_regions, index);
-    if (!rgn)
-        return NULL;
-
-    return rgn->feature_init;
-}
-
-bool Maps::GetGlobalFeature(t_feature &feature, int32_t index)
-{
-    feature.type = (df::feature_type)-1;
-
-    auto f = Maps::getGlobalInitFeature(index);
-    if (!f)
-        return false;
-
-    feature.discovered = false;
-    feature.origin = f;
-    feature.type = f->getType();
-    f->getMaterial(&feature.main_material, &feature.sub_material);
-    return true;
-}
-
-df::feature_init *Maps::getLocalInitFeature(df::coord2d rgn_pos, int32_t index)
-{
-    auto data = world->world_data;
+    auto data = &world->world_data;
     if (!data || index < 0)
         return NULL;
 
@@ -313,50 +265,42 @@ df::feature_init *Maps::getLocalInitFeature(df::coord2d rgn_pos, int32_t index)
 
     df::coord2d sub = rgn_pos & 15;
 
-    vector <df::feature_init *> &features = fptr->feature_init[sub.x][sub.y];
+    auto features = fptr[0][sub.x][sub.y];
 
     return vector_get(features, index);
 }
 
-static bool GetLocalFeature(t_feature &feature, df::coord2d rgn_pos, int32_t index)
+static bool GetFeature(t_feature &feature, df::coord2d rgn_pos, int32_t index)
 {
     feature.type = (df::feature_type)-1;
 
-    auto f = Maps::getLocalInitFeature(rgn_pos, index);
+    auto f = Maps::getInitFeature(rgn_pos, index);
     if (!f)
         return false;
 
     feature.discovered = false;
     feature.origin = f;
-    feature.type = f->getType();
-    f->getMaterial(&feature.main_material, &feature.sub_material);
+    feature.type = f->type;
     return true;
 }
 
-bool Maps::ReadFeatures(uint32_t x, uint32_t y, uint32_t z, t_feature *local, t_feature *global)
+bool Maps::ReadFeatures(uint32_t x, uint32_t y, uint32_t z, t_feature *feature)
 {
     df::map_block *block = getBlock(x,y,z);
     if (!block)
         return false;
-    return ReadFeatures(block, local, global);
+    return ReadFeatures(block, feature);
 }
 
-bool Maps::ReadFeatures(df::map_block * block, t_feature * local, t_feature * global)
+bool Maps::ReadFeatures(df::map_block * block, t_feature * feature)
 {
     bool result = true;
-    if (global)
+    if (feature)
     {
-        if (block->global_feature != -1)
-            result &= GetGlobalFeature(*global, block->global_feature);
+        if (block->feature != -1)
+            result &= GetFeature(*feature, block->region_pos, block->feature);
         else
-            global->type = (df::feature_type)-1;
-    }
-    if (local)
-    {
-        if (block->local_feature != -1)
-            result &= GetLocalFeature(*local, block->region_pos, block->local_feature);
-        else
-            local->type = (df::feature_type)-1;
+            feature->type = (df::feature_type)-1;
     }
     return result;
 }
@@ -367,18 +311,12 @@ bool Maps::ReadFeatures(df::map_block * block, t_feature * local, t_feature * gl
 bool Maps::SortBlockEvents(df::map_block *block,
     vector <df::block_square_event_mineralst *>* veins,
     vector <df::block_square_event_frozen_liquidst *>* ices,
-    vector <df::block_square_event_material_spatterst *> *splatter,
-    vector <df::block_square_event_grassst *> *grasses,
     vector <df::block_square_event_world_constructionst *> *constructions)
 {
     if (veins)
         veins->clear();
     if (ices)
         ices->clear();
-    if (splatter)
-        splatter->clear();
-    if (grasses)
-        grasses->clear();
     if (constructions)
         constructions->clear();
 
@@ -398,14 +336,6 @@ bool Maps::SortBlockEvents(df::map_block *block,
         case block_square_event_type::frozen_liquid:
             if (ices)
                 ices->push_back((df::block_square_event_frozen_liquidst *)evt);
-            break;
-        case block_square_event_type::material_spatter:
-            if (splatter)
-                splatter->push_back((df::block_square_event_material_spatterst *)evt);
-            break;
-        case block_square_event_type::grass:
-            if (grasses)
-                grasses->push_back((df::block_square_event_grassst *)evt);
             break;
         case block_square_event_type::world_construction:
             if (constructions)
@@ -443,15 +373,15 @@ inline df::coord2d getBiomeRgnPos(df::coord2d base, int idx)
 {
     auto r = base + biome_offsets[idx];
 
-    int world_width = world->world_data->world_width;
-    int world_height = world->world_data->world_height;
+    int world_width = world->world_data.world_width;
+    int world_height = world->world_data.world_height;
 
     return df::coord2d(clip_range(r.x,0,world_width-1),clip_range(r.y,0,world_height-1));
 }
 
 df::coord2d Maps::getBlockTileBiomeRgn(df::map_block *block, df::coord2d pos)
 {
-    if (!block || !world->world_data)
+    if (!block || !world)
         return df::coord2d();
 
     auto des = index_tile<df::tile_designation>(block->designation,pos);
@@ -471,7 +401,7 @@ df::coord2d Maps::getBlockTileBiomeRgn(df::map_block *block, df::coord2d pos)
 */
 bool Maps::ReadGeology(vector<vector<int16_t> > *layer_mats, vector<df::coord2d> *geoidx)
 {
-    if (!world->world_data)
+    if (!world)
         return false;
 
     layer_mats->resize(eBiomeCount);
@@ -515,7 +445,7 @@ bool Maps::ReadGeology(vector<vector<int16_t> > *layer_mats, vector<df::coord2d>
 
         // finally, read the layer matgloss
         for (size_t j = 0; j < geolayers.size(); j++)
-            matvec[j] = geolayers[j]->mat_index;
+            matvec[j] = geolayers[j]->matgloss;
     }
 
     return true;
@@ -651,14 +581,14 @@ void MapExtras::Block::TileInfo::init_coninfo()
     con_info->constructed.clear();
     COPY(con_info->tiles, base_tiles);
     memset(con_info->mat_type, -1, sizeof(con_info->mat_type));
-    memset(con_info->mat_index, -1, sizeof(con_info->mat_index));
+    memset(con_info->mat_subtype, -1, sizeof(con_info->mat_subtype));
 }
 
 MapExtras::Block::BasematInfo::BasematInfo()
 {
     dirty.clear();
     memset(mat_type,0,sizeof(mat_type));
-    memset(mat_index,-1,sizeof(mat_index));
+    memset(mat_subtype,-1,sizeof(mat_subtype));
     memset(layermat,-1,sizeof(layermat));
 }
 
@@ -719,8 +649,8 @@ void MapExtras::Block::ParseTiles(TileInfo *tiles)
                     is_con = true;
                     tiles->con_info->constructed.setassignment(x,y,true);
                     tiles->con_info->tiles[x][y] = tt;
-                    tiles->con_info->mat_type[x][y] = con->mat_type;
-                    tiles->con_info->mat_index[x][y] = con->mat_index;
+                    tiles->con_info->mat_type[x][y] = con->material;
+                    tiles->con_info->mat_subtype[x][y] = con->matgloss;
 
                     tt = con->original_tile;
                 }
@@ -754,13 +684,13 @@ void MapExtras::Block::ParseBasemats(TileInfo *tiles, BasematInfo *bmats)
             auto mat = info.getBaseMaterial(tt, df::coord2d(x,y));
 
             bmats->mat_type[x][y] = mat.mat_type;
-            bmats->mat_index[x][y] = mat.mat_index;
+            bmats->mat_subtype[x][y] = mat.mat_subtype;
 
             // Copy base info back to construction layer
             if (tiles->con_info && !tiles->con_info->constructed.getassignment(x,y))
             {
                 tiles->con_info->mat_type[x][y] = mat.mat_type;
-                tiles->con_info->mat_index[x][y] = mat.mat_index;
+                tiles->con_info->mat_subtype[x][y] = mat.mat_subtype;
             }
         }
     }
@@ -773,7 +703,7 @@ bool MapExtras::Block::Write ()
     if(dirty_designations)
     {
         COPY(block->designation, designation);
-        block->flags.bits.designated = true;
+        block->flags.set(block_flags::designated);
         dirty_designations = false;
     }
     if(dirty_tiles && tiles)
@@ -814,7 +744,6 @@ void MapExtras::BlockInfo::prepare(Block *mblock)
     parent = mblock->getParent();
 
     SquashVeins(block,veinmats);
-    SquashGrass(block, grass);
 
     if (parent->validgeo)
         SquashRocks(block,basemats,&parent->layer_mats);
@@ -827,15 +756,14 @@ void MapExtras::BlockInfo::prepare(Block *mblock)
         plants[pp->pos] = pp;
     }
 
-    global_feature = Maps::getGlobalInitFeature(block->global_feature);
-    local_feature = Maps::getLocalInitFeature(block->region_pos, block->local_feature);
+    feature = Maps::getInitFeature(block->region_pos, block->feature);
 }
 
 t_matpair MapExtras::BlockInfo::getBaseMaterial(df::tiletype tt, df::coord2d pos)
 {
     using namespace df::enums::tiletype_material;
 
-    t_matpair rv(0,-1);
+    t_matpair rv(material_type::STONE,-1);
     int x = pos.x, y = pos.y;
 
     switch (tileMaterial(tt)) {
@@ -847,17 +775,17 @@ t_matpair MapExtras::BlockInfo::getBaseMaterial(df::tiletype tt, df::coord2d pos
     case DRIFTWOOD:
     case SOIL:
     {
-        rv.mat_index = basemats[x][y];
+        rv.mat_subtype = basemats[x][y];
 
-        if (auto raw = df::inorganic_raw::find(rv.mat_index))
+        if (auto raw = df::matgloss_stone::find(rv.mat_subtype))
         {
-            if (raw->flags.is_set(inorganic_flags::SOIL_ANY))
+            if (raw->flags.is_set(matgloss_stone_flags::SOIL_ANY))
                 break;
 
             int biome = mblock->biomeIndexAt(pos);
             int idx = vector_get(parent->default_soil, biome, -1);
             if (idx >= 0)
-                rv.mat_index = idx;
+                rv.mat_subtype = idx;
         }
 
         break;
@@ -865,40 +793,39 @@ t_matpair MapExtras::BlockInfo::getBaseMaterial(df::tiletype tt, df::coord2d pos
 
     case STONE:
     {
-        rv.mat_index = basemats[x][y];
+        rv.mat_subtype = basemats[x][y];
 
-        if (auto raw = df::inorganic_raw::find(rv.mat_index))
+        if (auto raw = df::matgloss_stone::find(rv.mat_subtype))
         {
-            if (!raw->flags.is_set(inorganic_flags::SOIL_ANY))
+            if (!raw->flags.is_set(matgloss_stone_flags::SOIL_ANY))
                 break;
 
             int biome = mblock->biomeIndexAt(pos);
             int idx = vector_get(parent->default_stone, biome, -1);
             if (idx >= 0)
-                rv.mat_index = idx;
+                rv.mat_subtype = idx;
         }
 
         break;
     }
 
     case MINERAL:
-        rv.mat_index = veinmats[x][y];
+        rv.mat_subtype = veinmats[x][y];
         break;
 
     case LAVA_STONE:
         if (auto details = parent->region_details[mblock->biomeRegionAt(pos)])
-            rv.mat_index = details->lava_stone;
+            rv.mat_subtype = details->lava_stone;
         break;
 
     case PLANT:
-        rv.mat_type = MaterialInfo::PLANT_BASE;
         if (auto plant = plants[block->map_pos + df::coord(x,y,0)])
         {
-            if (auto raw = df::plant_raw::find(plant->material))
-            {
-                rv.mat_type = raw->material_defs.type_basic_mat;
-                rv.mat_index = raw->material_defs.idx_basic_mat;
-            }
+            if (plant->flags.bits.is_shrub)
+                rv.mat_type = material_type::PLANT;
+            else
+                rv.mat_type = material_type::WOOD;
+            rv.mat_subtype = plant->plant_id;
         }
         break;
 
@@ -906,23 +833,12 @@ t_matpair MapExtras::BlockInfo::getBaseMaterial(df::tiletype tt, df::coord2d pos
     case GRASS_DARK:
     case GRASS_DRY:
     case GRASS_DEAD:
-        rv.mat_type = MaterialInfo::PLANT_BASE;
-        if (auto raw = df::plant_raw::find(grass[x][y]))
-        {
-            rv.mat_type = raw->material_defs.type_basic_mat;
-            rv.mat_index = raw->material_defs.idx_basic_mat;
-        }
+        rv.mat_type = -1;
         break;
 
     case FEATURE:
     {
-        auto dsgn = block->designation[x][y];
-
-        if (dsgn.bits.feature_local && local_feature)
-            local_feature->getMaterial(&rv.mat_type, &rv.mat_index);
-        else if (dsgn.bits.feature_global && global_feature)
-            global_feature->getMaterial(&rv.mat_type, &rv.mat_index);
-
+        rv.mat_type = -1;
         break;
     }
 
@@ -933,19 +849,19 @@ t_matpair MapExtras::BlockInfo::getBaseMaterial(df::tiletype tt, df::coord2d pos
         break;
 
     case FROZEN_LIQUID:
-        rv.mat_type = builtin_mats::WATER;
+        rv.mat_type = material_type::WATER;
         break;
 
     case POOL:
     case BROOK:
     case RIVER:
-        rv.mat_index = basemats[x][y];
+        rv.mat_subtype = basemats[x][y];
         break;
 
     case ASHES:
     case FIRE:
     case CAMPFIRE:
-        rv.mat_type = builtin_mats::ASH;
+        rv.mat_type = material_type::ASH;
         break;
     }
 
@@ -962,7 +878,7 @@ void MapExtras::BlockInfo::SquashVeins(df::map_block *mb, t_blockmaterials & mat
         for (size_t i = 0; i < veins.size(); i++)
         {
             if (veins[i]->getassignment(x,y))
-                materials[x][y] = veins[i]->inorganic_mat;
+                materials[x][y] = veins[i]->stone;
         }
     }
 }
@@ -999,25 +915,6 @@ void MapExtras::BlockInfo::SquashRocks (df::map_block *mb, t_blockmaterials & ma
         uint8_t idx = mb->region_offset[test];
         if (idx < layerassign->size())
             materials[x][y] = layerassign->at(idx)[mb->designation[x][y].bits.geolayer_index];
-    }
-}
-
-void MapExtras::BlockInfo::SquashGrass(df::map_block *mb, t_blockmaterials &materials)
-{
-    std::vector<df::block_square_event_grassst*> grasses;
-    Maps::SortBlockEvents(mb, NULL, NULL, NULL, &grasses);
-    memset(materials,-1,sizeof(materials));
-    for (uint32_t x = 0; x < 16; x++) for (uint32_t y = 0; y < 16; y++)
-    {
-        int amount = 0;
-        for (size_t i = 0; i < grasses.size(); i++)
-        {
-            if (grasses[i]->amount[x][y] >= amount)
-            {
-                amount = grasses[i]->amount[x][y];
-                materials[x][y] = grasses[i]->plant_index;
-            }
-        }
     }
 }
 
@@ -1061,20 +958,12 @@ int16_t MapExtras::Block::GeoIndexAt(df::coord2d p)
     return pinfo->geo_index;
 }
 
-bool MapExtras::Block::GetGlobalFeature(t_feature *out)
+bool MapExtras::Block::GetFeature(t_feature *out)
 {
     out->type = (df::feature_type)-1;
-    if (!valid || block->global_feature < 0)
+    if (!valid || block->feature < 0)
         return false;
-    return Maps::GetGlobalFeature(*out, block->global_feature);
-}
-
-bool MapExtras::Block::GetLocalFeature(t_feature *out)
-{
-    out->type = (df::feature_type)-1;
-    if (!valid || block->local_feature < 0)
-        return false;
-    return ::GetLocalFeature(*out, block->region_pos, block->local_feature);
+    return ::GetFeature(*out, block->region_pos, block->feature);
 }
 
 void MapExtras::Block::init_item_counts()
@@ -1131,7 +1020,7 @@ bool MapExtras::Block::removeItemOnGround(df::item *item)
 
     init_item_counts();
 
-    int idx = binsearch_index(block->items, item->id);
+    int idx = /*binsearch*/linear_index(block->items, item->id);
     if (idx < 0)
         return false;
 
@@ -1170,7 +1059,7 @@ MapExtras::MapCache::MapCache()
     validgeo = Maps::ReadGeology(&layer_mats, &geoidx);
     valid = true;
 
-    if (auto data = df::global::world->world_data)
+    if (auto data = &df::global::world->world_data)
     {
         for (size_t i = 0; i < data->region_details.size(); i++)
         {
@@ -1189,11 +1078,11 @@ MapExtras::MapCache::MapCache()
 
         for (size_t j = 0; j < layer_mats[i].size(); j++)
         {
-            auto raw = df::inorganic_raw::find(layer_mats[i][j]);
+            auto raw = df::matgloss_stone::find(layer_mats[i][j]);
             if (!raw)
                 continue;
 
-            bool is_soil = raw->flags.is_set(inorganic_flags::SOIL_ANY);
+            bool is_soil = raw->flags.is_set(matgloss_stone_flags::SOIL_ANY);
             if (is_soil)
                 default_soil[i] = layer_mats[i][j];
             else if (default_stone[i] == -1)

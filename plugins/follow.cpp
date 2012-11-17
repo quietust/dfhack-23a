@@ -147,7 +147,7 @@ command_result follow (color_ostream &out, std::vector <std::string> & parameter
     if (followedUnit)
     {
         std::ostringstream ss;
-        ss << "Unpause to begin following " << df::global::world->raws.creatures.all[followedUnit->race]->name[0];
+        ss << "Unpause to begin following " << df::global::world->raws.creatures[followedUnit->race]->name[0];
         if (followedUnit->name.has_name) ss << " " << followedUnit->name.first_name;
         ss << ". Simply manually move the view to break the following.\n";
         out.print(ss.str().c_str());

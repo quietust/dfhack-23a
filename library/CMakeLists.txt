@@ -107,7 +107,6 @@ Process-linux.cpp
 
 SET(MODULE_HEADERS
 include/modules/Buildings.h
-include/modules/Burrows.h
 include/modules/Constructions.h
 include/modules/Units.h
 include/modules/Engravings.h
@@ -129,7 +128,6 @@ include/modules/Graphic.h
 
 SET( MODULE_SOURCES
 modules/Buildings.cpp
-modules/Burrows.cpp
 modules/Constructions.cpp
 modules/Units.cpp
 modules/Engravings.cpp
@@ -146,7 +144,6 @@ modules/Vegetation.cpp
 modules/Vermin.cpp
 modules/World.cpp
 modules/Graphic.cpp
-modules/Windows.cpp
 )
 
 IF(WIN32)
@@ -257,7 +254,7 @@ IF(BUILD_EGGY)
     SET_TARGET_PROPERTIES(dfhack PROPERTIES OUTPUT_NAME "egg" )
 else()
     IF(WIN32)
-        SET_TARGET_PROPERTIES(dfhack PROPERTIES OUTPUT_NAME "SDL" )
+#        SET_TARGET_PROPERTIES(dfhack PROPERTIES OUTPUT_NAME "SDL" )
     ENDIF()
 endif()
 
@@ -309,8 +306,8 @@ IF(UNIX)
 ELSE()
     if(NOT BUILD_EGGY)
         # On windows, copy the renamed SDL so DF can still run.
-        install(PROGRAMS ${dfhack_SOURCE_DIR}/package/windows/SDLreal.dll
-                DESTINATION ${DFHACK_LIBRARY_DESTINATION})
+#        install(PROGRAMS ${dfhack_SOURCE_DIR}/package/windows/SDLreal.dll
+#                DESTINATION ${DFHACK_LIBRARY_DESTINATION})
     endif()
 ENDIF()
 

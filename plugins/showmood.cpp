@@ -11,12 +11,8 @@
 #include "DataDefs.h"
 #include "df/world.h"
 #include "df/job.h"
-#include "df/job_item.h"
-#include "df/job_item_ref.h"
+#include "df/matgloss_metal.h"
 #include "df/general_ref.h"
-#include "df/builtin_mats.h"
-#include "df/inorganic_raw.h"
-#include "df/matter_state.h"
 #include "df/unit.h"
 #include "df/building.h"
 
@@ -158,7 +154,7 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
             out.print("She has ");
         if (building)
         {
-            string name;
+            stl::string name;
             building->getName(&name);
             out.print("claimed a %s and wants", name.c_str());
         }
@@ -167,23 +163,23 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
         out.print(" the following items:\n");
 
         // total amount of stuff fetched so far
-        int count_got = 0;
-        for (size_t i = 0; i < job->items.size(); i++)
-            count_got += job->items[i]->item->getTotalDimension();
+        int count_got = job->items.size();
 
-        for (size_t i = 0; i < job->job_items.size(); i++)
+        for (size_t i = 0; i < unit->job.mood_item_type.size(); i++)
         {
-            df::job_item *item = job->job_items[i];
+            df::item_type item_type = unit->job.mood_item_type[i];
+            int16_t item_subtype = unit->job.mood_item_subtype[i];
+            df::material_type material = unit->job.mood_material[i];
+            int16_t matgloss = unit->job.mood_matgloss[i];
+
             out.print("Item %i: ", i + 1);
-
-            MaterialInfo matinfo(item->mat_type, item->mat_index);
-
+            MaterialInfo matinfo(material, matgloss);
             string mat_name = matinfo.toString();
 
-            switch (item->item_type)
+            switch (item_type)
             {
-            case item_type::BOULDER:
-                out.print("%s boulder", mat_name.c_str());
+            case item_type::STONE:
+                out.print("%s stone", mat_name.c_str());
                 break;
             case item_type::BLOCKS:
                 out.print("%s blocks", mat_name.c_str());
@@ -192,9 +188,9 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
                 out.print("%s logs", mat_name.c_str());
                 break;
             case item_type::BAR:
-                if (matinfo.isInorganicWildcard())
-                    mat_name = "metal";
-                if (matinfo.inorganic && matinfo.inorganic->flags.is_set(inorganic_flags::WAFERS))
+                if (material == material_type::METAL &&
+                    matgloss >= 0 && matgloss < df::global::world->raws.matgloss.metal.size() &&
+                    df::global::world->raws.matgloss.metal[matgloss]->flags.is_set(matgloss_metal_flags::WAFERS))
                     out.print("%s wafers", mat_name.c_str());
                 else
                     out.print("%s bars", mat_name.c_str());
@@ -203,9 +199,9 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
                 out.print("%s cut gems", mat_name.c_str());
                 break;
             case item_type::ROUGH:
-                if (matinfo.isAnyInorganic())
+                if (material == material_type::STONE)
                 {
-                    if (matinfo.isInorganicWildcard())
+                    if (matgloss == -1)
                         mat_name = "any";
                     out.print("%s rough gems", mat_name.c_str());
                 }
@@ -216,14 +212,16 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
                 out.print("%s leather", mat_name.c_str());
                 break;
             case item_type::CLOTH:
-                if (matinfo.isNone())
+                switch (material)
                 {
-                    if (item->flags2.bits.plant)
-                        mat_name = "any plant fiber";
-                    else if (item->flags2.bits.silk)
-                        mat_name = "any silk";
-                    else if (item->flags2.bits.yarn)
-                        mat_name = "any yarn";
+                case material_type::PLANT:
+                    mat_name = "any plant fiber";
+                    break;
+                case material_type::SILK:
+                    mat_name = "any silk";
+                    break;
+                default:
+                    mat_name = "any";
                 }
                 out.print("%s cloth", mat_name.c_str());
                 break;
@@ -231,55 +229,24 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
                 out.print("%s remains", mat_name.c_str());
                 break;
             case item_type::CORPSE:
-                out.print("%s %scorpse", mat_name.c_str(), (item->flags1.bits.murdered ? "murdered " : ""));
-                break;
-            case item_type::NONE:
-                if (item->flags2.bits.body_part)
-                {
-                    if (item->flags2.bits.bone)
-                        out.print("%s bones", mat_name.c_str());
-                    else if (item->flags2.bits.shell)
-                        out.print("%s shells", mat_name.c_str());
-                    else if (item->flags2.bits.horn)
-                        out.print("%s horns", mat_name.c_str());
-                    else if (item->flags2.bits.pearl)
-                        out.print("%s pearls", mat_name.c_str());
-                    else if (item->flags2.bits.ivory_tooth)
-                        out.print("%s ivory/teeth", mat_name.c_str());
-                    else
-                        out.print("%s unknown body parts (%s:%s:%s)",
-                                     mat_name.c_str(),
-                                     bitfield_to_string(item->flags1).c_str(),
-                                     bitfield_to_string(item->flags2).c_str(),
-                                     bitfield_to_string(item->flags3).c_str());
-                }
-                else
-                    out.print("indeterminate %s item (%s:%s:%s)",
-                                 mat_name.c_str(),
-                                 bitfield_to_string(item->flags1).c_str(),
-                                 bitfield_to_string(item->flags2).c_str(),
-                                 bitfield_to_string(item->flags3).c_str());
+                out.print("%s corpse", mat_name.c_str());
                 break;
             default:
                 {
-                    ItemTypeInfo itinfo(item->item_type, item->item_subtype);
+                    ItemTypeInfo itinfo(item_type, item_subtype);
 
-                    out.print("item %s material %s flags (%s:%s:%s)",
-                                 itinfo.toString().c_str(), mat_name.c_str(),
-                                 bitfield_to_string(item->flags1).c_str(),
-                                 bitfield_to_string(item->flags2).c_str(),
-                                 bitfield_to_string(item->flags3).c_str());
+                    out.print("item %s material %s",
+                                 itinfo.toString().c_str(), mat_name.c_str());
                     break;
                 }
             }
 
             // total amount of stuff fetched for this requirement
             // XXX may fail with cloth/thread/bars if need 1 and fetch 2
-            int got = count_got;
-            if (got > item->quantity)
-                got = item->quantity;
-            out.print(", quantity %i (got %i)\n", item->quantity, got);
-            count_got -= got;
+            if (count_got)
+                out.print(" (collected)");
+            out.print("\n");
+            count_got--;
         }
     }
     if (!found)

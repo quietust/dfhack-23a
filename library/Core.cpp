@@ -47,7 +47,6 @@ using namespace std;
 #include "modules/Gui.h"
 #include "modules/World.h"
 #include "modules/Graphic.h"
-#include "modules/Windows.h"
 #include "RemoteServer.h"
 #include "LuaTools.h"
 
@@ -68,14 +67,136 @@ using namespace DFHack;
 #include <fstream>
 #include "tinythread.h"
 
-#include "SDL_events.h"
-
 using namespace tthread;
 using namespace df::enums;
 using df::global::init;
 using df::global::world;
 
 // FIXME: A lot of code in one file, all doing different things... there's something fishy about it.
+
+#include <new>
+typedef int (__cdecl * _PNH)( size_t );
+_PNH *df_pnhHeap = (_PNH *)0xA0226C;
+int *df_newmode = (int *)0xA02270;
+HANDLE *df_crtheap = (HANDLE *)0xA01DF8;
+
+int df_callnewh (size_t size)
+{
+    _PNH pnh = (_PNH) DecodePointer(*df_pnhHeap);
+    if (pnh == NULL)
+        return 0;
+    if ((*pnh)(size) == 0)
+        return 0;
+    return 1;
+}
+
+__forceinline void * __cdecl df_heap_alloc (size_t size)
+{
+    return HeapAlloc(*df_crtheap, 0, size ? size : 1);
+}
+
+void * __cdecl df_realloc (void *pBlock, size_t newsize)
+{
+    void *pvReturn;
+    size_t origSize = newsize;
+
+    //  if ptr is NULL, call malloc
+    if (pBlock == NULL)
+        return(df_malloc(newsize));
+
+    //  if ptr is nonNULL and size is zero, call free and return NULL
+    if (newsize == 0)
+    {
+        df_free(pBlock);
+        return(NULL);
+    }
+
+    for (;;) {
+        pvReturn = NULL;
+        if (newsize <= _HEAP_MAXREQ)
+        {
+            if (newsize == 0)
+                newsize = 1;
+            pvReturn = HeapReAlloc(*df_crtheap, 0, pBlock, newsize);
+        }
+        else
+        {
+            df_callnewh(newsize);
+            errno = ENOMEM;
+            return NULL;
+        }
+
+        if ( pvReturn || *df_newmode == 0)
+        {
+            if (!pvReturn)
+            {
+                errno = EINVAL;//_get_errno_from_oserr(GetLastError());
+            }
+            return pvReturn;
+        }
+
+        //  call installed new handler
+        if (!df_callnewh(newsize))
+        {
+            errno = EINVAL;//_get_errno_from_oserr(GetLastError());
+            return NULL;
+        }
+
+        //  new handler was successful -- try to allocate again
+    }
+}
+
+void * __cdecl df_malloc (size_t size)
+{
+    void *res = NULL;
+
+    //  validate size
+    if (size <= _HEAP_MAXREQ)
+    {
+        for (;;) {
+            //  allocate memory block
+            res = df_heap_alloc(size);
+
+            //  if successful allocation, return pointer to memory
+            //  if new handling turned off altogether, return NULL
+
+            if (res != NULL)
+                break;
+            if (*df_newmode == 0)
+            {
+                errno = ENOMEM;
+                break;
+            }
+
+            //  call installed new handler
+            if (!df_callnewh(size))
+                break;
+
+            //  new handler was successful -- try to allocate again
+        }
+    } else {
+        df_callnewh(size);
+        errno = ENOMEM;
+        return NULL;
+    }
+
+    if (res == NULL)
+        errno = ENOMEM;
+    return res;
+}
+
+void df_free (void *pBlock)
+{
+    int retval = 0;
+
+    if (pBlock == NULL)
+        return;
+
+    retval = HeapFree(*df_crtheap, 0, pBlock);
+
+    if (retval == 0)
+        errno = EINVAL;//_get_errno_from_oserr(GetLastError());
+}
 
 static bool parseKeySpec(std::string keyspec, int *psym, int *pmod, std::string *pfocus = NULL);
 
@@ -790,7 +911,6 @@ Core::Core()
     last_local_map_ptr = NULL;
     last_pause_state = false;
     top_viewscreen = NULL;
-    screen_window = NULL;
     server = NULL;
 
     color_ostream::log_errors_to_stderr = true;
@@ -821,8 +941,6 @@ std::string Core::getHackPath()
     return p->getPath() + "\\hack\\";
 #endif
 }
-
-void init_screen_module(Core *);
 
 bool Core::Init()
 {
@@ -872,14 +990,7 @@ bool Core::Init()
 
     cerr << "Initializing Console.\n";
     // init the console.
-    bool is_text_mode = false;
-    if(init && init->display.flag.is_set(init_display_flags::TEXT))
-    {
-        is_text_mode = true;
-        con.init(true);
-        cerr << "Console is not available. Use dfhack-run to send commands.\n";
-    }
-    else if(con.init(false))
+    if(con.init(false))
         cerr << "Console is running.\n";
     else
         fatal ("Console has failed to initialize!\n", false);
@@ -894,7 +1005,6 @@ bool Core::Init()
     */
     // initialize data defs
     virtual_identity::Init(this);
-    init_screen_module(this);
 
     // initialize common lua context
     Lua::Core::Init(con);
@@ -907,7 +1017,7 @@ bool Core::Init()
     IODATA *temp = new IODATA;
     temp->core = this;
     temp->plug_mgr = plug_mgr;
-    if (!is_text_mode)
+//  if (!is_text_mode)
     {
         cerr << "Starting IO thread.\n";
         // create IO thread
@@ -918,8 +1028,6 @@ bool Core::Init()
     HotkeyMutex = new mutex();
     HotkeyCond = new condition_variable();
     thread * HK = new thread(fHKthread, (void *) temp);
-    screen_window = new Windows::top_level_window();
-    screen_window->addChild(new Windows::dfhack_dummy(5,10));
     started = true;
 
     cerr << "Starting the TCP listener.\n";
@@ -1062,7 +1170,6 @@ int Core::TileUpdate()
 {
     if(!started)
         return false;
-    screen_window->paint();
     return true;
 }
 
@@ -1111,7 +1218,7 @@ void Core::doUpdate(color_ostream &out, bool first_update)
     void *new_mapdata = NULL;
     if (df::global::world)
     {
-        df::world_data *wdata = df::global::world->world_data;
+        df::world_data *wdata = &df::global::world->world_data;
         // when the game is unloaded, world_data isn't deleted, but its contents are
         if (wdata && !wdata->sites.empty())
             new_wdata = wdata;
@@ -1286,129 +1393,6 @@ int Core::Shutdown ( void )
 #define KEY_F0      0410        /* Function keys.  Space for 64 */
 #define KEY_F(n)    (KEY_F0+(n))    /* Value of function key n */
 
-bool Core::ncurses_wgetch(int in, int & out)
-{
-    if(!started)
-    {
-        out = in;
-        return true;
-    }
-    if(in >= KEY_F(1) && in <= KEY_F(8))
-    {
-        int idx = in - KEY_F(1);
-        // FIXME: copypasta, push into a method!
-        if(df::global::ui && df::global::gview)
-        {
-            df::viewscreen * ws = Gui::getCurViewscreen();
-            if (strict_virtual_cast<df::viewscreen_dwarfmodest>(ws) &&
-                df::global::ui->main.mode != ui_sidebar_mode::Hotkeys &&
-                df::global::ui->main.hotkeys[idx].cmd == df::ui_hotkey::T_cmd::None)
-            {
-                setHotkeyCmd(df::global::ui->main.hotkeys[idx].name);
-                return false;
-            }
-            else
-            {
-                out = in;
-                return true;
-            }
-        }
-    }
-    out = in;
-    return true;
-}
-
-int UnicodeAwareSym(const SDL::KeyboardEvent& ke)
-{
-    // Assume keyboard layouts don't change the order of numbers:
-    if( '0' <= ke.ksym.sym && ke.ksym.sym <= '9') return ke.ksym.sym;
-    if(SDL::K_F1 <= ke.ksym.sym && ke.ksym.sym <= SDL::K_F12) return ke.ksym.sym;
-
-    // These keys are mapped to the same control codes as Ctrl-?
-    switch (ke.ksym.sym)
-    {
-        case SDL::K_RETURN:
-        case SDL::K_KP_ENTER:
-        case SDL::K_TAB:
-        case SDL::K_ESCAPE:
-        case SDL::K_DELETE:
-            return ke.ksym.sym;
-        default:
-            break;
-    }
-
-    int unicode = ke.ksym.unicode;
-
-    // convert Ctrl characters to their 0x40-0x5F counterparts:
-    if (unicode < ' ')
-    {
-        unicode += 'A' - 1;
-    }
-
-    // convert A-Z to their a-z counterparts:
-    if('A' < unicode && unicode < 'Z')
-    {
-        unicode += 'a' - 'A';
-    }
-
-    // convert various other punctuation marks:
-    if('\"' == unicode) unicode = '\'';
-    if('+' == unicode) unicode = '=';
-    if(':' == unicode) unicode = ';';
-    if('<' == unicode) unicode = ',';
-    if('>' == unicode) unicode = '.';
-    if('?' == unicode) unicode = '/';
-    if('{' == unicode) unicode = '[';
-    if('|' == unicode) unicode = '\\';
-    if('}' == unicode) unicode = ']';
-    if('~' == unicode) unicode = '`';
-
-    return unicode;
-}
-
-
-//MEMO: return false if event is consumed
-int Core::DFH_SDL_Event(SDL::Event* ev)
-{
-    // do NOT process events before we are ready.
-    if(!started) return true;
-    if(!ev)
-        return true;
-    if(ev && (ev->type == SDL::ET_KEYDOWN || ev->type == SDL::ET_KEYUP))
-    {
-        auto ke = (SDL::KeyboardEvent *)ev;
-
-        if(ke->state == SDL::BTN_PRESSED && !hotkey_states[ke->ksym.sym])
-        {
-            hotkey_states[ke->ksym.sym] = true;
-
-            int mod = 0;
-            if (ke->ksym.mod & SDL::KMOD_SHIFT) mod |= 1;
-            if (ke->ksym.mod & SDL::KMOD_CTRL) mod |= 2;
-            if (ke->ksym.mod & SDL::KMOD_ALT) mod |= 4;
-
-            // Use unicode so Windows gives the correct value for the
-            // user's Input Language
-            if((ke->ksym.unicode & 0xff80) == 0)
-            {
-                int key = UnicodeAwareSym(*ke);
-                SelectHotkey(key, mod);
-            }
-            else
-            {
-                // Pretend non-ascii characters don't happen:
-                SelectHotkey(ke->ksym.sym, mod);
-            }
-        }
-        else if(ke->state == SDL::BTN_RELEASED)
-        {
-            hotkey_states[ke->ksym.sym] = false;
-        }
-    }
-    return true;
-    // do stuff with the events...
-}
-
 bool Core::SelectHotkey(int sym, int modifiers)
 {
     // Find the topmost viewscreen
@@ -1418,9 +1402,6 @@ bool Core::SelectHotkey(int sym, int modifiers)
     df::viewscreen *screen = &df::global::gview->view;
     while (screen->child)
         screen = screen->child;
-
-    if (sym == SDL::K_KP_ENTER)
-        sym = SDL::K_RETURN;
 
     std::string cmd;
 
@@ -1443,7 +1424,7 @@ bool Core::SelectHotkey(int sym, int modifiers)
 
         if (cmd.empty()) {
             // Check the hotkey keybindings
-            int idx = sym - SDL::K_F1;
+            int idx = sym;
             if(idx >= 0 && idx < 8)
             {
                 if (modifiers & 1)
@@ -1469,6 +1450,7 @@ bool Core::SelectHotkey(int sym, int modifiers)
 
 static bool parseKeySpec(std::string keyspec, int *psym, int *pmod, std::string *pfocus)
 {
+/*
     *pmod = 0;
 
     if (pfocus)
@@ -1497,7 +1479,6 @@ static bool parseKeySpec(std::string keyspec, int *psym, int *pmod, std::string 
         } else 
             break;
     }
-
     if (keyspec.size() == 1 && keyspec[0] >= 'A' && keyspec[0] <= 'Z') {
         *psym = SDL::K_a + (keyspec[0]-'A');
         return true;
@@ -1508,6 +1489,7 @@ static bool parseKeySpec(std::string keyspec, int *psym, int *pmod, std::string 
         *psym = SDL::K_RETURN;
         return true;
     } else
+    */
         return false;
 }
 

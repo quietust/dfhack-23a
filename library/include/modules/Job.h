@@ -39,7 +39,6 @@ distribution.
 namespace df
 {
     struct job;
-    struct job_item;
     struct job_item_filter;
     struct building;
     struct unit;
@@ -54,7 +53,6 @@ namespace DFHack
         // Delete a cloned structure.
         DFHACK_EXPORT void deleteJobStruct(df::job *job);
 
-        DFHACK_EXPORT void printItemDetails(color_ostream &out, df::job_item *item, int idx);
         DFHACK_EXPORT void printJobDetails(color_ostream &out, df::job *job);
 
         DFHACK_EXPORT df::general_ref *getGeneralRef(df::job *job, df::general_ref_type type);
@@ -75,12 +73,8 @@ namespace DFHack
         DFHACK_EXPORT bool attachJobItem(df::job *job, df::item *item,
                                          df::job_item_ref::T_role role,
                                          int filter_idx = -1, int insert_idx = -1);
-
-        DFHACK_EXPORT bool isSuitableItem(df::job_item *item, df::item_type itype, int isubtype);
-        DFHACK_EXPORT bool isSuitableMaterial(df::job_item *item, int mat_type, int mat_index);
     }
 
-    DFHACK_EXPORT bool operator== (const df::job_item &a, const df::job_item &b);
     DFHACK_EXPORT bool operator== (const df::job &a, const df::job &b);
 }
 #endif

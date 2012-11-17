@@ -68,7 +68,7 @@ bool Vegetation::copyPlant(const int32_t index, t_plant &out)
 
     out.name = out.origin->name;
     out.flags = out.origin->flags;
-    out.material = out.origin->material;
+    out.material = out.origin->plant_id;
     out.pos = out.origin->pos;
     out.grow_counter = out.origin->grow_counter;
     out.temperature_1 = out.origin->temperature.whole;

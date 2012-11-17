@@ -41,7 +41,7 @@ distribution.
     #endif
 #endif
 
-// C export macros for faking SDL and plugin exports
+// C export macros for plugin exports
 #ifdef LINUX_BUILD
     #define DFhackCExport extern "C" __attribute__ ((visibility("default")))
     #define DFhackDataExport __attribute__ ((visibility("default")))

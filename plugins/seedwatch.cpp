@@ -12,7 +12,7 @@
 #include "modules/kitchen.h"
 #include "VersionInfo.h"
 #include "df/world.h"
-#include "df/plant_raw.h"
+#include "df/matgloss_plant.h"
 #include "df/item_flags.h"
 #include "df/items_other_id.h"
 
@@ -100,10 +100,10 @@ command_result df_seedwatch(color_ostream &out, vector<string>& parameters)
 {
     CoreSuspender suspend;
 
-    map<string, t_materialIndex> materialsReverser;
-    for(size_t i = 0; i < world->raws.plants.all.size(); ++i)
+    map<string, t_materialSubtype> materialsReverser;
+    for(size_t i = 0; i < world->raws.matgloss.plant.size(); ++i)
     {
-        materialsReverser[world->raws.plants.all[i]->id] = i;
+        materialsReverser[world->raws.matgloss.plant[i]->id] = i;
     }
 
     t_gamemodes gm;
@@ -155,7 +155,7 @@ command_result df_seedwatch(color_ostream &out, vector<string>& parameters)
             {
                 out.print("seedwatch is not supervising.  Use 'seedwatch start' to start supervision.\n");
             }
-            map<t_materialIndex, unsigned int> watchMap;
+            map<t_materialSubtype, unsigned int> watchMap;
             Kitchen::fillWatchMap(watchMap);
             if(watchMap.empty())
             {
@@ -164,15 +164,15 @@ command_result df_seedwatch(color_ostream &out, vector<string>& parameters)
             else
             {
                 out.print("The watch list is:\n");
-                for(map<t_materialIndex, unsigned int>::const_iterator i = watchMap.begin(); i != watchMap.end(); ++i)
+                for(map<t_materialSubtype, unsigned int>::const_iterator i = watchMap.begin(); i != watchMap.end(); ++i)
                 {
-                    out.print("%s : %u\n", world->raws.plants.all[i->first]->id.c_str(), i->second);
+                    out.print("%s : %u\n", world->raws.matgloss.plant[i->first]->id.c_str(), i->second);
                 }
             }
         }
         else if(par == "debug")
         {
-            map<t_materialIndex, unsigned int> watchMap;
+            map<t_materialSubtype, unsigned int> watchMap;
             Kitchen::fillWatchMap(watchMap);
             Kitchen::debug_print(out);
         }
@@ -307,17 +307,19 @@ DFhackCExport command_result plugin_onupdate(color_ostream &out)
             return CR_OK;
         }
         // this is dwarf mode, continue
-        map<t_materialIndex, unsigned int> seedCount; // the number of seeds
+        map<t_materialSubtype, unsigned int> seedCount; // the number of seeds
 
         // count all seeds and plants by RAW material
-        for(size_t i = 0; i < world->items.other[items_other_id::SEEDS].size(); ++i)
+        for(size_t i = 0; i < world->items.other[items_other_id::ANY_GOOD_FOOD].size(); ++i)
         {
-            df::item * item = world->items.other[items_other_id::SEEDS][i];
-            t_materialIndex materialIndex = item->getMaterialIndex();
-            if(!ignoreSeeds(item->flags)) ++seedCount[materialIndex];
+            df::item * item = world->items.other[items_other_id::ANY_GOOD_FOOD][i];
+            if (item->getType() != item_type::SEEDS)
+                continue;
+            t_materialSubtype plant = item->getMatgloss();
+            if(!ignoreSeeds(item->flags)) ++seedCount[plant];
         }
 
-        map<t_materialIndex, unsigned int> watchMap;
+        map<t_materialSubtype, unsigned int> watchMap;
         Kitchen::fillWatchMap(watchMap);
         for(auto i = watchMap.begin(); i != watchMap.end(); ++i)
         {

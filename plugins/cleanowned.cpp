@@ -158,7 +158,7 @@ command_result df_cleanowned (color_ostream &out, vector <string> & parameters)
 
         if (confiscate)
         {
-            std::string description;
+            stl::string description;
             item->getItemDescription(&description, 0);
             out.print(
                 "0x%x %s (wear %d)",

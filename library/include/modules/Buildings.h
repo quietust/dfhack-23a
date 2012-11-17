@@ -36,7 +36,6 @@ distribution.
 
 namespace df
 {
-    struct job_item;
     struct item;
     struct building_extents;
     struct building_civzonest;
@@ -70,7 +69,6 @@ struct t_building
         df::siegeengine_type siegeengine_type;
         df::trap_type trap_type;
     };
-    int32_t custom_type;
     df::building * origin;
 };
 
@@ -85,12 +83,6 @@ DFHACK_EXPORT uint32_t getNumBuildings ();
  * read building by index
  */
 DFHACK_EXPORT bool Read (const uint32_t index, t_building & building);
-
-/**
- * read mapping from custom_type value to building RAW name
- * custom_type of -1 implies ordinary building
- */
-DFHACK_EXPORT bool ReadCustomWorkshopTypes(std::map <uint32_t, std::string> & btypes);
 
 DFHACK_EXPORT df::general_ref *getGeneralRef(df::building *building, df::general_ref_type type);
 DFHACK_EXPORT df::specific_ref *getSpecificRef(df::building *building, df::specific_ref_type type);
@@ -114,14 +106,14 @@ DFHACK_EXPORT bool findCivzonesAt(std::vector<df::building_civzonest*> *pvec, df
 /**
  * Allocates a building object using this type and position.
  */
-DFHACK_EXPORT df::building *allocInstance(df::coord pos, df::building_type type, int subtype = -1, int custom = -1);
+DFHACK_EXPORT df::building *allocInstance(df::coord pos, df::building_type type, int subtype = -1);
 
 /**
  * Sets size and center to the correct dimensions of the building.
  * If part of the original size value was used, returns true.
  */
 DFHACK_EXPORT bool getCorrectSize(df::coord2d &size, df::coord2d &center,
-                                  df::building_type type, int subtype = -1, int custom = -1,
+                                  df::building_type type, int subtype = -1,
                                   int direction = 0);
 
 /**
@@ -167,13 +159,6 @@ DFHACK_EXPORT bool constructAbstract(df::building *bld);
  * Returns true if success.
  */
 DFHACK_EXPORT bool constructWithItems(df::building *bld, std::vector<df::item*> items);
-
-/**
- * Initiates construction of the building, using specified item filters.
- * Assumes immediate ownership of the item objects, and deletes them in case of error.
- * Returns true if success.
- */
-DFHACK_EXPORT bool constructWithFilters(df::building *bld, std::vector<df::job_item*> items);
 
 /**
  * Deconstructs or queues deconstruction of a building.

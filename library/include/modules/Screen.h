@@ -32,6 +32,7 @@ distribution.
 #include "DataDefs.h"
 #include "df/graphic.h"
 #include "df/viewscreen.h"
+#include "df/interface_key.h"
 
 namespace df
 {
@@ -96,6 +97,9 @@ namespace DFHack
             {}
         };
 
+        DFHACK_EXPORT void getKeys(std::set<df::interface_key> &keys);
+        DFHACK_EXPORT bool isKeyPressed(df::interface_key key);
+        DFHACK_EXPORT void setKeyPressed(df::interface_key key);
         DFHACK_EXPORT df::coord2d getMousePos();
         DFHACK_EXPORT df::coord2d getWindowSize();
 
@@ -137,7 +141,6 @@ namespace DFHack
 
     class DFHACK_EXPORT dfhack_viewscreen : public df::viewscreen {
         df::coord2d last_size;
-        void check_resize();
 
     protected:
         bool text_input_mode;
@@ -151,6 +154,7 @@ namespace DFHack
 
         virtual void logic();
         virtual void render();
+        virtual bool use_old_interface() { return false; }
 
         virtual int8_t movies_okay() { return 1; }
         virtual bool key_conflict(df::interface_key key);
@@ -191,8 +195,7 @@ namespace DFHack
         virtual void render();
         virtual void logic();
         virtual void help();
-        virtual void resize(int w, int h);
-        virtual void feed(std::set<df::interface_key> *keys);
+        virtual void feed();
 
         virtual void onShow();
         virtual void onDismiss();

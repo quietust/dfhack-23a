@@ -25,8 +25,7 @@
 #include "df/general_ref_contained_in_itemst.h"
 #include "df/general_ref_unit_holderst.h"
 #include "df/general_ref_building_civzone_assignedst.h"
-#include "df/material.h"
-#include "df/craft_material_class.h"
+#include "df/material_type.h"
 #include "df/viewscreen_optionst.h"
 #include "df/viewscreen_dungeonmodest.h"
 #include "df/viewscreen_dungeon_monsterstatusst.h"
@@ -129,7 +128,6 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
             switch (ui_advmode->menu)
             {
             case Travel:
-            case Sleep:
                 revert = true;
                 break;
             default:
@@ -187,10 +185,10 @@ bool bodySwap(color_ostream &out, df::unit *player)
 
 df::nemesis_record *getPlayerNemesis(color_ostream &out, bool restore_swap)
 {
-    auto real_nemesis = vector_get(world->nemesis.all, ui_advmode->player_id);
+    auto real_nemesis = world->nemesis.all[0];
     if (!real_nemesis || !real_nemesis->unit)
     {
-        out.printerr("Invalid player nemesis id: %d\n", ui_advmode->player_id);
+        out.printerr("No nemesis records found?\n");
         return NULL;
     }
 
@@ -241,19 +239,9 @@ void changeGroupLeader(df::nemesis_record *new_nemesis, df::nemesis_record *old_
     }
 }
 
-void copyAcquaintances(df::nemesis_record *new_nemesis, df::nemesis_record *old_nemesis)
-{
-    auto &svec = old_nemesis->unit->adventurer_knows;
-    auto &tvec = new_nemesis->unit->adventurer_knows;
-
-    for (unsigned i = 0; i < svec.size(); i++)
-        insert_into_vector(tvec, svec[i]);
-
-    insert_into_vector(tvec, old_nemesis->unit_id);
-}
-
 void sortCompanionNemesis(std::vector<nemesis_record*> *list, int player_id = -1)
 {
+    /*
     std::map<int, nemesis_record*> table;
     std::vector<nemesis_record*> output;
 
@@ -261,7 +249,7 @@ void sortCompanionNemesis(std::vector<nemesis_record*> *list, int player_id = -1
 
     if (player_id < 0)
     {
-        auto real_nemesis = vector_get(world->nemesis.all, ui_advmode->player_id);
+        auto real_nemesis = world->nemesis.all[0];
         if (real_nemesis)
             player_id = real_nemesis->id;
     }
@@ -292,6 +280,7 @@ void sortCompanionNemesis(std::vector<nemesis_record*> *list, int player_id = -1
         output.push_back(it->second);
 
     list->swap(output);
+    */
 }
 
 void listCompanions(color_ostream &out, std::vector<nemesis_record*> *list, bool units = true)
@@ -429,7 +418,7 @@ int containsMetalItems(df::item *item, bool all, bool non_trader, bool rec = fal
         return cnt;
 
     MaterialInfo minfo(item);
-    if (minfo.getCraftClass() != craft_material_class::Metal)
+    if (!minfo.isMetal())
         return cnt;
 
     return ++cnt;
@@ -473,8 +462,6 @@ static void printCompanionHeader(color_ostream &out, size_t i, df::unit *unit)
     out << ": " << getUnitNameProfession(unit);
     if (unit->flags1.bits.dead)
         out << " (DEAD)";
-    if (unit->flags3.bits.ghostly)
-        out << " (GHOST)";
     out << endl;
 
     out.reset_color();
@@ -556,9 +543,7 @@ static void printEquipped(color_ostream &out, df::unit *unit, bool all)
 
         // Skip non-metal, unless all
         MaterialInfo minfo(item);
-        df::craft_material_class mclass = minfo.getCraftClass();
-
-        bool is_metal = (mclass == craft_material_class::Metal);
+        bool is_metal = minfo.isMetal();
         if (!(is_weapon || all || is_metal))
             continue;
 
@@ -566,8 +551,6 @@ static void printEquipped(color_ostream &out, df::unit *unit, bool all)
         std::string name;
         if (is_metal)
             name = minfo.toString() + " ";
-        else if (mclass != craft_material_class::None)
-            name = toLower(ENUM_KEY_STR(craft_material_class,mclass)) + " ";
         name += iinfo.toString();
 
         // Add to the right table
@@ -686,7 +669,7 @@ command_result adv_bodyswap (color_ostream &out, std::vector <std::string> & par
     {
         using namespace df::enums::nemesis_flags;
 
-        ui_advmode->player_id = linear_index(world->nemesis.all, new_nemesis);
+        //ui_advmode->player_id = linear_index(world->nemesis.all, new_nemesis);
 
         // Flag 0 appears to be the 'active adventurer' flag, and
         // the player_id field above seems to be computed using it
@@ -702,7 +685,6 @@ command_result adv_bodyswap (color_ostream &out, std::vector <std::string> & par
         if (!no_make_leader)
         {
             changeGroupLeader(new_nemesis, real_nemesis);
-            copyAcquaintances(new_nemesis, real_nemesis);
         }
     }
     else

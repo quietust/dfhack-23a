@@ -24,53 +24,19 @@ distribution.
 
 #pragma once
 
-/*
- *  Some much needed SDL fakery.
- */
-
 #include "Pragma.h"
 #include "Export.h"
 #include <string>
 #include <stdint.h>
 
-// function and variable pointer... we don't try to understand what SDL does here
-typedef void * fPtr;
-typedef void * vPtr;
-struct WINDOW;
-namespace SDL
-{
-    union Event;
-}
-
-// these functions are here because they call into DFHack::Core and therefore need to
-// be declared as friend functions/known
-#ifdef _DARWIN
-DFhackCExport int DFH_SDL_NumJoysticks(void);
-DFhackCExport void DFH_SDL_Quit(void);
-DFhackCExport int DFH_SDL_PollEvent(SDL::Event* event);
-DFhackCExport int DFH_SDL_Init(uint32_t flags);
-#endif
-DFhackCExport int SDL_NumJoysticks(void);
-DFhackCExport void SDL_Quit(void);
-DFhackCExport int SDL_PollEvent(SDL::Event* event);
-DFhackCExport int SDL_Init(uint32_t flags);
-DFhackCExport int wgetch(WINDOW * win);
-
 // hook - called early from DF's main()
-DFhackCExport int egg_init(void);
+DFhackCExport void dfhackInit(void);
 
-// hook - called before rendering
-DFhackCExport int egg_shutdown(void);
+// hook - called before shutdown
+DFhackCExport void dfhackUnload(void);
 
 // hook - called for each game tick (or more often)
-DFhackCExport int egg_tick(void);
+DFhackCExport void dfhackUpdate(void);
 
 // hook - called before rendering
-DFhackCExport int egg_prerender(void);
-
-// hook - called for each SDL event, can filter both the event and the return value
-DFhackCExport int egg_sdl_event(SDL::Event* event);
-
-// hook - ncurses event. return -1 to consume
-DFhackCExport int egg_curses_event(int orig_return);
-
+DFhackCExport void dfhackRender(void);

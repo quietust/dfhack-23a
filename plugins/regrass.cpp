@@ -9,12 +9,8 @@
 #include "DataDefs.h"
 #include "df/world.h"
 #include "df/world_raws.h"
-#include "df/plant_raw.h"
 
 #include "df/map_block.h"
-#include "df/block_square_event.h"
-//#include "df/block_square_event_type.h"
-#include "df/block_square_event_grassst.h"
 #include "TileTypes.h"
 
 using std::string;
@@ -57,34 +53,13 @@ command_result df_regrass (color_ostream &out, vector <string> & parameters)
     {
         df::map_block *cur = world->map.map_blocks[i];
 
-        // check block for grass events before looking at 16x16 tiles
-        df::block_square_event_grassst * grev = NULL;
-        for(size_t e=0; e<cur->block_events.size(); e++)
-        {            
-            df::block_square_event * blev = cur->block_events[e];
-            df::block_square_event_type blevtype = blev->getType();
-            if(blevtype == df::block_square_event_type::grass)
-            {
-                grev = (df::block_square_event_grassst *)blev;
-                break;
-            }
-        }
-        if(!grev)
-        {
-            // in this worst case we should check other blocks, create a new event etc
-            // but looking at some maps that should happen very very rarely if at all
-            // a standard map block seems to always have up to 10 grass events we can refresh
-            continue;
-        }
-
         for (int y = 0; y < 16; y++)
         {
             for (int x = 0; x < 16; x++)
             {
                 if (   tileShape(cur->tiletype[x][y]) != tiletype_shape::FLOOR
                     || cur->designation[x][y].bits.subterranean
-                    || cur->occupancy[x][y].bits.building
-                    || cur->occupancy[x][y].bits.no_grow)
+                    || cur->occupancy[x][y].bits.building)
                     continue;
 
                 // don't touch furrowed tiles (dirt roads made on soil)
@@ -92,65 +67,9 @@ command_result df_regrass (color_ostream &out, vector <string> & parameters)
                     continue;
 
                 int mat = tileMaterial(cur->tiletype[x][y]);
-                if (   mat != tiletype_material::SOIL
-                    && mat != tiletype_material::GRASS_DARK  // refill existing grass, too
-                    && mat != tiletype_material::GRASS_LIGHT // refill existing grass, too
-                    )
+                if (   mat != tiletype_material::SOIL)
                     continue;
 
-
-                // max = set amounts of all grass events on that tile to 100
-                if(max)
-                {
-                    for(size_t e=0; e<cur->block_events.size(); e++)
-                    {            
-                        df::block_square_event * blev = cur->block_events[e];
-                        df::block_square_event_type blevtype = blev->getType();
-                        if(blevtype == df::block_square_event_type::grass)
-                        {
-                            df::block_square_event_grassst * gr_ev = (df::block_square_event_grassst *)blev;
-                            gr_ev->amount[x][y] = 100;
-                        }
-                    }
-                }
-                else
-                {
-                    // try to find the 'original' event
-                    bool regrew = false;
-                    for(size_t e=0; e<cur->block_events.size(); e++)
-                    {            
-                        df::block_square_event * blev = cur->block_events[e];
-                        df::block_square_event_type blevtype = blev->getType();
-                        if(blevtype == df::block_square_event_type::grass)
-                        {
-                            df::block_square_event_grassst * gr_ev = (df::block_square_event_grassst *)blev;
-                            if(gr_ev->amount[x][y] > 0)
-                            {
-                                gr_ev->amount[x][y] = 100;
-                                regrew = true;
-                                break;
-                            }
-                        }
-                    }
-                    // if original could not be found (meaning it was already depleted):
-                    // refresh random grass event in the map block
-                    if(!regrew)
-                    {
-                        vector <df::block_square_event_grassst *> gr_evs;
-                        for(size_t e=0; e<cur->block_events.size(); e++)
-                        {            
-                            df::block_square_event * blev = cur->block_events[e];
-                            df::block_square_event_type blevtype = blev->getType();
-                            if(blevtype == df::block_square_event_type::grass)
-                            {
-                                df::block_square_event_grassst * gr_ev = (df::block_square_event_grassst *)blev;
-                                gr_evs.push_back(gr_ev);
-                            }
-                        }
-                        int r = rand() % gr_evs.size();
-                        gr_evs[r]->amount[x][y]=100;
-                    }
-                }
                 cur->tiletype[x][y] = findRandomVariant((rand() & 1) ? tiletype::GrassLightFloor1 : tiletype::GrassDarkFloor1);
                 count++;
             }

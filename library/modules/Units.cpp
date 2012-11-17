@@ -51,18 +51,11 @@ using namespace std;
 #include "df/ui.h"
 #include "df/job.h"
 #include "df/unit_inventory_item.h"
-#include "df/unit_soul.h"
 #include "df/nemesis_record.h"
 #include "df/historical_entity.h"
 #include "df/historical_figure.h"
-#include "df/historical_figure_info.h"
-#include "df/entity_position.h"
-#include "df/entity_position_assignment.h"
-#include "df/histfig_entity_link_positionst.h"
-#include "df/assumed_identity.h"
-#include "df/burrow.h"
+#include "df/histfig_entity_link.h"
 #include "df/creature_raw.h"
-#include "df/caste_raw.h"
 #include "df/game_mode.h"
 #include "df/unit_misc_trait.h"
 #include "df/unit_skill.h"
@@ -141,10 +134,8 @@ void Units::CopyCreature(df::unit * source, t_unit & furball)
     furball.race = source->race;
     furball.civ = source->civ_id;
     furball.sex = source->sex;
-    furball.caste = source->caste;
     furball.flags1.whole = source->flags1.whole;
     furball.flags2.whole = source->flags2.whole;
-    furball.flags3.whole = source->flags3.whole;
     // custom profession
     furball.custom_profession = source->custom_profession;
     // profession
@@ -152,7 +143,9 @@ void Units::CopyCreature(df::unit * source, t_unit & furball)
     // happiness
     furball.happiness = source->status.happiness;
     // physical attributes
-    memcpy(&furball.strength, source->body.physical_attrs, sizeof(source->body.physical_attrs));
+    furball.strength = source->status.strength;
+    furball.agility = source->status.agility;
+    furball.toughness = source->status.toughness;
 
     // mood stuff
     furball.mood = source->mood;
@@ -162,19 +155,9 @@ void Units::CopyCreature(df::unit * source, t_unit & furball)
     // labors
     memcpy(&furball.labors, &source->status.labors, sizeof(furball.labors));
 
-    furball.birth_year = source->relations.birth_year;
-    furball.birth_time = source->relations.birth_time;
     furball.pregnancy_timer = source->relations.pregnancy_timer;
-    // appearance
-    furball.nbcolors = source->appearance.colors.size();
-    if(furball.nbcolors>MAX_COLORS)
-        furball.nbcolors = MAX_COLORS;
-    for(uint32_t i = 0; i < furball.nbcolors; i++)
-    {
-        furball.color[i] = source->appearance.colors[i];
-    }
 
-    //likes. FIXME: where do they fit in now? The soul?
+    //likes.
     /*
     DfVector <uint32_t> likes(d->p, temp + offs.creature_likes_offset);
     furball.numLikes = likes.getSize();
@@ -540,71 +523,24 @@ df::item *Units::getContainer(df::unit *unit)
     return findItemRef(unit->general_refs, general_ref_type::CONTAINED_IN_ITEM);
 }
 
-static df::assumed_identity *getFigureIdentity(df::historical_figure *figure)
-{
-    if (figure && figure->info && figure->info->reputation)
-        return df::assumed_identity::find(figure->info->reputation->cur_identity);
-
-    return NULL;
-}
-
-df::assumed_identity *Units::getIdentity(df::unit *unit)
-{
-    CHECK_NULL_POINTER(unit);
-
-    df::historical_figure *figure = df::historical_figure::find(unit->hist_figure_id);
-
-    return getFigureIdentity(figure);
-}
-
 void Units::setNickname(df::unit *unit, std::string nick)
 {
     CHECK_NULL_POINTER(unit);
 
-    // There are >=3 copies of the name, and the one
+    // There are multiple copies of the name, and the one
     // in the unit is not the authoritative one.
     // This is the reason why military units often
     // lose nicknames set from Dwarf Therapist.
     Translation::setNickname(&unit->name, nick);
 
-    if (unit->status.current_soul)
-        Translation::setNickname(&unit->status.current_soul->name, nick);
-
     df::historical_figure *figure = df::historical_figure::find(unit->hist_figure_id);
     if (figure)
-    {
         Translation::setNickname(&figure->name, nick);
-
-        if (auto identity = getFigureIdentity(figure))
-        {
-            auto id_hfig = df::historical_figure::find(identity->histfig_id);
-
-            if (id_hfig)
-            {
-                // Even DF doesn't do this bit, because it's apparently
-                // only used for demons masquerading as gods, so you
-                // can't ever change their nickname in-game.
-                Translation::setNickname(&id_hfig->name, nick);
-            }
-            else
-                Translation::setNickname(&identity->name, nick);
-        }
-    }
 }
 
 df::language_name *Units::getVisibleName(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
-
-    if (auto identity = getIdentity(unit))
-    {
-        auto id_hfig = df::historical_figure::find(identity->histfig_id);
-
-        if (id_hfig)
-            return &id_hfig->name;
-
-        return &identity->name;
-    }
 
     return &unit->name;
 }
@@ -624,121 +560,25 @@ df::nemesis_record *Units::getNemesis(df::unit *unit)
     return NULL;
 }
 
-
-bool Units::isHidingCurse(df::unit *unit)
-{
-    if (!unit->job.hunt_target)
-    {
-        auto identity = Units::getIdentity(unit);
-        if (identity && identity->unk_4c == 0)
-            return true;
-    }
-
-    return false;
-}
-
-int Units::getPhysicalAttrValue(df::unit *unit, df::physical_attribute_type attr)
-{
-    auto &aobj = unit->body.physical_attrs[attr];
-    int value = std::max(0, aobj.value - aobj.soft_demotion);
-
-    if (auto mod = unit->curse.attr_change)
-    {
-        int mvalue = (value * mod->phys_att_perc[attr] / 100) + mod->phys_att_add[attr];
-
-        if (isHidingCurse(unit))
-            value = std::min(value, mvalue);
-        else
-            value = mvalue;
-    }
-
-    return std::max(0, value);
-}
-
-int Units::getMentalAttrValue(df::unit *unit, df::mental_attribute_type attr)
-{
-    auto soul = unit->status.current_soul;
-    if (!soul) return 0;
-
-    auto &aobj = soul->mental_attrs[attr];
-    int value = std::max(0, aobj.value - aobj.soft_demotion);
-
-    if (auto mod = unit->curse.attr_change)
-    {
-        int mvalue = (value * mod->ment_att_perc[attr] / 100) + mod->ment_att_add[attr];
-
-        if (isHidingCurse(unit))
-            value = std::min(value, mvalue);
-        else
-            value = mvalue;
-    }
-
-    return std::max(0, value);
-}
-
-static bool casteFlagSet(int race, int caste, df::caste_raw_flags flag)
+static bool creatureFlagSet(int race, df::creature_raw_flags flag)
 {
     auto creature = df::creature_raw::find(race);
     if (!creature)
         return false;
 
-    auto craw = vector_get(creature->caste, caste);
-    if (!craw)
-        return false;
-
-    return craw->flags.is_set(flag);
-}
-
-bool Units::isCrazed(df::unit *unit)
-{
-    CHECK_NULL_POINTER(unit);
-    if (unit->flags3.bits.scuttle)
-        return false;
-    if (unit->curse.rem_tags1.bits.CRAZED)
-        return false;
-    if (unit->curse.add_tags1.bits.CRAZED)
-        return true;
-    return casteFlagSet(unit->race, unit->caste, caste_raw_flags::CRAZED);
-}
-
-bool Units::isOpposedToLife(df::unit *unit)
-{
-    CHECK_NULL_POINTER(unit);
-    if (unit->curse.rem_tags1.bits.OPPOSED_TO_LIFE)
-        return false;
-    if (unit->curse.add_tags1.bits.OPPOSED_TO_LIFE)
-        return true;
-    return casteFlagSet(unit->race, unit->caste, caste_raw_flags::OPPOSED_TO_LIFE);
+    return creature->flags.is_set(flag);
 }
 
 bool Units::hasExtravision(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
-    if (unit->curse.rem_tags1.bits.EXTRAVISION)
-        return false;
-    if (unit->curse.add_tags1.bits.EXTRAVISION)
-        return true;
-    return casteFlagSet(unit->race, unit->caste, caste_raw_flags::EXTRAVISION);
-}
-
-bool Units::isBloodsucker(df::unit *unit)
-{
-    CHECK_NULL_POINTER(unit);
-    if (unit->curse.rem_tags1.bits.BLOODSUCKER)
-        return false;
-    if (unit->curse.add_tags1.bits.BLOODSUCKER)
-        return true;
-    return casteFlagSet(unit->race, unit->caste, caste_raw_flags::BLOODSUCKER);
+    return creatureFlagSet(unit->race, creature_raw_flags::EXTRAVISION);
 }
 
 bool Units::isMischievous(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
-    if (unit->curse.rem_tags1.bits.MISCHIEVOUS)
-        return false;
-    if (unit->curse.add_tags1.bits.MISCHIEVOUS)
-        return true;
-    return casteFlagSet(unit->race, unit->caste, caste_raw_flags::MISCHIEVOUS);
+    return creatureFlagSet(unit->race, creature_raw_flags::MISCHIEVIOUS);
 }
 
 df::unit_misc_trait *Units::getMiscTrait(df::unit *unit, df::misc_trait_type type, bool create)
@@ -765,30 +605,21 @@ bool DFHack::Units::isDead(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
 
-    return unit->flags1.bits.dead ||
-           unit->flags3.bits.ghostly;
+    return unit->flags1.bits.dead;
 }
 
 bool DFHack::Units::isAlive(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
 
-    return !unit->flags1.bits.dead &&
-           !unit->flags3.bits.ghostly &&
-           !unit->curse.add_tags1.bits.NOT_LIVING;
+    return !unit->flags1.bits.dead;
 }
 
 bool DFHack::Units::isSane(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
 
-    if (unit->flags1.bits.dead ||
-        unit->flags3.bits.ghostly ||
-        isOpposedToLife(unit) ||
-        unit->unknown8.unk2)
-        return false;
-
-    if (unit->unknown8.normal_race == unit->unknown8.were_race && isCrazed(unit))
+    if (unit->flags1.bits.dead)
         return false;
 
     switch (unit->mood)
@@ -807,6 +638,10 @@ bool DFHack::Units::isSane(df::unit *unit)
 bool DFHack::Units::isCitizen(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
+
+    /*
+     * This needs to be completely rechecked - it's based on how speed worked in 0.34.11
+     */
 
     // Copied from the conditions used to decide game over,
     // except that the game appears to let melancholy/raving
@@ -838,38 +673,20 @@ bool DFHack::Units::isDwarf(df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
 
-    return unit->race == ui->race_id ||
-           unit->unknown8.normal_race == ui->race_id;
+    return unit->race == ui->race_id;
 }
 
 double DFHack::Units::getAge(df::unit *unit, bool true_age)
 {
-    using df::global::cur_year;
-    using df::global::cur_year_tick;
-
     CHECK_NULL_POINTER(unit);
-
-    if (!cur_year || !cur_year_tick)
-        return -1;
-
-    double year_ticks = 403200.0;
-    double birth_time = unit->relations.birth_year + unit->relations.birth_time/year_ticks;
-    double cur_time = *cur_year + *cur_year_tick / year_ticks;
-
-    if (!true_age && unit->relations.curse_year >= 0)
-    {
-        if (auto identity = getIdentity(unit))
-        {
-            if (identity->histfig_id < 0)
-                birth_time = identity->birth_year + identity->birth_second/year_ticks;
-        }
-    }
-
-    return cur_time - birth_time;
+    return unit->relations.age_years * 403200.0 + unit->relations.age_seconds;
 }
 
 inline void adjust_skill_rating(int &rating, bool is_adventure, int value, int dwarf3_4, int dwarf1_2, int adv9_10, int adv3_4, int adv1_2)
 {
+    /*
+     * This needs to be completely rechecked - it's based on how speed worked in 0.34.11
+     */
     if  (is_adventure)
     {
         if (value >= adv1_2) rating >>= 1;
@@ -888,21 +705,16 @@ int Units::getNominalSkill(df::unit *unit, df::job_skill skill_id, bool use_rust
     CHECK_NULL_POINTER(unit);
 
     /*
-     * This is 100% reverse-engineered from DF code.
+     * This needs to be completely rechecked - it's based on how speed worked in 0.34.11
      */
-
-    if (!unit->status.current_soul)
-        return 0;
 
     // Retrieve skill from unit soul:
 
-    auto skill = binsearch_in_vector(unit->status.current_soul->skills, &df::unit_skill::id, skill_id);
+    auto skill = binsearch_in_vector(unit->status.skills, &df::unit_skill::id, skill_id);
 
     if (skill)
     {
         int rating = int(skill->rating);
-        if (use_rust)
-            rating -= skill->rusty;
         return std::max(0, rating);
     }
 
@@ -913,10 +725,7 @@ int Units::getExperience(df::unit *unit, df::job_skill skill_id, bool total)
 {
     CHECK_NULL_POINTER(unit);
 
-    if (!unit->status.current_soul)
-        return 0;
-
-    auto skill = binsearch_in_vector(unit->status.current_soul->skills, &df::unit_skill::id, skill_id);
+    auto skill = binsearch_in_vector(unit->status.skills, &df::unit_skill::id, skill_id);
     if (!skill)
         return 0;
 
@@ -930,7 +739,7 @@ int Units::getExperience(df::unit *unit, df::job_skill skill_id, bool total)
 int Units::getEffectiveSkill(df::unit *unit, df::job_skill skill_id)
 {
     /*
-     * This is 100% reverse-engineered from DF code.
+     * This needs to be completely rechecked - it's based on how speed worked in 0.34.11
      */
 
     int rating = getNominalSkill(unit, skill_id, true);
@@ -942,14 +751,11 @@ int Units::getEffectiveSkill(df::unit *unit, df::job_skill skill_id)
         if (unit->counters.nausea > 0) rating >>= 1;
         if (unit->counters.winded > 0) rating >>= 1;
         if (unit->counters.stunned > 0) rating >>= 1;
-        if (unit->counters.dizziness > 0) rating >>= 1;
-        if (unit->counters2.fever > 0) rating >>= 1;
     }
 
     if (unit->counters.soldier_mood != df::unit::T_counters::MartialTrance)
     {
-        if (!unit->flags3.bits.ghostly && !unit->flags3.bits.scuttle &&
-            !unit->flags2.bits.vision_good && !unit->flags2.bits.vision_damaged &&
+        if (!unit->flags2.bits.vision_good && !unit->flags2.bits.vision_damaged &&
             !hasExtravision(unit))
         {
             rating >>= 2;
@@ -958,13 +764,13 @@ int Units::getEffectiveSkill(df::unit *unit, df::job_skill skill_id)
         {
             rating >>= 1;
         }
-        if (unit->counters2.exhaustion >= 2000)
+        if (unit->counters.exhaustion >= 2000)
         {
             rating = rating*3/4;
-            if (unit->counters2.exhaustion >= 4000)
+            if (unit->counters.exhaustion >= 4000)
             {
                 rating = rating*3/4;
-                if (unit->counters2.exhaustion >= 6000)
+                if (unit->counters.exhaustion >= 6000)
                     rating = rating*3/4;
             }
         }
@@ -974,33 +780,19 @@ int Units::getEffectiveSkill(df::unit *unit, df::job_skill skill_id)
 
     bool is_adventure = (gamemode && *gamemode == game_mode::ADVENTURE);
 
-    if (!unit->flags3.bits.scuttle && isBloodsucker(unit))
-    {
-        using namespace df::enums::misc_trait_type;
-
-        if (auto trait = getMiscTrait(unit, TimeSinceSuckedBlood))
-        {
-            adjust_skill_rating(
-                rating, is_adventure, trait->value,
-                302400, 403200,           // dwf 3/4; 1/2
-                1209600, 1209600, 2419200 // adv 9/10; 3/4; 1/2
-            );
-        }
-    }
-
     adjust_skill_rating(
-        rating, is_adventure, unit->counters2.thirst_timer,
+        rating, is_adventure, unit->counters.thirst_timer,
         50000, 50000, 115200, 172800, 345600
     );
     adjust_skill_rating(
-        rating, is_adventure, unit->counters2.hunger_timer,
+        rating, is_adventure, unit->counters.hunger_timer,
         75000, 75000, 172800, 1209600, 2592000
     );
-    if (is_adventure && unit->counters2.sleepiness_timer >= 846000)
+    if (is_adventure && unit->counters.sleepiness_timer >= 846000)
         rating >>= 2;
     else
         adjust_skill_rating(
-            rating, is_adventure, unit->counters2.sleepiness_timer,
+            rating, is_adventure, unit->counters.sleepiness_timer,
             150000, 150000, 172800, 259200, 345600
         );
 
@@ -1009,6 +801,10 @@ int Units::getEffectiveSkill(df::unit *unit, df::job_skill skill_id)
 
 inline void adjust_speed_rating(int &rating, bool is_adventure, int value, int dwarf100, int dwarf200, int adv50, int adv75, int adv100, int adv200)
 {
+    /*
+     * This needs to be completely rechecked - it's based on how speed worked in 0.34.11
+     */
+
     if  (is_adventure)
     {
         if (value >= adv200) rating += 200;
@@ -1025,6 +821,10 @@ inline void adjust_speed_rating(int &rating, bool is_adventure, int value, int d
 
 static int calcInventoryWeight(df::unit *unit)
 {
+    /*
+     * This needs to be completely rechecked - it's based on how speed worked in 0.34.11
+     */
+
     int armor_skill = Units::getEffectiveSkill(unit, job_skill::ARMOR);
     int armor_mul = 15 - std::min(15, armor_skill);
 
@@ -1033,62 +833,35 @@ static int calcInventoryWeight(df::unit *unit)
     for (size_t i = 0; i < unit->inventory.size(); i++)
     {
         auto item = unit->inventory[i]->item;
-        if (!item->flags.bits.weight_computed)
-            continue;
 
-        int wval = item->weight;
-        int wfval = item->weight_fraction;
+        int wval = (item->getBaseWeight() >> item->getWeightShiftBits()) * item->getDensity() / 1000;
         auto mode = unit->inventory[i]->mode;
 
-        if ((mode == df::unit_inventory_item::Worn ||
-             mode == df::unit_inventory_item::WrappedAround) &&
-             item->isArmor() && armor_skill > 1)
+        if ((mode == df::unit_inventory_item::Worn) &&
+             item->isArmorNotClothing() && armor_skill > 1)
         {
             wval = wval * armor_mul / 16;
-            wfval = wfval * armor_mul / 16;
         }
 
         inv_weight += wval;
-        inv_weight_fraction += wfval;
     }
 
-    return inv_weight*100 + inv_weight_fraction/10000;
+    return inv_weight;
 }
 
 int Units::computeMovementSpeed(df::unit *unit)
 {
-    using namespace df::enums::physical_attribute_type;
-
     /*
-     * Pure reverse-engineered computation of unit _slowness_,
-     * i.e. number of ticks to move * 100.
+     * This needs to be completely rechecked - it's based on how speed worked in 0.34.11
      */
 
     // Base speed
 
-    auto creature = df::creature_raw::find(unit->race);
-    if (!creature)
-        return 0;
-
-    auto craw = vector_get(creature->caste, unit->caste);
+    auto craw = df::creature_raw::find(unit->race);
     if (!craw)
         return 0;
 
-    int speed = craw->misc.speed;
-
-    if (unit->flags3.bits.ghostly)
-        return speed;
-
-    // Curse multiplier
-
-    if (unit->curse.speed_mul_percent != 100)
-    {
-        speed *= 100;
-        if (unit->curse.speed_mul_percent != 0)
-            speed /= unit->curse.speed_mul_percent;
-    }
-
-    speed += unit->curse.speed_add;
+    int speed = craw->speed;
 
     // Swimming
 
@@ -1097,11 +870,11 @@ int Units::computeMovementSpeed(df::unit *unit)
 
     if (unit->flags2.bits.swimming)
     {
-        speed = craw->misc.swim_speed;
+        speed = craw->swim_speed;
         if (in_magma)
             speed *= 2;
 
-        if (craw->flags.is_set(caste_raw_flags::SWIMS_LEARNED))
+        if (craw->flags.is_set(creature_raw_flags::SWIMS_LEARNED))
         {
             int skill = Units::getEffectiveSkill(unit, job_skill::SWIMMING);
 
@@ -1123,16 +896,13 @@ int Units::computeMovementSpeed(df::unit *unit)
     if (unit->profession == profession::BABY)
         speed += 3000;
 
-    if (unit->flags3.bits.unk15)
-        speed /= 20;
-
-    if (unit->counters2.exhaustion >= 2000)
+    if (unit->counters.exhaustion >= 2000)
     {
         speed += 200;
-        if (unit->counters2.exhaustion >= 4000)
+        if (unit->counters.exhaustion >= 4000)
         {
             speed += 200;
-            if (unit->counters2.exhaustion >= 6000)
+            if (unit->counters.exhaustion >= 6000)
                 speed += 200;
         }
     }
@@ -1144,8 +914,6 @@ int Units::computeMovementSpeed(df::unit *unit)
         if (unit->counters.nausea > 0) speed += 1000;
         if (unit->counters.winded > 0) speed += 1000;
         if (unit->counters.stunned > 0) speed += 1000;
-        if (unit->counters.dizziness > 0) speed += 1000;
-        if (unit->counters2.fever > 0) speed += 1000;
     }
 
     if (unit->counters.soldier_mood != df::unit::T_counters::MartialTrance)
@@ -1158,30 +926,16 @@ int Units::computeMovementSpeed(df::unit *unit)
 
     bool is_adventure = (gamemode && *gamemode == game_mode::ADVENTURE);
 
-    if (!unit->flags3.bits.scuttle && Units::isBloodsucker(unit))
-    {
-        using namespace df::enums::misc_trait_type;
-
-        if (auto trait = Units::getMiscTrait(unit, TimeSinceSuckedBlood))
-        {
-            adjust_speed_rating(
-                speed, is_adventure, trait->value,
-                302400, 403200,                    // dwf 100; 200
-                1209600, 1209600, 1209600, 2419200 // adv 50; 75; 100; 200
-            );
-        }
-    }
-
     adjust_speed_rating(
-        speed, is_adventure, unit->counters2.thirst_timer,
+        speed, is_adventure, unit->counters.thirst_timer,
         50000, 0x7fffffff, 172800, 172800, 172800, 345600
     );
     adjust_speed_rating(
-        speed, is_adventure, unit->counters2.hunger_timer,
+        speed, is_adventure, unit->counters.hunger_timer,
         75000, 0x7fffffff, 1209600, 1209600, 1209600, 2592000
     );
     adjust_speed_rating(
-        speed, is_adventure, unit->counters2.sleepiness_timer,
+        speed, is_adventure, unit->counters.sleepiness_timer,
         57600, 150000, 172800, 259200, 345600, 864000
     );
 
@@ -1191,11 +945,6 @@ int Units::computeMovementSpeed(df::unit *unit)
 
     if (unit->flags1.bits.on_ground)
         speed += 2000;
-    else if (unit->flags3.bits.on_crutch)
-    {
-        int skill = Units::getEffectiveSkill(unit, job_skill::CRUTCH_WALK);
-        speed += 2000 - 100*std::min(20, skill);
-    }
 
     if (unit->flags1.bits.hidden_in_ambush && !Units::isMischievous(unit))
     {
@@ -1203,22 +952,15 @@ int Units::computeMovementSpeed(df::unit *unit)
         speed += 2000 - 100*std::min(20, skill);
     }
 
-    if (unsigned(unit->counters2.paralysis-1) <= 98)
-        speed += unit->counters2.paralysis*10;
+    if (unsigned(unit->counters.paralysis-1) <= 98)
+        speed += unit->counters.paralysis*10;
     if (unsigned(unit->counters.webbed-1) <= 8)
         speed += unit->counters.webbed*100;
 
-    // Muscle weight vs vascular tissue (?)
-
-    auto &attr_tissue = unit->body.physical_attr_tissues;
-    int muscle = attr_tissue[STRENGTH];
-    int blood = attr_tissue[AGILITY];
-    speed = std::max(speed*3/4, std::min(speed*3/2, int(int64_t(speed)*muscle/blood)));
-
     // Attributes
 
-    int strength_attr = Units::getPhysicalAttrValue(unit, STRENGTH);
-    int agility_attr = Units::getPhysicalAttrValue(unit, AGILITY);
+    int strength_attr = unit->status.strength;
+    int agility_attr = unit->status.agility;
 
     int total_attr = std::max(200, std::min(3800, strength_attr + agility_attr));
     speed = ((total_attr-200)*(speed/2) + (3800-total_attr)*(speed*3/2))/3600;
@@ -1231,7 +973,6 @@ int Units::computeMovementSpeed(df::unit *unit)
         int as = unit->status2.able_stand;
         int x = (as-1) - (as>>1);
         int y = as - unit->status2.able_stand_impair;
-        if (unit->flags3.bits.on_crutch) y--;
         y = y * 500 / x;
         if (y > 0) speed += y;
     }
@@ -1243,7 +984,7 @@ int Units::computeMovementSpeed(df::unit *unit)
     // Inventory encumberance
 
     int total_weight = calcInventoryWeight(unit);
-    int free_weight = std::max(1, muscle/10 + strength_attr*3);
+    int free_weight = std::max(1, strength_attr*3);
 
     if (free_weight < total_weight)
     {
@@ -1267,11 +1008,7 @@ int Units::computeMovementSpeed(df::unit *unit)
 
 static bool noble_pos_compare(const Units::NoblePosition &a, const Units::NoblePosition &b)
 {
-    if (a.position->precedence < b.position->precedence)
-        return true;
-    if (a.position->precedence > b.position->precedence)
-        return false;
-    return a.position->id < b.position->id;
+    return (a.precedence > b.precedence);
 }
 
 bool DFHack::Units::getNoblePositions(std::vector<NoblePosition> *pvec, df::unit *unit)
@@ -1287,22 +1024,60 @@ bool DFHack::Units::getNoblePositions(std::vector<NoblePosition> *pvec, df::unit
     for (size_t i = 0; i < histfig->entity_links.size(); i++)
     {
         auto link = histfig->entity_links[i];
-        auto epos = strict_virtual_cast<df::histfig_entity_link_positionst>(link);
-        if (!epos)
-            continue;
-
         NoblePosition pos;
-
-        pos.entity = df::historical_entity::find(epos->entity_id);
-        if (!pos.entity)
-            continue;
-
-        pos.assignment = binsearch_in_vector(pos.entity->positions.assignments, epos->assignment_id);
-        if (!pos.assignment)
-            continue;
-
-        pos.position = binsearch_in_vector(pos.entity->positions.own, pos.assignment->position_id);
-        if (!pos.position)
+        pos.position = link->type;
+        switch (link->type)
+        {
+        case histfig_entity_link_type::MAYOR:
+            pos.precedence = 2;
+            pos.color[0] = 5;
+            pos.color[1] = 0;
+            pos.color[2] = 0;
+            pos.name = "Mayor";
+            break;
+        case histfig_entity_link_type::GUARD:
+            pos.precedence = 0;
+            pos.color[0] = 1;
+            pos.color[1] = 0;
+            pos.color[2] = 0;
+            pos.name = "Guard";
+            break;
+        case histfig_entity_link_type::ROYAL_GUARD:
+            pos.precedence = 0;
+            pos.color[0] = 5;
+            pos.color[1] = 0;
+            pos.color[2] = 0;
+            pos.name = "Royal Guard";
+            break;
+/*
+        case histfig_entity_link_type::MANAGER:
+            pos.precedence = -1;
+            break;
+        case histfig_entity_link_type::BOOKKEEPER:
+            pos.precedence = -1;
+            break;
+        case histfig_entity_link_type::BROKER:
+            pos.precedence = -1;
+            break;
+*/
+        case histfig_entity_link_type::SHERIFF:
+            pos.precedence = 1;
+            pos.color[0] = 1;
+            pos.color[1] = 0;
+            pos.color[2] = 1;
+            pos.name = "Sheriff";
+            break;
+        case histfig_entity_link_type::GUARD_CAPTAIN:
+            pos.precedence = 1;
+            pos.color[0] = 1;
+            pos.color[1] = 0;
+            pos.color[2] = 1;
+            pos.name = "Captain of the Guard";
+            break;
+        default:
+            pos.precedence = -1;
+        }
+        if (pos.precedence == -1)
             continue;
 
         pvec->push_back(pos);
@@ -1325,28 +1100,15 @@ std::string DFHack::Units::getProfessionName(df::unit *unit, bool ignore_noble, 
 
     if (!ignore_noble && getNoblePositions(&np, unit))
     {
-        switch (unit->sex)
-        {
-        case 0:
-            prof = np[0].position->name_female[plural ? 1 : 0];
-            break;
-        case 1:
-            prof = np[0].position->name_male[plural ? 1 : 0];
-            break;
-        default:
-            break;
-        }
-
-        if (prof.empty())
-            prof = np[0].position->name[plural ? 1 : 0];
+        prof = np[0].name;
         if (!prof.empty())
             return prof;
     }
 
-    return getCasteProfessionName(unit->race, unit->caste, unit->profession, plural);
+    return getCreatureProfessionName(unit->race, unit->profession, plural);
 }
 
-std::string DFHack::Units::getCasteProfessionName(int race, int casteid, df::profession pid, bool plural)
+std::string DFHack::Units::getCreatureProfessionName(int race, df::profession pid, bool plural)
 {
     std::string prof, race_prefix;
 
@@ -1357,68 +1119,52 @@ std::string DFHack::Units::getCasteProfessionName(int race, int casteid, df::pro
 
     if (auto creature = df::creature_raw::find(race))
     {
-        if (auto caste = vector_get(creature->caste, casteid))
+        race_prefix = creature->name[0];
+
+        switch (pid)
         {
-            race_prefix = caste->caste_name[0];
-
-            if (plural)
-                prof = caste->caste_profession_name.plural[pid];
-            else
-                prof = caste->caste_profession_name.singular[pid];
-
-            if (prof.empty())
-            {
-                switch (pid)
-                {
-                case profession::CHILD:
-                    prof = caste->child_name[plural ? 1 : 0];
-                    if (!prof.empty())
-                        use_race_prefix = false;
-                    break;
-
-                case profession::BABY:
-                    prof = caste->baby_name[plural ? 1 : 0];
-                    if (!prof.empty())
-                        use_race_prefix = false;
-                    break;
-
-                default:
-                    break;
-                }
-            }
+        case profession::CRAFTSMAN:
+            prof = creature->craftsman_name[plural ? 1 : 0];
+            break;
+        case profession::FISHERMAN:
+            prof = creature->fisherman_name[plural ? 1 : 0];
+            break;
+        case profession::HAMMERMAN:
+            prof = creature->hammerman_name[plural ? 1 : 0];
+            break;
+        case profession::SPEARMAN:
+            prof = creature->spearman_name[plural ? 1 : 0];
+            break;
+        case profession::CROSSBOWMAN:
+            prof = creature->crossbowman_name[plural ? 1 : 0];
+            break;
+        case profession::AXEMAN:
+            prof = creature->axeman_name[plural ? 1 : 0];
+            break;
+        case profession::SWORDSMAN:
+            prof = creature->swordsman_name[plural ? 1 : 0];
+            break;
+        case profession::MACEMAN:
+            prof = creature->maceman_name[plural ? 1 : 0];
+            break;
+        case profession::PIKEMAN:
+            prof = creature->pikeman_name[plural ? 1 : 0];
+            break;
+        case profession::BOWMAN:
+            prof = creature->bowman_name[plural ? 1 : 0];
+            break;
+        case profession::CHILD:
+            prof = creature->childname[plural ? 1 : 0];
+            break;
+        case profession::BABY:
+            prof = creature->babyname[plural ? 1 : 0];
+            break;
         }
+        if (!prof.empty())
+            use_race_prefix = false;
 
         if (race_prefix.empty())
             race_prefix = creature->name[0];
-
-        if (prof.empty())
-        {
-            if (plural)
-                prof = creature->profession_name.plural[pid];
-            else
-                prof = creature->profession_name.singular[pid];
-
-            if (prof.empty())
-            {
-                switch (pid)
-                {
-                case profession::CHILD:
-                    prof = creature->general_child_name[plural ? 1 : 0];
-                    if (!prof.empty())
-                        use_race_prefix = false;
-                    break;
-
-                case profession::BABY:
-                    prof = creature->general_baby_name[plural ? 1 : 0];
-                    if (!prof.empty())
-                        use_race_prefix = false;
-                    break;
-
-                default:
-                    break;
-                }
-            }
-        }
     }
 
     if (race_prefix.empty())
@@ -1466,15 +1212,12 @@ int8_t DFHack::Units::getProfessionColor(df::unit *unit, bool ignore_noble)
     std::vector<NoblePosition> np;
 
     if (!ignore_noble && getNoblePositions(&np, unit))
-    {
-        if (np[0].position->flags.is_set(entity_position_flags::COLOR))
-            return np[0].position->color[0] + np[0].position->color[2] * 8;
-    }
+        return np[0].color[0] + np[0].color[2] * 8;
 
-    return getCasteProfessionColor(unit->race, unit->caste, unit->profession);
+    return getCreatureProfessionColor(unit->race, unit->profession);
 }
 
-int8_t DFHack::Units::getCasteProfessionColor(int race, int casteid, df::profession pid)
+int8_t DFHack::Units::getCreatureProfessionColor(int race, df::profession pid)
 {
     // make sure it's an actual profession
     if (pid < 0 || !is_valid_enum_item(pid))
@@ -1485,14 +1228,7 @@ int8_t DFHack::Units::getCasteProfessionColor(int race, int casteid, df::profess
         return ENUM_ATTR(profession, color, pid);
 
     if (auto creature = df::creature_raw::find(race))
-    {
-        if (auto caste = vector_get(creature->caste, casteid))
-        {
-            if (caste->flags.is_set(caste_raw_flags::CASTE_COLOR))
-                return caste->caste_color[0] + caste->caste_color[2] * 8;
-        }
         return creature->color[0] + creature->color[2] * 8;
-    }
 
     // default to dwarven peasant color
     return 3;

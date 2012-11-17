@@ -45,7 +45,6 @@ using namespace std;
 #include "df/world.h"
 #include "df/ui.h"
 #include "df/job.h"
-#include "df/job_item.h"
 #include "df/job_list_link.h"
 #include "df/specific_ref.h"
 #include "df/general_ref.h"
@@ -82,10 +81,6 @@ df::job *DFHack::Job::cloneJobStruct(df::job *job)
             pnew->general_refs[i] = ref->clone();
     }
 
-    // Clone items
-    for (int i = pnew->job_items.size()-1; i >= 0; i--)
-        pnew->job_items[i] = new df::job_item(*pnew->job_items[i]);
-
     return pnew;
 }
 
@@ -100,90 +95,23 @@ void DFHack::Job::deleteJobStruct(df::job *job)
     for (int i = job->general_refs.size()-1; i >= 0; i--)
         delete job->general_refs[i];
 
-    for (int i = job->job_items.size()-1; i >= 0; i--)
-        delete job->job_items[i];
-
     delete job;
 }
 
 #define CMP(field) (a.field == b.field)
-
-bool DFHack::operator== (const df::job_item &a, const df::job_item &b)
-{
-    CHECK_NULL_POINTER(&a);
-    CHECK_NULL_POINTER(&b);
-
-    if (!(CMP(item_type) && CMP(item_subtype) &&
-          CMP(mat_type) && CMP(mat_index) &&
-          CMP(flags1.whole) && CMP(quantity) && CMP(vector_id) &&
-          CMP(flags2.whole) && CMP(flags3.whole) &&
-          CMP(metal_ore) && CMP(reaction_class) &&
-          CMP(has_material_reaction_product) &&
-          CMP(min_dimension) && CMP(reagent_index) &&
-          CMP(reaction_id) && CMP(has_tool_use) &&
-          CMP(contains.size())))
-        return false;
-
-    for (int i = a.contains.size()-1; i >= 0; i--)
-        if (a.contains[i] != b.contains[i])
-            return false;
-
-    return true;
-}
 
 bool DFHack::operator== (const df::job &a, const df::job &b)
 {
     CHECK_NULL_POINTER(&a);
     CHECK_NULL_POINTER(&b);
 
-    if (!(CMP(job_type) && CMP(unk2) &&
-          CMP(mat_type) && CMP(mat_index) &&
+    if (!(CMP(job_type) &&
+          CMP(material) && CMP(matgloss) &&
           CMP(item_subtype) && CMP(item_category.whole) &&
-          CMP(hist_figure_id) && CMP(material_category.whole) &&
-          CMP(reaction_name) && CMP(job_items.size())))
+          CMP(reaction_name)))
         return false;
 
-    for (int i = a.job_items.size()-1; i >= 0; i--)
-        if (!(*a.job_items[i] == *b.job_items[i]))
-            return false;
-
     return true;
-}
-
-void DFHack::Job::printItemDetails(color_ostream &out, df::job_item *item, int idx)
-{
-    CHECK_NULL_POINTER(item);
-
-    ItemTypeInfo info(item);
-    out << "  Input Item " << (idx+1) << ": " << info.toString();
-
-    if (item->quantity != 1)
-        out << "; quantity=" << item->quantity;
-    if (item->min_dimension >= 0)
-        out << "; min_dimension=" << item->min_dimension;
-    out << endl;
-
-    MaterialInfo mat(item);
-    if (mat.isValid() || item->metal_ore >= 0) {
-        out << "    material: " << mat.toString();
-        if (item->metal_ore >= 0)
-            out << "; ore of " << MaterialInfo(0,item->metal_ore).toString();
-        out << endl;
-    }
-
-    if (item->flags1.whole)
-        out << "    flags1: " << bitfield_to_string(item->flags1) << endl;
-    if (item->flags2.whole)
-        out << "    flags2: " << bitfield_to_string(item->flags2) << endl;
-    if (item->flags3.whole)
-        out << "    flags3: " << bitfield_to_string(item->flags3) << endl;
-
-    if (!item->reaction_class.empty())
-        out << "    reaction class: " << item->reaction_class << endl;
-    if (!item->has_material_reaction_product.empty())
-        out << "    reaction product: " << item->has_material_reaction_product << endl;
-    if (item->has_tool_use >= (df::tool_uses)0)
-        out << "    tool use: " << ENUM_KEY_STR(tool_uses, item->has_tool_use) << endl;
 }
 
 void DFHack::Job::printJobDetails(color_ostream &out, df::job *job)
@@ -203,11 +131,9 @@ void DFHack::Job::printJobDetails(color_ostream &out, df::job *job)
     if (itype == item_type::FOOD)
         mat.decode(-1);
 
-    if (mat.isValid() || job->material_category.whole)
+    if (mat.isValid())
     {
         out << "    material: " << mat.toString();
-        if (job->material_category.whole)
-            out << " (" << bitfield_to_string(job->material_category) << ")";
         out << endl;
     }
 
@@ -219,14 +145,8 @@ void DFHack::Job::printJobDetails(color_ostream &out, df::job *job)
                << " (" << bitfield_to_string(job->item_category) << ")" << endl;
     }
 
-    if (job->hist_figure_id >= 0)
-        out << "    figure: " << job->hist_figure_id << endl;
-
     if (!job->reaction_name.empty())
         out << "    reaction: " << job->reaction_name << endl;
-
-    for (size_t i = 0; i < job->job_items.size(); i++)
-        printItemDetails(out, job->job_items[i], i);
 }
 
 df::general_ref *Job::getGeneralRef(df::job *job, df::general_ref_type type)
@@ -348,7 +268,7 @@ bool DFHack::Job::attachJobItem(df::job *job, df::item *item,
     CHECK_NULL_POINTER(item);
 
     /*
-     * Functionality 100% reverse-engineered from DF code.
+     * TODO: Rewrite for 0.28.181.40d
      */
 
     if (role != df::job_item_ref::TargetContainer)
@@ -367,7 +287,6 @@ bool DFHack::Job::attachJobItem(df::job *job, df::item *item,
     auto job_link = new df::job_item_ref();
     job_link->item = item;
     job_link->role = role;
-    job_link->job_item_idx = filter_idx;
 
     if (size_t(insert_idx) < job->items.size())
         vector_insert_at(job->items, insert_idx, job_link);
@@ -375,30 +294,4 @@ bool DFHack::Job::attachJobItem(df::job *job, df::item *item,
         job->items.push_back(job_link);
 
     return true;
-}
-
-bool Job::isSuitableItem(df::job_item *item, df::item_type itype, int isubtype)
-{
-    CHECK_NULL_POINTER(item);
-
-    if (itype == item_type::NONE)
-        return true;
-
-    ItemTypeInfo iinfo(itype, isubtype);
-    MaterialInfo minfo(item);
-
-    return iinfo.isValid() && iinfo.matches(*item, &minfo);
-}
-
-bool Job::isSuitableMaterial(df::job_item *item, int mat_type, int mat_index)
-{
-    CHECK_NULL_POINTER(item);
-
-    if (mat_type == -1 && mat_index == -1)
-        return true;
-
-    ItemTypeInfo iinfo(item);
-    MaterialInfo minfo(mat_type, mat_index);
-
-    return minfo.isValid() && iinfo.matches(*item, &minfo);
 }

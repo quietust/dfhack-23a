@@ -354,21 +354,18 @@ command_result changeitem_execute(
         if(force||(mat_old.subtype == mat_new.subtype && mat_old.mode==mat_new.mode))
         {
             item->setMaterial(mat_new.type);
-            item->setMaterialIndex(mat_new.index);
+            item->setMatgloss(mat_new.subtype);
         }
         else
         {
             out.printerr("change denied: subtype doesn't match. use 'force' to override.\n");
         }
 
-        item->flags.bits.temps_computed = 0;              // recalc temperatures next time touched
-        item->flags.bits.weight_computed = 0;   // recalc weight next time touched
     }
 
     if(change_subtype)
     {
         item->setSubtype(new_subtype_id);
-        item->flags.bits.weight_computed = 0;   // recalc weight next time touched
     }
     return CR_OK;
 }

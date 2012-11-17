@@ -16,7 +16,6 @@ using namespace std;
 #include "PluginManager.h"
 #include "modules/Units.h"
 #include "df/unit_inventory_item.h"
-#include "df/building_nest_boxst.h"
 #include "modules/Maps.h"
 #include "modules/Gui.h"
 #include "modules/Materials.h"
@@ -26,7 +25,6 @@ using namespace std;
 
 #include "df/world.h"
 #include "df/world_raws.h"
-#include "df/building_def.h"
 #include "df/region_map_entry.h"
 
 using std::vector;
@@ -145,7 +143,7 @@ command_result df_probe (color_ostream &out, vector <string> & parameters)
 
     DFHack::Materials *Materials = Core::getInstance().getMaterials();
 
-    std::vector<t_matglossInorganic> inorganic;
+    std::vector<t_matglossStone> inorganic;
     bool hasmats = Materials->CopyInorganicMaterials(inorganic);
 
     if (!Maps::IsValid())
@@ -222,10 +220,10 @@ command_result df_probe (color_ostream &out, vector <string> & parameters)
     out.print("temperature2: %d U\n",mc.temperature2At(cursor));
 
     int offset = block.region_offset[des.bits.biome];
-    int bx = clip_range(block.region_pos.x + (offset % 3) - 1, 0, world->world_data->world_width-1);
-    int by = clip_range(block.region_pos.y + (offset / 3) - 1, 0, world->world_data->world_height-1);
+    int bx = clip_range(block.region_pos.x + (offset % 3) - 1, 0, world->world_data.world_width-1);
+    int by = clip_range(block.region_pos.y + (offset / 3) - 1, 0, world->world_data.world_height-1);
 
-    auto biome = &world->world_data->region_map[bx][by];
+    auto biome = &world->world_data.region_map[bx][by];
 
     int sav = biome->savagery;
     int evi = biome->evilness;
@@ -301,39 +299,24 @@ command_result df_probe (color_ostream &out, vector <string> & parameters)
     PRINT_FLAG( des, subterranean );
     PRINT_FLAG( des, water_table );
     PRINT_FLAG( des, rained );
-    PRINT_FLAG( occ, monster_lair);
 
     df::coord2d pc(blockX, blockY);
 
     t_feature local;
-    t_feature global;
-    Maps::ReadFeatures(&block,&local,&global);
-    PRINT_FLAG( des, feature_local );
+    Maps::ReadFeatures(&block,&local);
+    PRINT_FLAG( des, feature );
     if(local.type != -1)
     {
         out.print("%-16s", "");
-        out.print("  %4d", block.local_feature);
+        out.print("  %4d", block.feature);
         out.print(" (%2d)", local.type);
         out.print(" addr 0x%X ", local.origin);
         out.print(" %s\n", sa_feature(local.type));
     }
-    PRINT_FLAG( des, feature_global );
-    if(global.type != -1)
-    {
-        out.print("%-16s", "");
-        out.print("  %4d", block.global_feature);
-        out.print(" (%2d)", global.type);
-        out.print(" %s\n", sa_feature(global.type));
-    }
     #undef PRINT_FLAG
-    out << "local feature idx: " << block.local_feature
-        << endl;
-    out << "global feature idx: " << block.global_feature
+    out << "local feature idx: " << block.feature
         << endl;
     out << std::endl;
-
-    if(block.occupancy[tileX][tileY].bits.no_grow)
-        out << "no grow" << endl;
 
     for(size_t e=0; e<block.block_events.size(); e++)
     {            
@@ -341,15 +324,6 @@ command_result df_probe (color_ostream &out, vector <string> & parameters)
         df::block_square_event_type blevtype = blev->getType();
         switch(blevtype)
         {
-        case df::block_square_event_type::grass:
-            {
-                df::block_square_event_grassst * gr_ev = (df::block_square_event_grassst *)blev;
-                if(gr_ev->amount[tileX][tileY] > 0)
-                {
-                    out << "amount of grass: " << (int)gr_ev->amount[tileX][tileY] << endl;
-                }
-                break;
-            }
         case df::block_square_event_type::world_construction:
             {
                 df::block_square_event_world_constructionst * co_ev = (df::block_square_event_world_constructionst*)blev;
@@ -386,7 +360,7 @@ command_result df_bprobe (color_ostream &out, vector <string> & parameters)
             building.y1 <= cursor->y && cursor->y <= building.y2 &&
             building.z == cursor->z))
             continue;
-        string name;
+        stl::string name;
         building.origin->getName(&name);
         out.print("Building %i - \"%s\" - type %s (%i)",
                   building.origin->id,
@@ -405,19 +379,11 @@ command_result df_bprobe (color_ostream &out, vector <string> & parameters)
             out.print(", subtype %s (%i)",
                       ENUM_KEY_STR(furnace_type, building.furnace_type).c_str(),
                       building.furnace_type);
-            if (building.furnace_type == furnace_type::Custom)
-                out.print(", custom type %s (%i)",
-                          world->raws.buildings.all[building.custom_type]->code.c_str(),
-                          building.custom_type);
             break;
         case building_type::Workshop:
             out.print(", subtype %s (%i)",
                       ENUM_KEY_STR(workshop_type, building.workshop_type).c_str(),
                       building.workshop_type);
-            if (building.workshop_type == workshop_type::Custom)
-                out.print(", custom type %s (%i)",
-                          world->raws.buildings.all[building.custom_type]->code.c_str(),
-                          building.custom_type);
             break;
         case building_type::Construction:
             out.print(", subtype %s (%i)",
@@ -439,12 +405,6 @@ command_result df_bprobe (color_ostream &out, vector <string> & parameters)
                       ENUM_KEY_STR(trap_type, building.trap_type).c_str(),
                       building.trap_type);
             break;
-        case building_type::NestBox:
-            {
-                df::building_nest_boxst* nestbox = (df::building_nest_boxst*) building.origin;
-                out.print(", claimed:(%i), items:%i", nestbox->claimed_by, nestbox->contained_items.size());
-                break;
-            }
         default:
             if (building.subtype != -1)
                 out.print(", subtype %i", building.subtype);

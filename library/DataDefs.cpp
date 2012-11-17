@@ -44,7 +44,7 @@ using namespace DFHack;
 
 void *type_identity::do_allocate_pod() {
     size_t sz = byte_size();
-    void *p = malloc(sz);
+    void *p = df_malloc(sz);
     memset(p, 0, sz);
     return p;
 }
@@ -54,7 +54,7 @@ void type_identity::do_copy_pod(void *tgt, const void *src) {
 };
 
 bool type_identity::do_destroy_pod(void *obj) {
-    free(obj);
+    df_free(obj);
     return true;
 }
 
@@ -84,7 +84,7 @@ bool type_identity::destroy(void *obj) {
 
 void *enum_identity::do_allocate() {
     size_t sz = byte_size();
-    void *p = malloc(sz);
+    void *p = df_malloc(sz);
     memcpy(p, &first_item_value, std::min(sz, sizeof(int64_t)));
     return p;
 }

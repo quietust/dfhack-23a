@@ -10,7 +10,8 @@
 #include "df/world.h"
 #include "df/map_block.h"
 #include "df/tile_dig_designation.h"
-#include "df/plant_raw.h"
+#include "df/matgloss_plant.h"
+#include "df/matgloss_wood.h"
 
 #include "modules/Vegetation.h"
 #include <set>
@@ -26,7 +27,7 @@ using df::global::world;
 command_result df_getplants (color_ostream &out, vector <string> & parameters)
 {
     string plantMatStr = "";
-    set<int> plantIDs;
+    set<int> shrubTypes, woodTypes;
     set<string> plantNames;
     bool deselect = false, exclude = false, treesonly = false, shrubsonly = false, all = false;
 
@@ -66,35 +67,50 @@ command_result df_getplants (color_ostream &out, vector <string> & parameters)
 
     CoreSuspender suspend;
 
-    for (size_t i = 0; i < world->raws.plants.all.size(); i++)
+    for (size_t i = 0; i < world->raws.matgloss.plant.size(); i++)
     {
-        df::plant_raw *plant = world->raws.plants.all[i];
+        df::matgloss_plant *plant = world->raws.matgloss.plant[i];
         if (all)
-            plantIDs.insert(i);
+            shrubTypes.insert(i);
         else if (plantNames.find(plant->id) != plantNames.end())
         {
             plantNames.erase(plant->id);
-            plantIDs.insert(i);
+            shrubTypes.insert(i);
         }
     }
+    for (size_t i = 0; i < world->raws.matgloss.wood.size(); i++)
+    {
+        df::matgloss_wood *wood = world->raws.matgloss.wood[i];
+        if (all)
+            woodTypes.insert(i);
+        else if (plantNames.find(wood->id) != plantNames.end())
+        {
+            plantNames.erase(wood->id);
+            woodTypes.insert(i);
+        }
+    }
+
     if (plantNames.size() > 0)
     {
-        out.printerr("Invalid plant ID(s):");
+        out.printerr("Invalid plant/wood ID(s):");
         for (set<string>::const_iterator it = plantNames.begin(); it != plantNames.end(); it++)
             out.printerr(" %s", it->c_str());
         out.printerr("\n");
         return CR_FAILURE;
     }
 
-    if (plantIDs.size() == 0)
+    if (shrubTypes.size() == 0 && woodTypes.size() == 0)
     {
         out.print("Valid plant IDs:\n");
-        for (size_t i = 0; i < world->raws.plants.all.size(); i++)
+        for (size_t i = 0; i < world->raws.matgloss.wood.size(); i++)
         {
-            df::plant_raw *plant = world->raws.plants.all[i];
-            if (plant->flags.is_set(plant_raw_flags::GRASS))
-                continue;
-            out.print("* (%s) %s - %s\n", plant->flags.is_set(plant_raw_flags::TREE) ? "tree" : "shrub", plant->id.c_str(), plant->name.c_str());
+            df::matgloss_plant *plant = world->raws.matgloss.plant[i];
+            out.print("* (shrub) %s - %s\n", plant->id.c_str(), plant->name.c_str());
+        }
+        for (size_t i = 0; i < world->raws.matgloss.wood.size(); i++)
+        {
+            df::matgloss_wood *wood = world->raws.matgloss.wood[i];
+            out.print("* (tree) %s - %s\n", wood->id.c_str(), wood->name.c_str());
         }
         return CR_OK;
     }
@@ -109,7 +125,10 @@ command_result df_getplants (color_ostream &out, vector <string> & parameters)
             const df::plant *plant = cur->plants[j];
             int x = plant->pos.x % 16;
             int y = plant->pos.y % 16;
-            if (plantIDs.find(plant->material) != plantIDs.end())
+            df::tiletype_shape shape = tileShape(cur->tiletype[x][y]);
+            df::tiletype_special special = tileSpecial(cur->tiletype[x][y]);
+            if (((plant->flags.bits.is_shrub) && (shrubTypes.find(plant->plant_id) != shrubTypes.end())) ||
+                ((!plant->flags.bits.is_shrub) && (woodTypes.find(plant->wood_id) != woodTypes.end())))
             {
                 if (exclude)
                     continue;
@@ -119,8 +138,6 @@ command_result df_getplants (color_ostream &out, vector <string> & parameters)
                 if (!exclude)
                     continue;
             }
-            df::tiletype_shape shape = tileShape(cur->tiletype[x][y]);
-            df::tiletype_special special = tileSpecial(cur->tiletype[x][y]);
             if (plant->flags.bits.is_shrub && (treesonly || !(shape == tiletype_shape::SHRUB && special != tiletype_special::DEAD)))
                 continue;
             if (!plant->flags.bits.is_shrub && (shrubsonly || !(shape == tiletype_shape::TREE)))
@@ -141,7 +158,7 @@ command_result df_getplants (color_ostream &out, vector <string> & parameters)
             }
         }
         if (dirty)
-            cur->flags.bits.designated = true;
+            cur->flags.set(block_flags::designated);
     }
     if (count)
         out.print("Updated %d plant designations.\n", count);

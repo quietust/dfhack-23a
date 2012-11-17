@@ -62,9 +62,9 @@ namespace DFHack
 
     class DFHACK_EXPORT PersistentDataItem {
         int id;
-        std::string key_value;
+        stl::string key_value;
 
-        std::string *str_value;
+        stl::string *str_value;
         int *int_values;
     public:
         static const int NumInts = 7;
@@ -74,15 +74,15 @@ namespace DFHack
 
         int raw_id() const { return id; }
 
-        const std::string &key() const { return key_value; }
+        const stl::string &key() const { return key_value; }
 
-        std::string &val() { return *str_value; }
-        const std::string &val() const { return *str_value; }
+        stl::string &val() { return *str_value; }
+        const stl::string &val() const { return *str_value; }
         int &ival(int i) { return int_values[i]; }
         int ival(int i) const { return int_values[i]; }
 
         PersistentDataItem() : id(0), str_value(0), int_values(0) {}
-        PersistentDataItem(int id, const std::string &key, std::string *sv, int *iv)
+        PersistentDataItem(int id, const stl::string &key, stl::string *sv, int *iv)
             : id(id), key_value(key), str_value(sv), int_values(iv) {}
     };
 

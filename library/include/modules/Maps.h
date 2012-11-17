@@ -44,8 +44,6 @@ distribution.
 #include "df/block_square_event_mineralst.h"
 #include "df/block_square_event_frozen_liquidst.h"
 #include "df/block_square_event_world_constructionst.h"
-#include "df/block_square_event_material_spatterst.h"
-#include "df/block_square_event_grassst.h"
 #include "df/tile_liquid.h"
 #include "df/tile_dig_designation.h"
 #include "df/tile_traffic.h"
@@ -59,9 +57,7 @@ distribution.
 
 namespace df
 {
-    struct burrow;
     struct world_data;
-    struct block_burrow;
 }
 
 namespace DFHack
@@ -85,10 +81,6 @@ typedef DFCoord planecoord;
 struct t_feature
 {
     df::feature_type type;
-    /// main material type - decides between stuff like bodily fluids, inorganics, vomit, amber, etc.
-    int16_t main_material;
-    /// generally some index to a vector of material types.
-    int32_t sub_material;
     /// placeholder
     bool discovered;
     /// this is NOT part of the DF feature, but an address of the feature as seen by DFhack.
@@ -216,26 +208,20 @@ extern DFHACK_EXPORT bool ReadGeology(std::vector<std::vector<int16_t> > *layer_
 /**
  * Get pointers to features of a block
  */
-extern DFHACK_EXPORT bool ReadFeatures(uint32_t x, uint32_t y, uint32_t z, t_feature * local, t_feature * global);
+extern DFHACK_EXPORT bool ReadFeatures(uint32_t x, uint32_t y, uint32_t z, t_feature * feature);
 /**
  * Get pointers to features of an already read block
  */
-extern DFHACK_EXPORT bool ReadFeatures(df::map_block * block,t_feature * local, t_feature * global);
-
-
-/**
- * Get a pointer to a specific global feature directly.
- */
-DFHACK_EXPORT df::feature_init *getGlobalInitFeature(int32_t index);
-/**
- * Get a pointer to a specific local feature directly. rgn_coord is in the world region grid.
- */
-DFHACK_EXPORT df::feature_init *getLocalInitFeature(df::coord2d rgn_coord, int32_t index);
+extern DFHACK_EXPORT bool ReadFeatures(df::map_block * block,t_feature * feature);
 
 /**
- * Read a specific global or local feature directly
+ * Get a pointer to a specific feature directly. rgn_coord is in the world region grid.
  */
-extern DFHACK_EXPORT bool GetGlobalFeature(t_feature &feature, int32_t index);
+DFHACK_EXPORT df::feature_init *getInitFeature(df::coord2d rgn_coord, int32_t index);
+
+/**
+ * Read a specific feature directly
+ */
 //extern DFHACK_EXPORT bool GetLocalFeature(t_feature &feature, df::coord2d rgn_coord, int32_t index);
 
 
@@ -300,8 +286,6 @@ DFHACK_EXPORT df::flow_info *spawnFlow(df::coord pos, df::flow_type type, int ma
 extern DFHACK_EXPORT bool SortBlockEvents(df::map_block *block,
     std::vector<df::block_square_event_mineralst *>* veins,
     std::vector<df::block_square_event_frozen_liquidst *>* ices = 0,
-    std::vector<df::block_square_event_material_spatterst *>* splatter = 0,
-    std::vector<df::block_square_event_grassst *>* grass = 0,
     std::vector<df::block_square_event_world_constructionst *>* constructions = 0
 );
 

@@ -31,6 +31,7 @@ distribution.
 #include <vector>
 #include <sstream>
 #include <cstdio>
+#include "stl_vector.h"
 
 using namespace std;
 
@@ -234,6 +235,205 @@ template <typename CT, typename FT>
 CT *binsearch_in_vector(const std::vector<CT*> &vec, FT CT::*field, FT value)
 {
     int idx = binsearch_index(vec, field, value);
+    return idx < 0 ? NULL : vec[idx];
+}
+
+template <typename CT, typename KT>
+CT *linear_in_vector(const std::vector<CT*> &vec, KT value)
+{
+    int idx = linear_index(vec, value);
+    return idx < 0 ? NULL : vec[idx];
+}
+
+template <typename CT, typename FT>
+CT *linear_in_vector(const std::vector<CT*> &vec, FT CT::*field, FT value)
+{
+    int idx = linear_index(vec, field, value);
+    return idx < 0 ? NULL : vec[idx];
+}
+
+/*
+ * Binary search in custom STL vectors.
+ */
+
+template <typename FT>
+int linear_index(const stl::vector<FT> &vec, FT key)
+{
+    for (unsigned i = 0; i < vec.size(); i++)
+        if (vec[i] == key)
+            return i;
+    return -1;
+}
+
+template <typename FT>
+int linear_index(const stl::vector<FT*> &vec, const FT &key)
+{
+    for (unsigned i = 0; i < vec.size(); i++)
+        if (vec[i] && *vec[i] == key)
+            return i;
+    return -1;
+}
+
+template <typename FT>
+int binsearch_index(const stl::vector<FT> &vec, FT key, bool exact = true)
+{
+    // Returns the index of the value >= the key
+    int min = -1, max = (int)vec.size();
+    const FT *p = vec.data();
+    for (;;)
+    {
+        int mid = (min + max)>>1;
+        if (mid == min)
+            return exact ? -1 : max;
+        FT midv = p[mid];
+        if (midv == key)
+            return mid;
+        else if (midv < key)
+            min = mid;
+        else
+            max = mid;
+    }
+}
+
+template <typename CT, typename FT>
+int linear_index(const stl::vector<CT*> &vec, FT CT::*field, FT key)
+{
+    for (unsigned i = 0; i < vec.size(); i++)
+        if (vec[i]->*field == key)
+            return i;
+    return -1;
+}
+
+template <typename CT, typename FT>
+int binsearch_index(const stl::vector<CT*> &vec, FT CT::*field, FT key, bool exact = true)
+{
+    // Returns the index of the value >= the key
+    int min = -1, max = (int)vec.size();
+    CT *const *p = vec.data();
+    for (;;)
+    {
+        int mid = (min + max)>>1;
+        if (mid == min)
+            return exact ? -1 : max;
+        FT midv = p[mid]->*field;
+        if (midv == key)
+            return mid;
+        else if (midv < key)
+            min = mid;
+        else
+            max = mid;
+    }
+}
+
+template <typename CT>
+inline int binsearch_index(const stl::vector<CT*> &vec, typename CT::key_field_type key, bool exact = true)
+{
+    return CT::binsearch_index(vec, key, exact);
+}
+
+template <typename CT>
+inline int binsearch_index(const stl::vector<CT*> &vec, typename CT::key_pointer_type key, bool exact = true)
+{
+    return CT::binsearch_index(vec, key, exact);
+}
+
+template<typename FT, typename KT>
+inline bool vector_contains(const stl::vector<FT> &vec, KT key)
+{
+    return binsearch_index(vec, key) >= 0;
+}
+
+template<typename CT, typename FT>
+inline bool vector_contains(const stl::vector<CT*> &vec, FT CT::*field, FT key)
+{
+    return binsearch_index(vec, field, key) >= 0;
+}
+
+template<typename T>
+inline T vector_get(const stl::vector<T> &vec, unsigned idx, const T &defval = T())
+{
+    if (idx < vec.size())
+        return vec[idx];
+    else
+        return defval;
+}
+
+template<typename T>
+inline void vector_insert_at(stl::vector<T> &vec, unsigned idx, const T &val)
+{
+    vec.insert(vec.begin()+idx, val);
+}
+
+template<typename T>
+inline void vector_erase_at(stl::vector<T> &vec, unsigned idx)
+{
+    if (idx < vec.size())
+        vec.erase(vec.begin()+idx);
+}
+
+template<typename FT>
+unsigned insert_into_vector(stl::vector<FT> &vec, FT key, bool *inserted = NULL)
+{
+    unsigned pos = (unsigned)binsearch_index(vec, key, false);
+    bool to_ins = (pos >= vec.size() || vec[pos] != key);
+    if (inserted) *inserted = to_ins;
+    if (to_ins)
+        vector_insert_at(vec, pos, key);
+    return pos;
+}
+
+template<typename CT, typename FT>
+unsigned insert_into_vector(stl::vector<CT*> &vec, FT CT::*field, CT *obj, bool *inserted = NULL)
+{
+    unsigned pos = (unsigned)binsearch_index(vec, field, obj->*field, false);
+    bool to_ins = (pos >= vec.size() || vec[pos] != obj);
+    if (inserted) *inserted = to_ins;
+    if (to_ins)
+        vector_insert_at(vec, pos, obj);
+    return pos;
+}
+
+template<typename FT>
+bool erase_from_vector(stl::vector<FT> &vec, FT key)
+{
+    int pos = binsearch_index(vec, key);
+    vector_erase_at(vec, pos);
+    return pos >= 0;
+}
+
+template<typename CT, typename FT>
+bool erase_from_vector(stl::vector<CT*> &vec, FT CT::*field, FT key)
+{
+    int pos = binsearch_index(vec, field, key);
+    vector_erase_at(vec, pos);
+    return pos >= 0;
+}
+
+template <typename CT, typename KT>
+CT *binsearch_in_vector(const stl::vector<CT*> &vec, KT value)
+{
+    int idx = binsearch_index(vec, value);
+    return idx < 0 ? NULL : vec[idx];
+}
+
+template <typename CT, typename FT>
+CT *binsearch_in_vector(const stl::vector<CT*> &vec, FT CT::*field, FT value)
+{
+    int idx = binsearch_index(vec, field, value);
+    return idx < 0 ? NULL : vec[idx];
+}
+
+template <typename CT, typename KT>
+CT *linear_in_vector(const stl::vector<CT*> &vec, KT value)
+{
+    int idx = linear_index(vec, value);
+    return idx < 0 ? NULL : vec[idx];
+}
+
+template <typename CT, typename FT>
+CT *linear_in_vector(const stl::vector<CT*> &vec, FT CT::*field, FT value)
+{
+    int idx = linear_index(vec, field, value);
     return idx < 0 ? NULL : vec[idx];
 }
 

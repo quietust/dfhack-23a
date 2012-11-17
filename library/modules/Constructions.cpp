@@ -43,7 +43,6 @@ using namespace std;
 #include "TileTypes.h"
 
 #include "df/world.h"
-#include "df/job_item.h"
 #include "df/building_type.h"
 #include "df/building_constructionst.h"
 
@@ -78,8 +77,8 @@ bool Constructions::copyConstruction(const int32_t index, t_construction &out)
     out.pos = out.origin->pos;
     out.item_type = out.origin->item_type;
     out.item_subtype = out.origin->item_subtype;
-    out.mat_type = out.origin->mat_type;
-    out.mat_index = out.origin->mat_index;
+    out.mat_type = out.origin->material;
+    out.mat_subtype = out.origin->matgloss;
     out.flags = out.origin->flags;
     out.original_tile = out.origin->original_tile;
     return true;
@@ -88,6 +87,9 @@ bool Constructions::copyConstruction(const int32_t index, t_construction &out)
 bool Constructions::designateNew(df::coord pos, df::construction_type type,
                                  df::item_type item, int mat_index)
 {
+    return false;
+/*
+    // This can't work as-is - need to be able to select actual items
     auto ttype = Maps::getTileType(pos);
     if (!ttype || tileMaterial(*ttype) == tiletype_material::CONSTRUCTION)
         return false;
@@ -110,16 +112,6 @@ bool Constructions::designateNew(df::coord pos, df::construction_type type,
     auto newcons = strict_virtual_cast<df::building_constructionst>(newinst);
     newcons->type = type;
 
-    df::job_item *filter = new df::job_item();
-    filter->item_type = item;
-    filter->mat_index = mat_index;
-    filter->flags2.bits.building_material = true;
-    if (mat_index < 0)
-        filter->flags2.bits.non_economic = true;
-
-    std::vector<df::job_item*> filters;
-    filters.push_back(filter);
-
     if (!Buildings::constructWithFilters(newinst, filters))
     {
         delete newinst;
@@ -127,6 +119,7 @@ bool Constructions::designateNew(df::coord pos, df::construction_type type,
     }
 
     return true;
+*/
 }
 
 bool Constructions::designateRemove(df::coord pos, bool *immediate)
@@ -161,7 +154,7 @@ bool Constructions::designateRemove(df::coord pos, bool *immediate)
     {
         auto &dsgn = block->designation[pos.x&15][pos.y&15];
         dsgn.bits.dig = tile_dig_designation::Default;
-        block->flags.bits.designated = true;
+        block->flags.set(block_flags::designated);
         if (process_dig)
             *process_dig = true;
         return true;

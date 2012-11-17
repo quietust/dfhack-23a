@@ -20,9 +20,7 @@ using namespace std;
 #include "Export.h"
 #include "PluginManager.h"
 #include "DataDefs.h"
-#include <df/caste_raw.h>
 #include <df/creature_raw.h>
-#include <df/unit_genes.h>
 
 using namespace DFHack;
 
@@ -79,7 +77,7 @@ command_result catsplosion (color_ostream &out, std::vector <std::string> & para
     for(uint32_t i =0;i < numCreatures;i++)
     {
         df::unit * creature = Units::GetCreature(i);
-        df::creature_raw *raw = df::global::world->raws.creatures.all[creature->race];
+        df::creature_raw *raw = df::global::world->raws.creatures[creature->race];
         if(creature->sex == 0) // female
         {
             female_counts[raw->creature_id].push_back(creature);
@@ -120,14 +118,9 @@ command_result catsplosion (color_ostream &out, std::vector <std::string> & para
                 female->relations.pregnancy_timer = rand() % 100 + 1;
                 totalchanged++;
             }
-            else if(!female->relations.pregnancy_ptr)
+            else if(!female->relations.pregnancy_timer)
             {
-                df::unit_genes *preg = new df::unit_genes;
-                preg->appearance = female->appearance.genes.appearance;
-                preg->colors = female->appearance.genes.colors;
-                female->relations.pregnancy_ptr = preg;
                 female->relations.pregnancy_timer = rand() % 100 + 1;
-                female->relations.pregnancy_mystery = 1; // WTF is this?
                 totalcreated ++;
             }
         }

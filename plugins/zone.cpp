@@ -52,14 +52,11 @@ using namespace std;
 #include <df/ui.h>
 #include "df/world.h"
 #include "df/world_raws.h"
-#include "df/building_def.h"
 #include "df/building_civzonest.h"
 #include "df/building_cagest.h"
 #include "df/building_chainst.h"
-#include "df/building_nest_boxst.h"
 #include "df/general_ref_building_civzone_assignedst.h"
 #include <df/creature_raw.h>
-#include <df/caste_raw.h>
 
 using std::vector;
 using std::string;
@@ -72,7 +69,6 @@ using df::global::ui;
 using namespace DFHack::Gui;
 
 command_result df_zone (color_ostream &out, vector <string> & parameters);
-command_result df_autonestbox (color_ostream &out, vector <string> & parameters);
 command_result df_autobutcher(color_ostream &out, vector <string> & parameters);
 
 DFHACK_PLUGIN("zone");
@@ -81,10 +77,10 @@ const string zone_help =
     "Allows easier management of pens/pastures, pits and cages.\n"
     "Options:\n"
     "  set          - set zone under cursor as default for future assigns\n"
-    "  assign       - assign creature(s) to a pen or pit\n"
+    "  assign       - assign creature(s) to a pit\n"
     "                 if no filters are used, a single unit must be selected.\n"
     "                 can be followed by valid building id which will then be set.\n"
-    "                 building must be a pen/pasture, pit or cage.\n"
+    "                 building must be a pit or cage.\n"
     "  slaughter    - mark creature(s) for slaughter\n"
     "                 if no filters are used, a single unit must be selected.\n"
     "                 with filters named units are ignored unless specified.\n"
@@ -113,7 +109,7 @@ const string zone_help_filters =
     "  minage       - minimum age. must be followed by number\n"
     "  maxage       - maximum age. must be followed by number\n"
     "These filters can be used with the prefix 'not' (e.g. 'not own'):"
-    "  race         - must be followed by a race raw id (e.g. BIRD_TURKEY)\n"
+    "  race         - must be followed by a race raw id (e.g. MULE)\n"
     "  caged        - in a built cage\n"
     "  own          - from own civilization\n"
     "  war          - trained war creature\n"
@@ -128,9 +124,6 @@ const string zone_help_filters =
     "  trainablehunt- can be trained for hunting (and is not already trained)\n"
     "  male         - obvious\n"
     "  female       - obvious\n"
-    "  egglayer     - race lays eggs (use together with 'female')\n"
-    "  grazer       - is a grazer\n"
-    "  milkable     - race is milkable (use together with 'female')\n"
     ;
 
 const string zone_help_examples =
@@ -142,9 +135,8 @@ const string zone_help_examples =
     "  (ingame) press hotkey to assign unit to it's new home (or pit)\n"
     "Examples for assigning with filters:\n"
     "  (this assumes you have already set up a target zone)\n"
-    "  zone assign all own grazer maxage 10\n"
-    "  zone assign all own milkable not grazer\n"
-    "  zone assign count 5 own female milkable\n"
+    "  zone assign all own maxage 10\n"
+    "  zone assign count 5 own female\n"
     "  zone assign all own race DWARF maxage 2\n"
     "    throw all useless kids into a pit :)\n"
     "Notes:\n"
@@ -157,19 +149,6 @@ const string zone_help_examples =
     "  'egglayer' and 'milkable' should be used together with 'female'\n"
     "  well, unless you have a mod with egg-laying male elves who give milk...\n";
 
-
-const string autonestbox_help =
-    "Assigns unpastured female egg-layers to nestbox zones.\n"
-    "Requires that you create pen/pasture zones above nestboxes.\n"
-    "If the pen is bigger than 1x1 the nestbox must be in the top left corner.\n"
-    "Only 1 unit will be assigned per pen, regardless of the size.\n"
-    "The age of the units is currently not checked, most birds grow up quite fast.\n"
-    "When called without options autonestbox will instantly run once.\n"
-    "Options:\n"
-    "  start        - run every X frames (df simulation ticks)\n"
-    "                 default: X=6000  (~60 seconds at 100fps)\n"
-    "  stop         - stop running automatically\n"
-    "  sleep X      - change timer to sleep X frames between runs.\n";
 
 const string autobutcher_help =
     "Assigns your lifestock for slaughter once it reaches a specific count. Requires\n"
@@ -234,10 +213,6 @@ command_result init_autobutcher(color_ostream &out);
 command_result cleanup_autobutcher(color_ostream &out);
 command_result start_autobutcher(color_ostream &out);
 
-command_result init_autonestbox(color_ostream &out);
-command_result cleanup_autonestbox(color_ostream &out);
-command_result start_autonestbox(color_ostream &out);
-
 DFhackCExport command_result plugin_init ( color_ostream &out, std::vector <PluginCommand> &commands)
 {
     commands.push_back(PluginCommand(
@@ -246,24 +221,17 @@ DFhackCExport command_result plugin_init ( color_ostream &out, std::vector <Plug
         zone_help.c_str()
         ));
     commands.push_back(PluginCommand(
-        "autonestbox", "auto-assign nestbox zones.",
-        df_autonestbox, false,
-        autonestbox_help.c_str()
-        ));
-    commands.push_back(PluginCommand(
         "autobutcher", "auto-assign lifestock for butchering.",
         df_autobutcher, false,
         autobutcher_help.c_str()
         ));
     init_autobutcher(out);
-    init_autonestbox(out);
     return CR_OK;
 }
 
 DFhackCExport command_result plugin_shutdown ( color_ostream &out )
 {
     cleanup_autobutcher(out);
-    cleanup_autonestbox(out);
     return CR_OK;
 }
 
@@ -271,18 +239,13 @@ DFhackCExport command_result plugin_shutdown ( color_ostream &out )
 // stuff for autonestbox and autobutcher
 // should be moved to own plugin once the tool methods it shares with the zone plugin are moved to Unit.h / Building.h
 
-command_result autoNestbox( color_ostream &out, bool verbose );
 command_result autoButcher( color_ostream &out, bool verbose );
 
-static bool enable_autonestbox = false;
 static bool enable_autobutcher = false;
 static bool enable_autobutcher_autowatch = false;
-static size_t sleep_autonestbox = 6000;
 static size_t sleep_autobutcher = 6000;
-static bool autonestbox_did_complain = false; // avoids message spam
 
 static PersistentDataItem config_autobutcher;
-static PersistentDataItem config_autonestbox;
 
 
 DFhackCExport command_result plugin_onstatechange(color_ostream &out, state_change_event event)
@@ -292,14 +255,11 @@ DFhackCExport command_result plugin_onstatechange(color_ostream &out, state_chan
     case DFHack::SC_MAP_LOADED:
         // initialize from the world just loaded
         init_autobutcher(out);
-        init_autonestbox(out);
         break;
     case DFHack::SC_MAP_UNLOADED:
-        enable_autonestbox = false;
         enable_autobutcher = false;
         // cleanup
         cleanup_autobutcher(out);
-        cleanup_autonestbox(out);
         break;
     default:
         break;
@@ -309,17 +269,7 @@ DFhackCExport command_result plugin_onstatechange(color_ostream &out, state_chan
 
 DFhackCExport command_result plugin_onupdate ( color_ostream &out )
 {
-    static size_t ticks_autonestbox = 0;
     static size_t ticks_autobutcher = 0;
-
-    if(enable_autonestbox)
-    {
-        if(++ticks_autonestbox >= sleep_autonestbox)
-        {
-            ticks_autonestbox = 0;
-            autoNestbox(out, false);
-        }
-    }
 
     if(enable_autobutcher)
     {
@@ -348,12 +298,11 @@ bool isMerchant(df::unit* unit);
 bool isForest(df::unit* unit);
 
 bool isActivityZone(df::building * building);
-bool isPenPasture(df::building * building);
 bool isPitPond(df::building * building);
 bool isActive(df::building * building);
 
 int32_t findBuildingIndexById(int32_t id);
-int32_t findPenPitAtCursor();
+int32_t findPitAtCursor();
 int32_t findCageAtCursor();
 int32_t findChainAtCursor();
 
@@ -373,10 +322,7 @@ int32_t getUnitAge(df::unit* unit)
 {
     // If the birthday this year has not yet passed, subtract one year.
     // ASSUMPTION: birth_time is on the same scale as cur_year_tick
-    int32_t yearDifference = *df::global::cur_year - unit->relations.birth_year;
-    if (unit->relations.birth_time >= *df::global::cur_year_tick)
-        yearDifference--;
-    return yearDifference;
+    return unit->relations.age_years;
 }
 
 bool isDead(df::unit* unit)
@@ -387,9 +333,8 @@ bool isDead(df::unit* unit)
 // ignore vampires, they should be treated like normal dwarves
 bool isUndead(df::unit* unit)
 {
-    return (unit->flags3.bits.ghostly ||
-            ( (unit->curse.add_tags1.bits.OPPOSED_TO_LIFE || unit->curse.add_tags1.bits.NOT_LIVING)
-             && !unit->curse.add_tags1.bits.BLOODSUCKER ));
+    return (unit->flags1.bits.zombie ||
+            unit->flags1.bits.skeleton);
 }
 
 bool isMerchant(df::unit* unit)
@@ -415,49 +360,14 @@ void doMarkForSlaughter(df::unit* unit)
 // check if creature is tame
 bool isTame(df::unit* creature)
 {
-    bool tame = false;
-    if(creature->flags1.bits.tame)
-    {
-        switch (creature->training_level)
-        {
-        case df::animal_training_level::SemiWild: //??
-        case df::animal_training_level::Trained:
-        case df::animal_training_level::WellTrained:
-        case df::animal_training_level::SkilfullyTrained:
-        case df::animal_training_level::ExpertlyTrained:
-        case df::animal_training_level::ExceptionallyTrained:
-        case df::animal_training_level::MasterfullyTrained:
-        case df::animal_training_level::Domesticated:
-            tame=true;
-            break;
-        case df::animal_training_level::Unk8:     //??
-        case df::animal_training_level::WildUntamed:
-        default:
-            tame=false;
-            break;
-        }
-    }
-    return tame;
+    return (creature->flags1.bits.tame);
 }
 
 // check if creature is domesticated
 // seems to be the only way to really tell if it's completely safe to autonestbox it (training can revert)
 bool isDomesticated(df::unit* creature)
 {
-    bool tame = false;
-    if(creature->flags1.bits.tame)
-    {
-        switch (creature->training_level)
-        {
-        case df::animal_training_level::Domesticated:
-            tame=true;
-            break;
-        default:
-            tame=false;
-            break;
-        }
-    }
-    return tame;
+    return isTame(creature);
 }
 
 // check if trained (might be useful if pasturing war dogs etc)
@@ -466,24 +376,7 @@ bool isTrained(df::unit* unit)
     // case a: trained for war/hunting (those don't have a training level, strangely)
     if(isWar(unit) || isHunter(unit))
         return true;
-
-    // case b: tamed and trained wild creature, gets a training level
-    bool trained = false;
-    switch (unit->training_level)
-    {
-    case df::animal_training_level::Trained:
-    case df::animal_training_level::WellTrained:
-    case df::animal_training_level::SkilfullyTrained:
-    case df::animal_training_level::ExpertlyTrained:
-    case df::animal_training_level::ExceptionallyTrained:
-    case df::animal_training_level::MasterfullyTrained:
-    //case df::animal_training_level::Domesticated:
-        trained = true;
-        break;
-    default:
-        break;
-    }
-    return trained;
+    return false;
 }
 
 // check for profession "war creature"
@@ -522,23 +415,23 @@ bool isOwnRace(df::unit* unit)
 
 string getRaceName(int32_t id)
 {
-    df::creature_raw *raw = df::global::world->raws.creatures.all[id];
+    df::creature_raw *raw = df::global::world->raws.creatures[id];
     return raw->creature_id;
 }
 string getRaceName(df::unit* unit)
 {
-    df::creature_raw *raw = df::global::world->raws.creatures.all[unit->race];
+    df::creature_raw *raw = df::global::world->raws.creatures[unit->race];
     return raw->creature_id;
 }
 string getRaceBabyName(df::unit* unit)
 {
-    df::creature_raw *raw = df::global::world->raws.creatures.all[unit->race];
-    return raw->general_baby_name[0];
+    df::creature_raw *raw = df::global::world->raws.creatures[unit->race];
+    return raw->babyname[0];
 }
 string getRaceChildName(df::unit* unit)
 {
-    df::creature_raw *raw = df::global::world->raws.creatures.all[unit->race];
-    return raw->general_child_name[0];
+    df::creature_raw *raw = df::global::world->raws.creatures[unit->race];
+    return raw->childname[0];
 }
 
 bool isBaby(df::unit* unit)
@@ -556,81 +449,26 @@ bool isAdult(df::unit* unit)
     return !isBaby(unit) && !isChild(unit);
 }
 
-bool isEggLayer(df::unit* unit)
-{
-    df::creature_raw *raw = df::global::world->raws.creatures.all[unit->race];
-    size_t sizecas = raw->caste.size();
-    for (size_t j = 0; j < sizecas;j++)
-    {
-        df::caste_raw *caste = raw->caste[j];
-        if(   caste->flags.is_set(caste_raw_flags::LAYS_EGGS)
-            || caste->flags.is_set(caste_raw_flags::LAYS_UNUSUAL_EGGS))
-            return true;
-    }
-    return false;
-}
-
-bool isGrazer(df::unit* unit)
-{
-    df::creature_raw *raw = df::global::world->raws.creatures.all[unit->race];
-    size_t sizecas = raw->caste.size();
-    for (size_t j = 0; j < sizecas;j++)
-    {
-        df::caste_raw *caste = raw->caste[j];
-        if(caste->flags.is_set(caste_raw_flags::GRAZER))
-            return true;
-    }
-    return false;
-}
-
-bool isMilkable(df::unit* unit)
-{
-    df::creature_raw *raw = df::global::world->raws.creatures.all[unit->race];
-    size_t sizecas = raw->caste.size();
-    for (size_t j = 0; j < sizecas;j++)
-    {
-        df::caste_raw *caste = raw->caste[j];
-        if(caste->flags.is_set(caste_raw_flags::MILKABLE))
-            return true;
-    }
-    return false;
-}
-
 bool isTrainableWar(df::unit* unit)
 {
-    df::creature_raw *raw = df::global::world->raws.creatures.all[unit->race];
-    size_t sizecas = raw->caste.size();
-    for (size_t j = 0; j < sizecas;j++)
-    {
-        df::caste_raw *caste = raw->caste[j];
-        if(caste->flags.is_set(caste_raw_flags::TRAINABLE_WAR))
-            return true;
-    }
-    return false;
+    df::creature_raw *raw = df::global::world->raws.creatures[unit->race];
+    return raw->flags.is_set(creature_raw_flags::TRAINABLE);
 }
 
 bool isTrainableHunting(df::unit* unit)
 {
-    df::creature_raw *raw = df::global::world->raws.creatures.all[unit->race];
-    size_t sizecas = raw->caste.size();
-    for (size_t j = 0; j < sizecas;j++)
-    {
-        df::caste_raw *caste = raw->caste[j];
-        if(caste->flags.is_set(caste_raw_flags::TRAINABLE_HUNTING))
-            return true;
-    }
-    return false;
+    df::creature_raw *raw = df::global::world->raws.creatures[unit->race];
+    return raw->flags.is_set(creature_raw_flags::TRAINABLE);
 }
 
 bool isTamable(df::unit* unit)
 {
-    df::creature_raw *raw = df::global::world->raws.creatures.all[unit->race];
-    size_t sizecas = raw->caste.size();
-    for (size_t j = 0; j < sizecas;j++)
+    df::creature_raw *raw = df::global::world->raws.creatures[unit->race];
+    if (raw->flags.is_set(creature_raw_flags::PET))
+        return true;
+    if (raw->flags.is_set(creature_raw_flags::PET_EXOTIC))
     {
-        df::caste_raw *caste = raw->caste[j];
-        if(caste->flags.is_set(caste_raw_flags::PET) ||
-            caste->flags.is_set(caste_raw_flags::PET_EXOTIC))
+        if (ui->nobles_arrived[profession::DUNGEONMASTER] > ui->units_killed[profession::DUNGEONMASTER])
             return true;
     }
     return false;
@@ -691,7 +529,7 @@ void unitInfo(color_ostream & out, df::unit* unit, bool verbose = false)
             out << "Name: " << firstname;
         }
         if(unit->name.nickname.size() > 0)
-            out << " '" << unit->name.nickname << "'";
+            out << " '" << unit->name.nickname.c_str() << "'";
         out << ", ";
     }
 
@@ -736,12 +574,6 @@ void unitInfo(color_ostream & out, df::unit* unit, bool verbose = false)
         out << ", merchant";
     if(isForest(unit))
         out << ", forest";
-    if(isEggLayer(unit))
-        out << ", egglayer";
-    if(isGrazer(unit))
-        out << ", grazer";
-    if(isMilkable(unit))
-        out << ", milkable";
 
     if(verbose)
     {
@@ -793,19 +625,6 @@ bool isActivityZone(df::building * building)
 {
     if(    building->getType() == building_type::Civzone
         && building->getSubtype() == (short)civzone_type::ActivityZone)
-        return true;
-    else
-        return false;
-}
-
-bool isPenPasture(df::building * building)
-{
-    if(!isActivityZone(building))
-        return false;
-
-    df::building_civzonest * civ = (df::building_civzonest *) building;
-
-    if(civ->zone_flags.bits.pen_pasture)
         return true;
     else
         return false;
@@ -875,8 +694,8 @@ df::unit* findUnitById(int32_t id)
         return NULL;
 }
 
-// returns id of pen/pit at cursor position (-1 if nothing found)
-int32_t findPenPitAtCursor()
+// returns id of pit at cursor position (-1 if nothing found)
+int32_t findPitAtCursor()
 {
     int32_t foundID = -1;
 
@@ -893,7 +712,7 @@ int32_t findPenPitAtCursor()
             building->z == cursor->z))
             continue;
 
-        if(isPenPasture(building) || isPitPond(building))
+        if(isPitPond(building))
         {
             foundID = building->id;
             break;
@@ -1159,119 +978,6 @@ df::building * getBuiltCageAtPos(df::coord pos)
     return cage;
 }
 
-bool isNestboxAtPos(int32_t x, int32_t y, int32_t z)
-{
-    bool found = false;
-    for (size_t b=0; b < world->buildings.all.size(); b++)
-    {
-        df::building* building = world->buildings.all[b];
-        if( building->getType() == building_type::NestBox
-            && building->x1 == x
-            && building->y1 == y
-            && building->z  == z )
-        {
-            found = true;
-            break;
-        }
-    }
-    return found;
-}
-
-bool isFreeNestboxAtPos(int32_t x, int32_t y, int32_t z)
-{
-    bool found = false;
-    for (size_t b=0; b < world->buildings.all.size(); b++)
-    {
-        df::building* building = world->buildings.all[b];
-        if( building->getType() == building_type::NestBox
-            && building->x1 == x
-            && building->y1 == y
-            && building->z  == z )
-        {
-            df::building_nest_boxst* nestbox = (df::building_nest_boxst*) building;
-            if(nestbox->claimed_by == -1 && nestbox->contained_items.size() == 1)
-            {
-                found = true;
-                break;
-            }
-        }
-    }
-    return found;
-}
-
-bool isEmptyPasture(df::building* building)
-{
-    if(!isPenPasture(building))
-        return false;
-    df::building_civzonest * civ = (df::building_civzonest *) building;
-    if(civ->assigned_creature.size() == 0)
-        return true;
-    else
-        return false;
-}
-
-df::building* findFreeNestboxZone()
-{
-    df::building * free_building = NULL;
-    bool cage = false;
-    for (size_t b=0; b < world->buildings.all.size(); b++)
-    {
-        df::building* building = world->buildings.all[b];
-        if( isEmptyPasture(building) &&
-            isActive(building) &&
-            isFreeNestboxAtPos(building->x1, building->y1, building->z))
-        {
-            free_building = building;
-            break;
-        }
-    }
-    return free_building;
-}
-
-bool isFreeEgglayer(df::unit * unit)
-{
-    if( !isDead(unit) && !isUndead(unit)
-        && isFemale(unit)
-        && isTame(unit)
-        && isOwnCiv(unit)
-        && isEggLayer(unit)
-        && !isAssigned(unit)
-        && !isGrazer(unit) // exclude grazing birds because they're messy
-        && !isMerchant(unit) // don't steal merchant mounts
-        && !isForest(unit)  // don't steal birds from traders, they hate that
-        )
-        return true;
-    else
-        return false;
-}
-
-df::unit * findFreeEgglayer()
-{
-    df::unit* free_unit = NULL;
-    for (size_t i=0; i < world->units.all.size(); i++)
-    {
-        df::unit* unit = world->units.all[i];
-        if(isFreeEgglayer(unit))
-        {
-            free_unit = unit;
-            break;
-        }
-    }
-    return free_unit;
-}
-
-size_t countFreeEgglayers()
-{
-    size_t count = 0;
-    for (size_t i=0; i < world->units.all.size(); i++)
-    {
-        df::unit* unit = world->units.all[i];
-        if(isFreeEgglayer(unit))
-            count ++;
-    }
-    return count;
-}
-
 // check if unit is already assigned to a zone, remove that ref from unit and old zone
 // check if unit is already assigned to a cage, remove that ref from the cage
 // returns false if no cage or pasture information was found
@@ -1364,9 +1070,9 @@ bool unassignUnitFromBuilding(df::unit* unit)
 command_result assignUnitToZone(color_ostream& out, df::unit* unit, df::building* building, bool verbose = false)
 {
     // building must be a pen/pasture or pit
-    if(!isPenPasture(building) && !isPitPond(building))
+    if(!isPitPond(building))
     {
-        out << "Invalid building type. This is not a pen/pasture or pit/pond." << endl;
+        out << "Invalid building type. This is not a pit/pond." << endl;
         return CR_WRONG_USAGE;
     }
 
@@ -1406,8 +1112,6 @@ command_result assignUnitToZone(color_ostream& out, df::unit* unit, df::building
         << " assigned to zone " << building->id;
     if(isPitPond(building))
         out << " (pit/pond).";
-    if(isPenPasture(building))
-        out << " (pen/pasture).";
     out << endl;
 
     return CR_OK;
@@ -1472,73 +1176,12 @@ command_result assignUnitToBuilding(color_ostream& out, df::unit* unit, df::buil
     return result;
 }
 
-command_result assignUnitsToCagezone(color_ostream& out, vector<df::unit*> units, df::building* building, bool verbose)
-{
-    command_result result = CR_WRONG_USAGE;
-
-    if(!isPenPasture(building))
-    {
-        out << "A cage zone needs to be a pen/pasture containing at least one cage!" << endl;
-        return CR_WRONG_USAGE;
-    }
-
-    int32_t x1 = building->x1;
-    int32_t x2 = building->x2;
-    int32_t y1 = building->y1;
-    int32_t y2 = building->y2;
-    int32_t z  = building->z;
-    vector <df::building_cagest*> cages;
-    for (int32_t x = x1; x<=x2; x++)
-    {
-        for (int32_t y = y1; y<=y2; y++)
-        {
-            df::building* cage = getBuiltCageAtPos(df::coord(x,y,z));
-            if(cage)
-            {
-                df::building_cagest* cagest = (df::building_cagest*) cage;
-                cages.push_back(cagest);
-            }
-        }
-    }
-    if(!cages.size())
-    {
-        out << "No cages found in this zone!" << endl;
-        return CR_WRONG_USAGE;
-    }
-    else
-    {
-        out << "Number of cages: " << cages.size() << endl;
-    }
-
-    while(units.size())
-    {
-        // hrm, better use sort() instead?
-        df::building_cagest * bestcage = cages[0];
-        size_t lowest = cages[0]->assigned_creature.size();
-        for(size_t i=1; i<cages.size(); i++)
-        {
-            if(cages[i]->assigned_creature.size()<lowest)
-            {
-                lowest = cages[i]->assigned_creature.size();
-                bestcage = cages[i];
-            }
-        }
-        df::unit* unit = units.back();
-        units.pop_back();
-        command_result result = assignUnitToCage(out, unit, (df::building*) bestcage, verbose);
-        if(result!=CR_OK)
-            return result;
-    }
-
-    return CR_OK;
-}
-
 command_result nickUnitsInZone(color_ostream& out, df::building* building, string nick)
 {
     // building must be a pen/pasture or pit
-    if(!isPenPasture(building) && !isPitPond(building))
+    if(!isPitPond(building))
     {
-        out << "Invalid building type. This is not a pen/pasture or pit/pond." << endl;
+        out << "Invalid building type. This is not a pit/pond." << endl;
         return CR_WRONG_USAGE;
     }
 
@@ -1606,7 +1249,7 @@ void zoneInfo(color_ostream & out, df::building* building, bool verbose)
     if(building->getSubtype() != (short)civzone_type::ActivityZone)
         return;
 
-    string name;
+    stl::string name;
     building->getName(&name);
     out.print("Building %i - \"%s\" - type %s (%i)",
                 building->id,
@@ -1624,9 +1267,7 @@ void zoneInfo(color_ostream & out, df::building* building, bool verbose)
     else
         out << "not active";
 
-    if(civ->zone_flags.bits.pen_pasture)
-        out << ", pen/pasture";
-    else if (civ->zone_flags.bits.pit_pond)
+    if (civ->zone_flags.bits.pit_pond)
     {
         out << " (pit flags:" << civ->pit_flags.whole << ")";
         if(civ->pit_flags.bits.is_pond)
@@ -1666,7 +1307,7 @@ void cageInfo(color_ostream & out, df::building* building, bool verbose)
     if(!isCage(building))
         return;
 
-    string name;
+    stl::string name;
     building->getName(&name);
     out.print("Building %i - \"%s\" - type %s (%i)",
                 building->id,
@@ -1706,7 +1347,7 @@ void chainInfo(color_ostream & out, df::building* building, bool list_refs = fal
     if(!isChain(building))
         return;
 
-    string name;
+    stl::string name;
     building->getName(&name);
     out.print("Building %i - \"%s\" - type %s (%i)",
                 building->id,
@@ -1762,12 +1403,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
     bool find_not_male = false;
     bool find_female = false;
     bool find_not_female = false;
-    bool find_egglayer = false;
-    bool find_not_egglayer = false;
-    bool find_grazer = false;
-    bool find_not_grazer = false;
-    bool find_milkable = false;
-    bool find_not_milkable = false;
     bool find_named = false;
     bool find_not_named = false;
     bool find_naked = false;
@@ -1790,7 +1425,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
     bool building_assign = false;
     bool building_unassign = false;
     bool building_set = false;
-    bool cagezone_assign = false;
     bool verbose = false;
     bool all = false;
     bool unit_slaughter = false;
@@ -1879,38 +1513,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
             {
                 out << "No buiding id specified. Will try to use #" << target_building << endl;
                 building_assign = true;
-            }
-        }
-        else if(p == "tocages")
-        {
-            if(invert_filter)
-            {
-                out << "'not tocages' makes no sense." << endl;
-                return CR_WRONG_USAGE;
-            }
-
-            // if followed by another parameter, check if it's numeric
-            if(i < parameters.size()-1)
-            {
-                stringstream ss(parameters[i+1]);
-                int new_building = -1;
-                ss >> new_building;
-                if(new_building != -1)
-                {
-                    i++;
-                    target_building = new_building;
-                    out << "Assign selected unit(s) to cagezone #" << target_building <<std::endl;
-                }
-            }
-            if(target_building == -1)
-            {
-                out.printerr("No building id specified and current one is invalid!\n");
-                return CR_WRONG_USAGE;
-            }
-            else
-            {
-                out << "No buiding id specified. Will try to use #" << target_building << endl;
-                cagezone_assign = true;
             }
         }
         else if(p == "race" && !invert_filter)
@@ -2147,15 +1749,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
         {
             find_female = true;
         }
-        else if(p == "egglayer" && !invert_filter)
-        {
-            find_egglayer = true;
-        }
-        else if(p == "egglayer" && invert_filter)
-        {
-            find_not_egglayer = true;
-            invert_filter=false;
-        }
         else if(p == "naked" && !invert_filter)
         {
             find_naked = true;
@@ -2174,15 +1767,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
             find_not_tamable = true;
             invert_filter=false;
         }
-        else if(p == "grazer" && !invert_filter)
-        {
-            find_grazer = true;
-        }
-        else if(p == "grazer" && invert_filter)
-        {
-            find_not_grazer = true;
-            invert_filter=false;
-        }
         else if(p == "merchant" && !invert_filter)
         {
             find_merchant = true;
@@ -2191,15 +1775,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
         {
             // actually 'not merchant' is pointless since merchant units are ignored by default
             find_not_merchant = true;
-            invert_filter=false;
-        }
-        else if(p == "milkable" && !invert_filter)
-        {
-            find_milkable = true;
-        }
-        else if(p == "milkable" && invert_filter)
-        {
-            find_not_milkable = true;
             invert_filter=false;
         }
         else if(p == "set")
@@ -2290,13 +1865,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
         find_not_trained=false;
     }
 
-    // search for grazer and nograzer is exclusive, so drop the flags if both are specified
-    if(find_grazer && find_not_grazer)
-    {
-        find_grazer=false;
-        find_not_grazer=false;
-    }
-
     // todo: maybe add this type of sanity check for all remaining bools, maybe not (lots of code just to avoid parsing dumb input)
 
     // try to cope with user dumbness
@@ -2333,34 +1901,32 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
     // set building at cursor position to be new target building
     if(building_set)
     {
-        // cagezone wants a pen/pit as starting point
-        if(!cagezone_assign)
-            target_building = findCageAtCursor();
+        target_building = findCageAtCursor();
         if(target_building != -1)
         {
             out << "Target building type: cage." << endl;
         }
         else
         {
-            target_building = findPenPitAtCursor();
+            target_building = findPitAtCursor();
             if(target_building == -1)
             {
-                out << "No pen/pasture or pit under cursor!" << endl;
+                out << "No pit under cursor!" << endl;
                 return CR_WRONG_USAGE;
             }
             else
             {
-                out << "Target building type: pen/pasture or pit." << endl;
+                out << "Target building type: pit." << endl;
             }
         }
         out << "Current building set to #" << target_building << endl;
         return CR_OK;
     }
 
-    if(building_assign || cagezone_assign || unit_info || unit_slaughter || nick_set)
+    if(building_assign || unit_info || unit_slaughter || nick_set)
     {
         df::building * building;
-        if(building_assign || cagezone_assign || (nick_set && !all && !find_count))
+        if(building_assign || (nick_set && !all && !find_count))
         {
             // try to get building index from the id
             int32_t index = findBuildingIndexById(target_building);
@@ -2381,7 +1947,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
 
         if(all || find_count)
         {
-            vector <df::unit*> units_for_cagezone;
             size_t count = 0;
             for(size_t c = 0; c < world->units.all.size(); c++)
             {
@@ -2429,12 +1994,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
                     || (find_not_hunter && isHunter(unit))
                     || (find_agemin && getUnitAge(unit)<target_agemin)
                     || (find_agemax && getUnitAge(unit)>target_agemax)
-                    || (find_grazer && !isGrazer(unit))
-                    || (find_not_grazer && isGrazer(unit))
-                    || (find_egglayer && !isEggLayer(unit))
-                    || (find_not_egglayer && isEggLayer(unit))
-                    || (find_milkable && !isMilkable(unit))
-                    || (find_not_milkable && isMilkable(unit))
                     || (find_male && !isMale(unit))
                     || (find_not_male && isMale(unit))
                     || (find_female && !isFemale(unit))
@@ -2477,10 +2036,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
                     Units::setNickname(unit, target_nick);
                 }
 
-                if(cagezone_assign)
-                {
-                    units_for_cagezone.push_back(unit);
-                }
                 else if(building_assign)
                 {
                     command_result result = assignUnitToBuilding(out, unit, building, verbose);
@@ -2498,12 +2053,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
                 count++;
                 if(find_count && count >= target_count)
                     break;
-            }
-            if(cagezone_assign)
-            {
-                command_result result = assignUnitsToCagezone(out, units_for_cagezone, building, verbose);
-                if(result != CR_OK)
-                    return result;
             }
 
             out << "Processed creatures: " << count << endl;
@@ -2563,138 +2112,6 @@ command_result df_zone (color_ostream &out, vector <string> & parameters)
 }
 
 ////////////////////
-// autonestbox stuff
-
-command_result df_autonestbox(color_ostream &out, vector <string> & parameters)
-{
-    CoreSuspender suspend;
-
-    bool verbose = false;
-
-    for (size_t i = 0; i < parameters.size(); i++)
-    {
-        string & p = parameters[i];
-
-        if (p == "help" || p == "?")
-        {
-            out << autonestbox_help << endl;
-            return CR_OK;
-        }
-        if (p == "start")
-        {
-            autonestbox_did_complain = false;
-            start_autonestbox(out);
-            return autoNestbox(out, verbose);
-        }
-        if (p == "stop")
-        {
-            enable_autonestbox = false;
-            if(config_autonestbox.isValid())
-                config_autonestbox.ival(0) = 0;
-            out << "Autonestbox stopped." << endl;
-            return CR_OK;
-        }
-        else if(p == "verbose")
-        {
-            verbose = true;
-        }
-        else if(p == "sleep")
-        {
-            if(i == parameters.size()-1)
-            {
-                out.printerr("No duration specified!");
-                return CR_WRONG_USAGE;
-            }
-            else
-            {
-                size_t ticks = 0;
-                stringstream ss(parameters[i+1]);
-                i++;
-                ss >> ticks;
-                if(ticks <= 0)
-                {
-                    out.printerr("Invalid duration specified (must be > 0)!");
-                    return CR_WRONG_USAGE;
-                }
-                sleep_autonestbox = ticks;
-                if(config_autonestbox.isValid())
-                    config_autonestbox.ival(1) = sleep_autonestbox;
-                out << "New sleep timer for autonestbox: " << ticks << " ticks." << endl;
-                return CR_OK;
-            }
-        }
-        else
-        {
-            out << "Unknown command: " << p << endl;
-            return CR_WRONG_USAGE;
-        }
-    }
-    return autoNestbox(out, verbose);
-}
-
-command_result autoNestbox( color_ostream &out, bool verbose = false )
-{
-    bool stop = false;
-    size_t processed = 0;
-
-    if (!Maps::IsValid())
-    {
-        out.printerr("Map is not available!\n");
-        enable_autonestbox = false;
-        return CR_FAILURE;
-    }
-
-    do
-    {
-        df::building * free_building = findFreeNestboxZone();
-        df::unit * free_unit = findFreeEgglayer();
-        if(free_building && free_unit)
-        {
-            command_result result = assignUnitToBuilding(out, free_unit, free_building, verbose);
-            if(result != CR_OK)
-                return result;
-            processed ++;
-        }
-        else
-        {
-            stop = true;
-            if(free_unit && !free_building)
-            {
-                static size_t old_count = 0;
-                size_t freeEgglayers = countFreeEgglayers();
-                // avoid spamming the same message
-                if(old_count != freeEgglayers)
-                    autonestbox_did_complain = false;
-                old_count = freeEgglayers;
-                if(!autonestbox_did_complain)
-                {
-                    stringstream ss;
-                    ss << freeEgglayers;
-                    string announce = "Not enough free nestbox zones found! You need " + ss.str() + " more.";
-                    Gui::showAnnouncement(announce, 6, true);
-                    out << announce << endl;
-                    autonestbox_did_complain = true;
-                }
-            }
-        }
-    } while (!stop);
-    if(processed > 0)
-    {
-        stringstream ss;
-        ss << processed;
-        string announce;
-        announce = ss.str() + " nestboxes were assigned.";
-        Gui::showAnnouncement(announce, 2, false);
-        out << announce << endl;
-        // can complain again
-        // (might lead to spamming the same message twice, but catches the case
-        // where for example 2 new egglayers hatched right after 2 zones were created and assigned)
-        autonestbox_did_complain = false;
-    }
-    return CR_OK;
-}
-
-////////////////////
 // autobutcher stuff
 
 // getUnitAge() returns 0 if born in current year, therefore the look at birth_time in that case
@@ -2705,8 +2122,8 @@ bool compareUnitAgesYounger(df::unit* i, df::unit* j)
     int32_t age_j = getUnitAge(j);
     if(age_i == 0 && age_j == 0)
     {
-        age_i = i->relations.birth_time;
-        age_j = j->relations.birth_time;
+        age_i = i->relations.age_seconds;
+        age_j = j->relations.age_seconds;
     }
     return (age_i < age_j);
 }
@@ -2716,8 +2133,8 @@ bool compareUnitAgesOlder(df::unit* i, df::unit* j)
     int32_t age_j = getUnitAge(j);
     if(age_i == 0 && age_j == 0)
     {
-        age_i = i->relations.birth_time;
-        age_j = j->relations.birth_time;
+        age_i = i->relations.age_seconds;
+        age_j = j->relations.age_seconds;
     }
     return (age_i > age_j);
 }
@@ -3088,7 +2505,7 @@ command_result df_autobutcher(color_ostream &out, vector <string> & parameters)
         for(size_t i=0; i<watched_races.size(); i++)
         {
             WatchedRace * w = watched_races[i];
-            df::creature_raw * raw = df::global::world->raws.creatures.all[w->raceId];
+            df::creature_raw * raw = df::global::world->raws.creatures[w->raceId];
             string name = raw->creature_id;
             if(w->isWatched)
                 out << "watched: ";
@@ -3130,7 +2547,7 @@ command_result df_autobutcher(color_ostream &out, vector <string> & parameters)
         for(size_t i=0; i<watched_races.size(); i++)
         {
             WatchedRace * w = watched_races[i];
-            df::creature_raw * raw = df::global::world->raws.creatures.all[w->raceId];
+            df::creature_raw * raw = df::global::world->raws.creatures[w->raceId];
             string name = raw->creature_id;
 
             out << run << "target"
@@ -3226,7 +2643,7 @@ command_result df_autobutcher(color_ostream &out, vector <string> & parameters)
     else
     {
         // map race names from parameter list to ids
-        size_t num_races = df::global::world->raws.creatures.all.size();
+        size_t num_races = df::global::world->raws.creatures.size();
         while(target_racenames.size())
         {
             bool found_race = false;
@@ -3398,7 +2815,7 @@ command_result autoButcher( color_ostream &out, bool verbose = false )
 }
 
 ////////////////////////////////////////////////////
-// autobutcher and autonestbox start/init/cleanup
+// autobutcher start/init/cleanup
 
 command_result start_autobutcher(color_ostream &out)
 {
@@ -3491,58 +2908,5 @@ command_result cleanup_autobutcher(color_ostream &out)
         delete watched_races[i];
     }
     watched_races.clear();
-    return CR_OK;
-}
-
-command_result start_autonestbox(color_ostream &out)
-{
-    enable_autonestbox = true;
-
-    if (!config_autonestbox.isValid())
-    {
-        config_autonestbox = World::AddPersistentData("autonestbox/config");
-
-        if (!config_autonestbox.isValid())
-        {
-            out << "Cannot enable autonestbox without a world!" << endl;
-            return CR_OK;
-        }
-
-        config_autonestbox.ival(1) = sleep_autonestbox;
-    }
-
-    config_autonestbox.ival(0) = enable_autonestbox;
-
-    out << "Starting autonestbox." << endl;
-    init_autonestbox(out);
-    return CR_OK;
-}
-
-command_result init_autonestbox(color_ostream &out)
-{
-    cleanup_autonestbox(out);
-
-    config_autonestbox = World::GetPersistentData("autonestbox/config");
-    if(config_autonestbox.isValid())
-    {
-        if (config_autonestbox.ival(0) == -1)
-        {
-            config_autonestbox.ival(0) = enable_autonestbox;
-            config_autonestbox.ival(1) = sleep_autonestbox;
-            out << "Autonestbox's persistent config object was invalid!" << endl;
-        }
-        else
-        {
-            enable_autonestbox = config_autonestbox.ival(0);
-            sleep_autonestbox = config_autonestbox.ival(1);
-        }
-    }
-    return CR_OK;
-}
-
-command_result cleanup_autonestbox(color_ostream &out)
-{
-    // nothing to cleanup currently
-    // (future version of autonestbox could store info about cages for useless male kids)
     return CR_OK;
 }

@@ -8,6 +8,7 @@
 #include "DataDefs.h"
 #include "modules/Maps.h"
 #include "modules/Materials.h"
+#include "df/matgloss_stone.h"
 #include "TileTypes.h"
 
 using std::vector;
@@ -37,14 +38,12 @@ command_result df_changevein (color_ostream &out, vector <string> & parameters)
     }
 
     MaterialInfo mi;
-    if (!mi.findInorganic(parameters[0]))
+    if (!mi.findStone(material_type::STONE, parameters[0]))
     {
         out.printerr("No such material!\n");
         return CR_FAILURE;
     }
-    if (mi.inorganic->material.flags.is_set(material_flags::IS_METAL) ||
-        mi.inorganic->material.flags.is_set(material_flags::NO_STONE_STOCKPILE) ||
-        mi.inorganic->flags.is_set(inorganic_flags::SOIL_ANY))
+    if (mi.stone->flags.is_set(matgloss_stone_flags::SOIL_ANY))
     {
         out.printerr("Invalid material - you must select a type of stone or gem\n");
         return CR_FAILURE;
@@ -72,7 +71,7 @@ command_result df_changevein (color_ostream &out, vector <string> & parameters)
         out.printerr("Selected tile does not contain a mineral vein.\n");
         return CR_FAILURE;
     }
-    mineral->inorganic_mat = mi.index;
+    mineral->stone = mi.subtype;
 
     return CR_OK;
 }

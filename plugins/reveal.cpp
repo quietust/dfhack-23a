@@ -27,18 +27,14 @@ using df::global::world;
  */
 bool isSafe(df::coord c)
 {
-    t_feature local_feature;
-    t_feature global_feature;
+    t_feature feature;
     // get features of block
     // error -> obviously not safe to manipulate
-    if(!Maps::ReadFeatures(c.x >> 4,c.y >> 4,c.z,&local_feature,&global_feature))
+    if(!Maps::ReadFeatures(c.x >> 4,c.y >> 4,c.z,&feature))
         return false;
 
-    // Adamantine tubes and temples lead to Hell
-    if (local_feature.type == feature_type::deep_special_tube || local_feature.type == feature_type::deep_surface_portal)
-        return false;
-    // And Hell *is* Hell.
-    if (global_feature.type == feature_type::feature_underworld_from_layer)
+    // if the glowing pit is revealed, it will break
+    if (feature.type == feature_type::glowing_pit)
         return false;
     // otherwise it's safe.
     return true;

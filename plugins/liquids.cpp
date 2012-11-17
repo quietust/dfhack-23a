@@ -611,15 +611,15 @@ command_result df_liquids_execute(color_ostream &out, OperationMode &cur_mode, d
                 case M_DEC:
                     if (auto block = (*biter)->getRaw())
                     {
-                        block->flags.bits.update_liquid = false;
-                        block->flags.bits.update_liquid_twice = false;
+                        block->flags.clear(block_flags::update_liquid);
+                        block->flags.clear(block_flags::update_liquid_twice);
                     }
                     break;
                 case M_KEEP:
                     {
-                        auto bflags = (*biter)->BlockFlags();
-                        out << "flow bit 1 = " << bflags.bits.update_liquid << endl; 
-                        out << "flow bit 2 = " << bflags.bits.update_liquid_twice << endl;
+                        auto block = (*biter)->getRaw();
+                        out << "flow bit 1 = " << block->flags.is_set(block_flags::update_liquid) << endl; 
+                        out << "flow bit 2 = " << block->flags.is_set(block_flags::update_liquid_twice) << endl;
                     }
                 }
                 biter ++;

@@ -42,10 +42,11 @@ using namespace df::enums;
 
 #include "DataDefs.h"
 #include "df/world.h"
-#include "df/d_init.h"
+#include "df/init.h"
 
 using df::global::world;
-using df::global::d_init;
+using df::global::init;
+using df::global::gametype;
 
 bool Translation::IsValid ()
 {
@@ -138,15 +139,15 @@ string Translation::TranslateName(const df::language_name * name, bool inEnglish
         if (!name->nickname.empty())
         {
             word = "`" + name->nickname + "'";
-            switch (d_init ? d_init->nickname_dwarf : d_init_nickname::CENTRALIZE)
+            switch ((init && gametype) ? init->display.nickname[*gametype] : init_nickname_mode::CENTRALIZE)
             {
-            case d_init_nickname::REPLACE_ALL:
+            case init_nickname_mode::REPLACE_ALL:
                 out = word;
                 return out;
-            case d_init_nickname::REPLACE_FIRST:
+            case init_nickname_mode::REPLACE_FIRST:
                 out = "";
                 break;
-            case d_init_nickname::CENTRALIZE:
+            case init_nickname_mode::CENTRALIZE:
                 break;
             }
             addNameWord(out, word);

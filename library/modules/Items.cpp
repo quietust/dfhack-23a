@@ -50,11 +50,9 @@ using namespace std;
 #include "df/item.h"
 #include "df/building.h"
 #include "df/building_actual.h"
-#include "df/tool_uses.h"
 #include "df/itemdef_weaponst.h"
 #include "df/itemdef_trapcompst.h"
 #include "df/itemdef_toyst.h"
-#include "df/itemdef_toolst.h"
 #include "df/itemdef_instrumentst.h"
 #include "df/itemdef_armorst.h"
 #include "df/itemdef_ammost.h"
@@ -65,8 +63,6 @@ using namespace std;
 #include "df/itemdef_helmst.h"
 #include "df/itemdef_pantsst.h"
 #include "df/itemdef_foodst.h"
-#include "df/trapcomp_flags.h"
-#include "df/job_item.h"
 #include "df/general_ref.h"
 #include "df/general_ref_unit_itemownerst.h"
 #include "df/general_ref_contains_itemst.h"
@@ -82,8 +78,6 @@ using namespace std;
 #include "df/body_part_raw.h"
 #include "df/unit.h"
 #include "df/creature_raw.h"
-#include "df/caste_raw.h"
-#include "df/body_part_template_flags.h"
 #include "df/general_ref_unit_holderst.h"
 
 using namespace DFHack;
@@ -97,11 +91,10 @@ using df::global::proj_next_id;
     ITEM(WEAPON, weapons, itemdef_weaponst) \
     ITEM(TRAPCOMP, trapcomps, itemdef_trapcompst) \
     ITEM(TOY, toys, itemdef_toyst) \
-    ITEM(TOOL, tools, itemdef_toolst) \
     ITEM(INSTRUMENT, instruments, itemdef_instrumentst) \
     ITEM(ARMOR, armor, itemdef_armorst) \
     ITEM(AMMO, ammo, itemdef_ammost) \
-    ITEM(SIEGEAMMO, siege_ammo, itemdef_siegeammost) \
+    ITEM(SIEGEAMMO, siegeammo, itemdef_siegeammost) \
     ITEM(GLOVES, gloves, itemdef_glovesst) \
     ITEM(SHOES, shoes, itemdef_shoesst) \
     ITEM(SHIELD, shields, itemdef_shieldst) \
@@ -240,240 +233,13 @@ ITEMDEF_VECTORS
     return (subtype >= 0);
 }
 
-bool Items::isCasteMaterial(df::item_type itype)
+bool Items::isCreatureMaterial(df::item_type itype)
 {
-    return ENUM_ATTR(item_type, is_caste_mat, itype);
+    return ENUM_ATTR(item_type, is_creature_mat, itype);
 }
-
-bool ItemTypeInfo::matches(df::job_item_vector_id vec_id)
+bool Items::isPlantMaterial(df::item_type itype)
 {
-    auto other_id = ENUM_ATTR(job_item_vector_id, other, vec_id);
-
-    auto explicit_item = ENUM_ATTR(items_other_id, item, other_id);
-    if (explicit_item != item_type::NONE && type != explicit_item)
-        return false;
-
-    auto generic_item = ENUM_ATTR(items_other_id, generic_item, other_id);
-    if (generic_item.size > 0)
-    {
-        for (size_t i = 0; i < generic_item.size; i++)
-            if (generic_item.items[i] == type)
-                return true;
-
-        return false;
-    }
-
-    return true;
-}
-
-bool ItemTypeInfo::matches(const df::job_item &item, MaterialInfo *mat, bool skip_vector)
-{
-    using namespace df::enums::item_type;
-
-    if (!isValid())
-        return mat ? mat->matches(item) : false;
-
-    if (Items::isCasteMaterial(type) && mat && !mat->isNone())
-        return false;
-
-    if (!skip_vector && !matches(item.vector_id))
-        return false;
-
-    df::job_item_flags1 ok1, mask1, item_ok1, item_mask1, xmask1;
-    df::job_item_flags2 ok2, mask2, item_ok2, item_mask2, xmask2;
-    df::job_item_flags3 ok3, mask3, item_ok3, item_mask3;
-
-    ok1.whole = mask1.whole = item_ok1.whole = item_mask1.whole = xmask1.whole = 0;
-    ok2.whole = mask2.whole = item_ok2.whole = item_mask2.whole = xmask2.whole = 0;
-    ok3.whole = mask3.whole = item_ok3.whole = item_mask3.whole = 0;
-
-    if (mat) {
-        mat->getMatchBits(ok1, mask1);
-        mat->getMatchBits(ok2, mask2);
-        mat->getMatchBits(ok3, mask3);
-    }
-
-#define OK(id,name) item_ok##id.bits.name = true
-#define RQ(id,name) item_mask##id.bits.name = true
-
-    // Set up the flag mask
-
-    RQ(1,millable); RQ(1,sharpenable); RQ(1,distillable); RQ(1,processable); RQ(1,bag);
-    RQ(1,extract_bearing_plant); RQ(1,extract_bearing_fish); RQ(1,extract_bearing_vermin);
-    RQ(1,processable_to_vial); RQ(1,processable_to_bag); RQ(1,processable_to_barrel);
-    RQ(1,solid); RQ(1,tameable_vermin); RQ(1,sand_bearing); RQ(1,milk); RQ(1,milkable);
-    RQ(1,not_bin); RQ(1,lye_bearing);
-
-    RQ(2,dye); RQ(2,dyeable); RQ(2,dyed); RQ(2,glass_making); RQ(2,screw);
-    RQ(2,building_material); RQ(2,fire_safe); RQ(2,magma_safe);
-    RQ(2,totemable); RQ(2,plaster_containing); RQ(2,body_part); RQ(2,lye_milk_free);
-    RQ(2,blunt); RQ(2,unengraved); RQ(2,hair_wool);
-
-    RQ(3,any_raw_material); RQ(3,non_pressed); RQ(3,food_storage);
-
-    // only checked if boulder
-
-    xmask2.bits.non_economic = true;
-
-    // Compute the ok mask
-
-    OK(1,solid);
-    OK(1,not_bin);
-
-    // TODO: furniture, ammo, finished good, craft
-
-    switch (type) {
-    case PLANT:
-        OK(1,millable); OK(1,processable);
-        OK(1,distillable);
-        OK(1,extract_bearing_plant);
-        OK(1,processable_to_vial);
-        OK(1,processable_to_bag);
-        OK(1,processable_to_barrel);
-        break;
-
-    case BOULDER:
-        OK(1,sharpenable);
-        xmask2.bits.non_economic = false;
-    case BAR:
-        OK(3,any_raw_material);
-    case BLOCKS:
-    case WOOD:
-        OK(2,building_material);
-        OK(2,fire_safe); OK(2,magma_safe);
-        break;
-
-    case VERMIN:
-        OK(1,extract_bearing_fish);
-        OK(1,extract_bearing_vermin);
-        OK(1,tameable_vermin);
-        OK(1,milkable);
-        break;
-
-    case DRINK:
-        item_ok1.bits.solid = false;
-        break;
-
-    case ROUGH:
-        OK(2,glass_making);
-        break;
-
-    case ANIMALTRAP:
-    case CAGE:
-        OK(1,milk);
-        OK(1,milkable);
-        xmask1.bits.cookable = true;
-        break;
-
-    case BUCKET:
-    case FLASK:
-        OK(1,milk);
-        xmask1.bits.cookable = true;
-        break;
-
-    case TOOL:
-        OK(1,lye_bearing);
-        OK(1,milk);
-        OK(2,lye_milk_free);
-        OK(2,blunt);
-        xmask1.bits.cookable = true;
-
-        if (VIRTUAL_CAST_VAR(def, df::itemdef_toolst, custom)) {
-            df::tool_uses key(tool_uses::FOOD_STORAGE);
-            if (linear_index(def->tool_use, key) >= 0)
-                OK(3,food_storage);
-        } else {
-            OK(3,food_storage);
-        }
-        break;
-
-    case BARREL:
-        OK(1,lye_bearing);
-        OK(1,milk);
-        OK(2,lye_milk_free);
-        OK(3,food_storage);
-        xmask1.bits.cookable = true;
-        break;
-
-    case BOX:
-        OK(1,bag); OK(1,sand_bearing); OK(1,milk);
-        OK(2,dye); OK(2,plaster_containing);
-        xmask1.bits.cookable = true;
-        break;
-
-    case BIN:
-        item_ok1.bits.not_bin = false;
-        break;
-
-    case LIQUID_MISC:
-        item_ok1.bits.solid = false;
-        OK(1,milk);
-        break;
-
-    case POWDER_MISC:
-        OK(2,dye);
-    case GLOB:
-        OK(3,any_raw_material);
-        OK(3,non_pressed);
-        break;
-
-    case THREAD:
-    case CLOTH:
-        OK(2,dyeable); OK(2,dyed);
-        break;
-
-    case WEAPON:
-    case AMMO:
-    case ROCK:
-        OK(2,blunt);
-        break;
-
-    case TRAPCOMP:
-        if (VIRTUAL_CAST_VAR(def, df::itemdef_trapcompst, custom)) {
-            if (def->flags.is_set(trapcomp_flags::IS_SCREW))
-                OK(2,screw);
-        } else {
-            OK(2,screw);
-        }
-        OK(2,blunt);
-        break;
-
-    case CORPSE:
-    case CORPSEPIECE:
-        OK(2,totemable);
-        OK(2,body_part);
-        OK(2,hair_wool);
-        break;
-
-    case SLAB:
-        OK(2,unengraved);
-        break;
-
-    case ANVIL:
-        OK(2,fire_safe); OK(2,magma_safe);
-        break;
-
-    default:
-        break;
-    }
-
-    if ((item_ok1.whole & ~item_mask1.whole) ||
-        (item_ok2.whole & ~item_mask2.whole) ||
-        (item_ok3.whole & ~item_mask3.whole))
-        Core::printerr("ItemTypeInfo.matches inconsistent\n");
-
-#undef OK
-#undef RQ
-
-    mask1.whole &= ~xmask1.whole;
-    mask2.whole &= ~xmask2.whole;
-
-    return bits_match(item.flags1.whole, ok1.whole, mask1.whole) &&
-           bits_match(item.flags2.whole, ok2.whole, mask2.whole) &&
-           bits_match(item.flags3.whole, ok3.whole, mask3.whole) &&
-           bits_match(item.flags1.whole, item_ok1.whole, item_mask1.whole) &&
-           bits_match(item.flags2.whole, item_ok2.whole, item_mask2.whole) &&
-           bits_match(item.flags3.whole, item_ok3.whole, item_mask3.whole);
+    return ENUM_ATTR(item_type, is_plant_mat, itype);
 }
 
 df::item * Items::findItemByID(int32_t id)
@@ -498,7 +264,7 @@ bool Items::copyItem(df::item * itembase, DFHack::dfh_item &item)
     item.matdesc.item_type = itreal->getType();
     item.matdesc.item_subtype = itreal->getSubtype();
     item.matdesc.mat_type = itreal->getMaterial();
-    item.matdesc.mat_index = itreal->getMaterialIndex();
+    item.matdesc.mat_subtype = itreal->getMatgloss();
     item.wear_level = itreal->getWear();
     item.quality = itreal->getQuality();
     item.quantity = itreal->getStackSize();
@@ -665,7 +431,7 @@ df::coord Items::getPosition(df::item *item)
 
 static char quality_table[] = { 0, '-', '+', '*', '=', '@' };
 
-static void addQuality(std::string &tmp, int quality)
+static void addQuality(stl::string &tmp, int quality)
 {
     if (quality > 0 && quality <= 5) {
         char c = quality_table[quality];
@@ -677,7 +443,7 @@ std::string Items::getDescription(df::item *item, int type, bool decorate)
 {
     CHECK_NULL_POINTER(item);
 
-    std::string tmp;
+    stl::string tmp;
     item->getItemDescription(&tmp, type);
 
     if (decorate) {
@@ -697,23 +463,16 @@ std::string Items::getDescription(df::item *item, int type, bool decorate)
 
 static void resetUnitInvFlags(df::unit *unit, df::unit_inventory_item *inv_item)
 {
-    if (inv_item->mode == df::unit_inventory_item::Worn ||
-        inv_item->mode == df::unit_inventory_item::WrappedAround)
+    if (inv_item->mode == df::unit_inventory_item::Worn)
     {
         unit->flags2.bits.calculated_inventory = false;
         unit->flags2.bits.calculated_insulation = false;
-    }
-    else if (inv_item->mode == df::unit_inventory_item::StuckIn)
-    {
-        unit->flags3.bits.unk2 = false;
     }
 }
 
 static bool detachItem(MapExtras::MapCache &mc, df::item *item)
 {
     if (!item->specific_refs.empty())
-        return false;
-    if (item->world_data_id != -1)
         return false;
 
     for (size_t i = 0; i < item->general_refs.size(); i++)
@@ -765,8 +524,6 @@ static bool detachItem(MapExtras::MapCache &mc, df::item *item)
                             return false;
                     }
 
-                    item2->flags.bits.weight_computed = false;
-
                     removeRef(item2->general_refs, general_ref_type::CONTAINS_ITEM, item->id);
                 }
                 break;
@@ -816,7 +573,8 @@ static bool detachItem(MapExtras::MapCache &mc, df::item *item)
         if (item->flags.bits.garbage_collect)
         {
             item->flags.bits.garbage_collect = false;
-            item->categorize(true);
+            // TODO - this isn't a vmethod, so we need a hook for it
+            Items::item_categorize(item,true);
         }
 
         return true;
@@ -875,7 +633,6 @@ bool DFHack::Items::moveToContainer(MapExtras::MapCache &mc, df::item *item, df:
     item->flags.bits.in_inventory = true;
 
     container->flags.bits.container = true;
-    container->flags.bits.weight_computed = false;
 
     ref1->item_id = item->id;
     container->general_refs.push_back(ref1);
@@ -975,8 +732,7 @@ bool Items::remove(MapExtras::MapCache &mc, df::item *item, bool no_uncat)
         item->pos = pos;
 
     if (!no_uncat)
-        item->uncategorize();
-
+        item_uncategorize(item);
     item->flags.bits.removed = true;
     item->flags.bits.garbage_collect = !no_uncat;
     return true;
@@ -1010,9 +766,10 @@ df::proj_itemst *Items::makeProjectile(MapExtras::MapCache &mc, df::item *item)
     proj->link = new df::proj_list_link();
     proj->link->item = proj;
     proj->id = (*proj_next_id)++;
+    df::coord32 _pos; _pos.x = pos.x; _pos.y = pos.y; _pos.z = pos.z;
 
-    proj->origin_pos = proj->target_pos = pos;
-    proj->cur_pos = proj->prev_pos = pos;
+    proj->origin_pos = proj->target_pos = _pos;
+    proj->cur_pos = proj->prev_pos = _pos;
     proj->item = item;
 
     ref->projectile_id = proj->id;
@@ -1021,4 +778,37 @@ df::proj_itemst *Items::makeProjectile(MapExtras::MapCache &mc, df::item *item)
     linked_list_append(&world->proj_list, proj->link);
 
     return proj;
+}
+
+void Items::item_categorize(df::item *item, bool in_play)
+{
+    static void *func_ptr = NULL;
+    if (!func_ptr && !Core::getInstance().vinfo->getAddress("func_item_categorize", func_ptr))
+        return; // should probably kill program
+
+    __asm
+    {
+        movzx eax, in_play
+        push eax
+        mov edi, item
+        mov eax, func_ptr
+        call eax
+    }
+}
+void Items::item_uncategorize(df::item *item)
+{
+    static void *func_ptr = NULL;
+    if (!func_ptr && !Core::getInstance().vinfo->getAddress("func_item_uncategorize", func_ptr))
+        return; // should probably kill program
+
+    __asm
+    {
+        push ebx
+
+        mov eax, item
+        mov ebx, func_ptr
+        call ebx
+
+        pop ebx
+    }
 }

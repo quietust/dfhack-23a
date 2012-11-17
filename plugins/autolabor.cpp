@@ -17,20 +17,15 @@
 #include <df/ui.h>
 #include <df/world.h>
 #include <df/unit.h>
-#include <df/unit_soul.h>
 #include <df/unit_labor.h>
 #include <df/unit_skill.h>
 #include <df/job.h>
 #include <df/building.h>
 #include <df/workshop_type.h>
 #include <df/unit_misc_trait.h>
-#include <df/entity_position_responsibility.h>
 #include <df/historical_figure.h>
 #include <df/historical_entity.h>
 #include <df/histfig_entity_link.h>
-#include <df/histfig_entity_link_positionst.h>
-#include <df/entity_position_assignment.h>
-#include <df/entity_position.h>
 #include <df/building_tradedepotst.h>
 #include <df/building_stockpilest.h>
 #include <df/items_other_id.h>
@@ -781,7 +776,7 @@ static void assign_labor(unit_labor::unit_labor labor,
                 int skill_level = 0;
                 int skill_experience = 0;
 
-                for (auto s = dwarfs[dwarf]->status.souls[0]->skills.begin(); s < dwarfs[dwarf]->status.souls[0]->skills.end(); s++)
+                for (auto s = dwarfs[dwarf]->status.skills.begin(); s < dwarfs[dwarf]->status.skills.end(); s++)
                 {
                     if ((*s)->id == skill)
                     {
@@ -875,8 +870,6 @@ static void assign_labor(unit_labor::unit_labor labor,
                 preferred_dwarf = true;
             if (previously_enabled[dwarf] && labor_infos[labor].is_exclusive)
                 preferred_dwarf = true;
-            if (dwarf_info[dwarf].medical && labor == df::unit_labor::DIAGNOSE)
-                preferred_dwarf = true;
             if (dwarf_info[dwarf].trader && trader_requested)
                 continue;
             if (dwarf_info[dwarf].diplomacy)
@@ -894,7 +887,6 @@ static void assign_labor(unit_labor::unit_labor labor,
             {
                 dwarf_info[dwarf].has_exclusive_labor = true;
                 // all the exclusive labors require equipment so this should force the dorf to reequip if needed
-                dwarfs[dwarf]->military.pickup_flags.bits.update = 1;
             }
 
             if (print_debug)
@@ -979,11 +971,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
     {
         df::unit* cre = world->units.active[i];
         if (Units::isCitizen(cre))
-        {
-            if (cre->burrows.size() > 0)
-                continue;        // dwarfs assigned to burrows are skipped entirely
             dwarfs.push_back(cre);
-        }
     }
 
     int n_dwarfs = dwarfs.size();
@@ -999,9 +987,6 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
     {
         dwarf_info[dwarf].single_labor = -1;
 
-        if (dwarfs[dwarf]->status.souls.size() <= 0)
-            continue;
-
         // compute noble penalty
 
         int noble_penalty = 0;
@@ -1010,32 +995,22 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
         for (int i = 0; i < hf->entity_links.size(); i++)
         {
             df::histfig_entity_link* hfelink = hf->entity_links.at(i);
-            if (hfelink->getType() == df::histfig_entity_link_type::POSITION)
+            switch (hfelink->type)
             {
-                df::histfig_entity_link_positionst *epos =
-                    (df::histfig_entity_link_positionst*) hfelink;
-                df::historical_entity* entity = df::historical_entity::find(epos->entity_id);
-                if (!entity)
-                    continue;
-                df::entity_position_assignment* assignment = binsearch_in_vector(entity->positions.assignments, epos->assignment_id);
-                if (!assignment)
-                    continue;
-                df::entity_position* position = binsearch_in_vector(entity->positions.own, assignment->position_id);
-                if (!position)
-                    continue;
-
-                for (int n = 0; n < 25; n++)
-                    if (position->responsibilities[n])
-                        noble_penalty += responsibility_penalties[n];
-
-                if (position->responsibilities[df::entity_position_responsibility::HEALTH_MANAGEMENT])
-                    dwarf_info[dwarf].medical = true;
-
-                if (position->responsibilities[df::entity_position_responsibility::TRADE])
-                    dwarf_info[dwarf].trader = true;
-
+            case histfig_entity_link_type::BROKER:
+                noble_penalty = 3000;
+                dwarf_info[dwarf].trader = true;
+                break;
+            case histfig_entity_link_type::MANAGER:
+                noble_penalty = 1000;
+                break;
+            case histfig_entity_link_type::BOOKKEEPER:
+                noble_penalty = 1000;
+                break;
+            case histfig_entity_link_type::MAYOR:
+                noble_penalty = 3000;
+                break;
             }
-
         }
 
         dwarf_info[dwarf].noble_penalty = noble_penalty;
@@ -1058,7 +1033,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
             }
         }
 
-        for (auto s = dwarfs[dwarf]->status.souls[0]->skills.begin(); s != dwarfs[dwarf]->status.souls[0]->skills.end(); s++)
+        for (auto s = dwarfs[dwarf]->status.skills.begin(); s != dwarfs[dwarf]->status.skills.end(); s++)
         {
             df::job_skill skill = (*s)->id;
 
@@ -1547,7 +1522,7 @@ static int stockcheck(color_ostream &out, vector <string> & parameters)
 
     }
 
-    std::vector<df::item*> &items = world->items.other[items_other_id::IN_PLAY];
+    stl::vector<df::item*> &items = world->items.other[items_other_id::IN_PLAY];
 
     // Precompute a bitmask with the bad flags
     df::item_flags bad_flags;
@@ -1574,8 +1549,7 @@ static int stockcheck(color_ostream &out, vector <string> & parameters)
             typ != item_type::FISH_RAW &&
             typ != item_type::PLANT &&
             typ != item_type::CHEESE &&
-            typ != item_type::FOOD &&
-            typ != item_type::EGG)
+            typ != item_type::FOOD)
             continue;
 
         df::item *container = 0;
@@ -1643,9 +1617,6 @@ static int stockcheck(color_ostream &out, vector <string> & parameters)
             if (btype == building_type::TradeDepot ||
                 btype == building_type::Wagon)
                 continue; // items in trade depot or the embark wagon do not rot
-
-            if (typ == item_type::EGG && btype ==building_type::NestBox)
-                continue; // eggs in nest box do not rot
         }
 
         int canHoldCount = 0;

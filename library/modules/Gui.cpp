@@ -51,16 +51,13 @@ using namespace DFHack;
 #include "df/viewscreen_dwarfmodest.h"
 #include "df/viewscreen_dungeonmodest.h"
 #include "df/viewscreen_dungeon_monsterstatusst.h"
-#include "df/viewscreen_joblistst.h"
-#include "df/viewscreen_unitlistst.h"
+#include "df/viewscreen_unitjobsst.h"
 #include "df/viewscreen_buildinglistst.h"
 #include "df/viewscreen_itemst.h"
 #include "df/viewscreen_layer.h"
 #include "df/viewscreen_layer_workshop_profilest.h"
 #include "df/viewscreen_layer_noblelistst.h"
-#include "df/viewscreen_layer_overall_healthst.h"
 #include "df/viewscreen_layer_assigntradest.h"
-#include "df/viewscreen_layer_militaryst.h"
 #include "df/viewscreen_layer_stockpilest.h"
 #include "df/viewscreen_petst.h"
 #include "df/viewscreen_tradegoodsst.h"
@@ -80,18 +77,14 @@ using namespace DFHack;
 #include "df/report.h"
 #include "df/popup_message.h"
 #include "df/interfacest.h"
-#include "df/graphic.h"
+#include "df/enabler.h"
 #include "df/layer_object_listst.h"
 #include "df/assign_trade_status.h"
-#include "df/announcement_flags.h"
-#include "df/announcements.h"
-#include "df/stop_depart_condition.h"
-#include "df/route_stockpile_link.h"
 
 using namespace df::enums;
 using df::global::gview;
 using df::global::init;
-using df::global::gps;
+using df::global::enabler;
 using df::global::ui;
 using df::global::world;
 using df::global::selection_rect;
@@ -274,76 +267,6 @@ DEFINE_GET_FOCUS_STRING_HANDLER(dwarfmode)
             focus += "/None";
         break;
 
-    case ZonesPenInfo:
-        if (ui_building_assign_type && ui_building_assign_units &&
-            ui_building_assign_is_marked && ui_building_assign_items &&
-            ui_building_assign_type->size() == ui_building_assign_units->size())
-        {
-            focus += "/Assign";
-            if (ui_building_item_cursor)
-            {
-                if (vector_get(*ui_building_assign_units, *ui_building_item_cursor))
-                    focus += "/Unit";
-                else if (vector_get(*ui_building_assign_items, *ui_building_item_cursor))
-                    focus += "/Vermin";
-                else
-                    focus += "/None";
-            }
-        }
-        break;
-
-    case Burrows:
-        if (ui->burrows.in_confirm_delete)
-            focus += "/ConfirmDelete";
-        else if (ui->burrows.in_add_units_mode)
-            focus += "/AddUnits";
-        else if (ui->burrows.in_edit_name_mode)
-            focus += "/EditName";
-        else if (ui->burrows.in_define_mode)
-            focus += "/Define";
-        else
-            focus += "/List";
-        break;
-
-    case Hauling:
-        if (ui->hauling.in_assign_vehicle)
-        {
-            auto vehicle = vector_get(ui->hauling.vehicles, ui->hauling.cursor_vehicle);
-            focus += "/AssignVehicle/" + std::string(vehicle ? "Some" : "None");
-        }
-        else
-        {
-            int idx = ui->hauling.cursor_top;
-            auto route = vector_get(ui->hauling.view_routes, idx);
-            auto stop = vector_get(ui->hauling.view_stops, idx);
-            std::string tag = stop ? "Stop" : (route ? "Route" : "None");
-
-            if (ui->hauling.in_name)
-                focus += "/Rename/" + tag;
-            else if (ui->hauling.in_stop)
-            {
-                int sidx = ui->hauling.cursor_stop;
-                auto cond = vector_get(ui->hauling.stop_conditions, sidx);
-                auto link = vector_get(ui->hauling.stop_links, sidx);
-
-                focus += "/DefineStop";
-
-                if (cond)
-                    focus += "/Cond/" + enum_item_key(cond->mode);
-                else if (link)
-                {
-                    focus += "/Link/";
-                    if (link->mode.bits.give) focus += "Give";
-                    if (link->mode.bits.take) focus += "Take";
-                }
-                else
-                    focus += "/None";
-            }
-            else
-                focus += "/Select/" + tag;
-        }
-        break;
-
     default:
         break;
     }
@@ -359,69 +282,9 @@ DEFINE_GET_FOCUS_STRING_HANDLER(dungeonmode)
     focus += "/" + enum_item_key(ui_advmode->menu);
 }
 
-DEFINE_GET_FOCUS_STRING_HANDLER(unitlist)
+DEFINE_GET_FOCUS_STRING_HANDLER(unitjobs)
 {
-    focus += "/" + enum_item_key(screen->page);
-}
-
-DEFINE_GET_FOCUS_STRING_HANDLER(layer_military)
-{
-    auto list1 = getLayerList(screen, 0);
-    auto list2 = getLayerList(screen, 1);
-    auto list3 = getLayerList(screen, 2);
-    if (!list1 || !list2 || !list3) return;
-
-    focus += "/" + enum_item_key(screen->page);
-
-    int cur_list;
-    if (list1->active) cur_list = 0;
-    else if (list2->active) cur_list = 1;
-    else if (list3->active) cur_list = 2;
-    else return;
-
-    switch (screen->page)
-    {
-    case df::viewscreen_layer_militaryst::Positions:
-        {
-            static const char *lists[] = { "/Squads", "/Positions", "/Candidates" };
-            focus += lists[cur_list];
-            break;
-        }
-
-    case df::viewscreen_layer_militaryst::Equip:
-        {
-            focus += "/" + enum_item_key(screen->equip.mode);
-
-            switch (screen->equip.mode)
-            {
-            case df::viewscreen_layer_militaryst::T_equip::Customize:
-                {
-                    if (screen->equip.edit_mode < 0)
-                        focus += "/View";
-                    else
-                        focus += "/" + enum_item_key(screen->equip.edit_mode);
-                    break;
-                }
-            case df::viewscreen_layer_militaryst::T_equip::Uniform:
-                break;
-            case df::viewscreen_layer_militaryst::T_equip::Priority:
-                {
-                    if (screen->equip.prio_in_move >= 0)
-                        focus += "/Move";
-                    else
-                        focus += "/View";
-                    break;
-                }
-            }
-
-            static const char *lists[] = { "/Squads", "/Positions", "/Choices" };
-            focus += lists[cur_list];
-            break;
-        }
-
-    default:
-        break;
-    }
+    focus += "/" + enum_item_key(screen->mode);
 }
 
 DEFINE_GET_FOCUS_STRING_HANDLER(layer_workshop_profile)
@@ -446,38 +309,15 @@ DEFINE_GET_FOCUS_STRING_HANDLER(layer_noblelist)
 
 DEFINE_GET_FOCUS_STRING_HANDLER(pet)
 {
-    focus += "/" + enum_item_key(screen->mode);
+    focus += "/List";
 
-    switch (screen->mode)
-    {
-    case df::viewscreen_petst::List:
-        focus += vector_get(screen->is_vermin, screen->cursor) ? "/Vermin" : "/Unit";
-        break;
-
-    case df::viewscreen_petst::SelectTrainer:
-        if (vector_get(screen->trainer_unit, screen->trainer_cursor))
-            focus += "/Unit";
-        break;
-
-    default:
-        break;
-    }
-}
-
-DEFINE_GET_FOCUS_STRING_HANDLER(layer_overall_health)
-{
-    auto list1 = getLayerList(screen, 0);
-    if (!list1) return;
-
-    focus += "/Units";
+    focus += vector_get(screen->is_vermin, screen->cursor) ? "/Vermin" : "/Unit";
 }
 
 DEFINE_GET_FOCUS_STRING_HANDLER(tradegoods)
 {
     if (!screen->has_traders || screen->is_unloading)
         focus += "/NoTraders";
-    else if (screen->in_edit_count)
-        focus += "/EditCount";
     else
         focus += (screen->in_right_pane ? "/Items/Broker" : "/Items/Trader");
 }
@@ -523,7 +363,7 @@ DEFINE_GET_FOCUS_STRING_HANDLER(layer_stockpile)
     focus += "/" + enum_item_key(group);
 
     auto bits = vector_get(screen->group_bits, list1->cursor);
-    if (bits.whole && !(bits.whole & screen->settings->flags.whole))
+    if (bits.whole && !(bits.whole & screen->settings->item_categories.whole))
     {
         focus += "/Off";
         return;
@@ -591,8 +431,7 @@ bool Gui::dwarfmode_hotkey(df::viewscreen *top)
 bool Gui::unitjobs_hotkey(df::viewscreen *top)
 {
     // Require the unit or jobs list
-    return !!strict_virtual_cast<df::viewscreen_joblistst>(top) ||
-           !!strict_virtual_cast<df::viewscreen_unitlistst>(top);
+    return !!strict_virtual_cast<df::viewscreen_unitjobsst>(top);
 }
 
 bool Gui::item_details_hotkey(df::viewscreen *top)
@@ -732,11 +571,8 @@ df::job *Gui::getSelectedWorkshopJob(color_ostream &out, bool quiet)
 
 bool Gui::any_job_hotkey(df::viewscreen *top)
 {
-    if (VIRTUAL_CAST_VAR(screen, df::viewscreen_joblistst, top))
+    if (VIRTUAL_CAST_VAR(screen, df::viewscreen_unitjobsst, top))
         return vector_get(screen->jobs, screen->cursor_pos) != NULL;
-
-    if (VIRTUAL_CAST_VAR(screen, df::viewscreen_unitlistst, top))
-        return vector_get(screen->jobs[screen->page], screen->cursor_pos[screen->page]) != NULL;
 
     return workshop_job_hotkey(top);
 }
@@ -745,19 +581,9 @@ df::job *Gui::getSelectedJob(color_ostream &out, bool quiet)
 {
     df::viewscreen *top = Core::getTopViewscreen();
 
-    if (VIRTUAL_CAST_VAR(joblist, df::viewscreen_joblistst, top))
+    if (VIRTUAL_CAST_VAR(joblist, df::viewscreen_unitjobsst, top))
     {
         df::job *job = vector_get(joblist->jobs, joblist->cursor_pos);
-
-        if (!job && !quiet)
-            out.printerr("Selected unit has no job\n");
-
-        return job;
-    }
-    else if (VIRTUAL_CAST_VAR(unitlist, df::viewscreen_unitlistst, top))
-    {
-        int page = unitlist->page;
-        df::job *job = vector_get(unitlist->jobs[page], unitlist->cursor_pos[page]);
 
         if (!job && !quiet)
             out.printerr("Selected unit has no job\n");
@@ -779,7 +605,7 @@ static df::unit *getAnyUnit(df::viewscreen *top)
     using df::global::ui_look_list;
     using df::global::ui_selected_unit;
 
-    if (VIRTUAL_CAST_VAR(screen, df::viewscreen_joblistst, top))
+    if (VIRTUAL_CAST_VAR(screen, df::viewscreen_unitjobsst, top))
     {
         if (auto unit = vector_get(screen->units, screen->cursor_pos))
             return unit;
@@ -787,9 +613,6 @@ static df::unit *getAnyUnit(df::viewscreen *top)
             return Job::getWorker(job);
         return NULL;
     }
-
-    if (VIRTUAL_CAST_VAR(screen, df::viewscreen_unitlistst, top))
-        return vector_get(screen->units[screen->page], screen->cursor_pos[screen->page]);
 
     if (VIRTUAL_CAST_VAR(screen, df::viewscreen_dungeon_monsterstatusst, top))
         return screen->unit;
@@ -834,25 +657,8 @@ static df::unit *getAnyUnit(df::viewscreen *top)
 
     if (VIRTUAL_CAST_VAR(screen, df::viewscreen_petst, top))
     {
-        switch (screen->mode)
-        {
-        case df::viewscreen_petst::List:
-            if (!vector_get(screen->is_vermin, screen->cursor))
-                return vector_get(screen->animal, screen->cursor).unit;
-            return NULL;
-
-        case df::viewscreen_petst::SelectTrainer:
-            return vector_get(screen->trainer_unit, screen->trainer_cursor);
-
-        default:
-            return NULL;
-        }
-    }
-
-    if (VIRTUAL_CAST_VAR(screen, df::viewscreen_layer_overall_healthst, top))
-    {
-        if (auto list1 = getLayerList(screen, 0))
-            return vector_get(screen->unit, list1->cursor);
+        if (!vector_get(screen->is_vermin, screen->cursor))
+            return vector_get(screen->animal, screen->cursor).unit;
         return NULL;
     }
 
@@ -1049,15 +855,15 @@ static df::building *getAnyBuilding(df::viewscreen *top)
     {
         return world->selected_building;
     }
+/*
     case Zones:
-    case ZonesPenInfo:
     case ZonesPitInfo:
-    case ZonesHospitalInfo:
     {
         if (ui_sidebar_menus)
             return ui_sidebar_menus->zone.selected;
         return NULL;
     }
+*/
     default:
         return NULL;
     }
@@ -1080,27 +886,9 @@ df::building *Gui::getSelectedBuilding(color_ostream &out, bool quiet)
 
 //
 
-static void doShowAnnouncement(
-    df::announcement_type type, df::coord pos, std::string message, int color, bool bright
-) {
-    using df::global::world;
-    using df::global::cur_year;
-    using df::global::cur_year_tick;
-
-    int year = 0, year_time = 0;
-
-    if (cur_year && cur_year_tick)
-    {
-        year = *cur_year;
-        year_time = *cur_year_tick;
-    }
-    else if (!world->status.reports.empty())
-    {
-        // Fallback: copy from the last report
-        df::report *last = world->status.reports.back();
-        year = last->year;
-        year_time = last->time;
-    }
+void Gui::showAnnouncement(std::string message, int color, bool bright)
+{
+    using df::global::gview;
 
     bool continued = false;
 
@@ -1108,75 +896,31 @@ static void doShowAnnouncement(
     {
         df::report *new_rep = new df::report();
 
-        new_rep->type = type;
-        new_rep->pos = pos;
-
         new_rep->color = color;
         new_rep->bright = bright;
-        new_rep->year = year;
-        new_rep->time = year_time;
 
         new_rep->flags.bits.continuation = continued;
-        new_rep->flags.bits.announcement = true;
 
         int size = std::min(message.size(), (size_t)73);
-        new_rep->text = message.substr(0, size);
+        strcpy(new_rep->text, message.substr(0, size).c_str());
         message = message.substr(size);
 
         continued = true;
 
         // Add the object to the lists
-        new_rep->id = world->status.next_report_id++;
 
-        world->status.reports.push_back(new_rep);
-        world->status.announcements.push_back(new_rep);
-        world->status.display_timer = 2000;
+        gview->announcements.reports.push_back(new_rep);
+        gview->announcements.report_timer = 2000;
     }
-}
-
-void Gui::showAnnouncement(std::string message, int color, bool bright)
-{
-    doShowAnnouncement(df::announcement_type(0), df::coord(), message, color, bright);
-}
-
-void Gui::showZoomAnnouncement(
-    df::announcement_type type, df::coord pos, std::string message, int color, bool bright
-) {
-    doShowAnnouncement(type, pos, message, color, bright);
 }
 
 void Gui::showPopupAnnouncement(std::string message, int color, bool bright)
 {
-    using df::global::world;
-
     df::popup_message *popup = new df::popup_message();
-    popup->text = message;
+    popup->text = message.c_str();
     popup->color = color;
     popup->bright = bright;
-    world->status.popups.push_back(popup);
-}
-
-void Gui::showAutoAnnouncement(
-    df::announcement_type type, df::coord pos, std::string message, int color, bool bright
-) {
-    using df::global::announcements;
-
-    df::announcement_flags flags;
-    if (is_valid_enum_item(type) && announcements)
-        flags = announcements->flags[type];
-
-    doShowAnnouncement(type, pos, message, color, bright);
-
-    if (flags.bits.DO_MEGA || flags.bits.PAUSE || flags.bits.RECENTER)
-    {
-        resetDwarfmodeView(flags.bits.DO_MEGA || flags.bits.PAUSE);
-
-        if (flags.bits.RECENTER && pos.isValid())
-            revealInDwarfmodeMap(pos, true);
-    }
-
-    if (flags.bits.DO_MEGA)
-        showPopupAnnouncement(message, color, bright);
+    gview->announcements.popups.push_back(popup);
 }
 
 df::viewscreen *Gui::getCurViewscreen(bool skip_dismissed)
@@ -1262,8 +1006,6 @@ void Gui::resetDwarfmodeView(bool pause)
 
     if (ui)
     {
-        ui->follow_unit = -1;
-        ui->follow_item = -1;
         ui->main.mode = ui_sidebar_mode::Default;
     }
 
@@ -1366,9 +1108,9 @@ bool Gui::setDesignationCoords (const int32_t x, const int32_t y, const int32_t 
 
 bool Gui::getMousePos (int32_t & x, int32_t & y)
 {
-    if (gps) {
-        x = gps->mouse_x;
-        y = gps->mouse_y;
+    if (enabler && init) {
+        x = enabler->mouse_x / (enabler->window_x / init->display.grid_x);
+        y = enabler->mouse_y / (enabler->window_y / init->display.grid_y);
     }
     else {
         x = -1;
@@ -1379,9 +1121,9 @@ bool Gui::getMousePos (int32_t & x, int32_t & y)
 
 bool Gui::getWindowSize (int32_t &width, int32_t &height)
 {
-    if (gps) {
-        width = gps->dimx;
-        height = gps->dimy;
+    if (init) {
+        width = init->display.grid_x;
+        height = init->display.grid_y;
         return true;
     }
     else {

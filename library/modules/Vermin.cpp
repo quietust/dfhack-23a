@@ -56,7 +56,6 @@ bool Vermin::Read (const uint32_t index, t_vermin & sp)
 
     sp.origin    = verm;
     sp.race      = verm->race;
-    sp.caste      = verm->caste;
     sp.visible    = verm->visible;
     sp.countdown = verm->countdown;
     sp.x = verm->pos.x;
@@ -72,7 +71,6 @@ bool Vermin::Write (const uint32_t index, t_vermin & sp)
     if (!verm) return false;
 
     verm->race = sp.race;
-    verm->caste = sp.caste;
     verm->visible = sp.visible;
     verm->countdown = sp.countdown;
     verm->pos.x = sp.x;

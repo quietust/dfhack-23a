@@ -61,19 +61,19 @@ const t_exclusionType limitExclusion = 4; // used to store limit as an entry in 
 DFHACK_EXPORT void debug_print(color_ostream &out);
 
 // remove this material from the exclusion list if it is in it
-DFHACK_EXPORT void allowPlantSeedCookery(t_materialIndex materialIndex);
+DFHACK_EXPORT void allowPlantSeedCookery(t_materialSubtype plant);
 
 // add this material to the exclusion list, if it is not already in it
-DFHACK_EXPORT void denyPlantSeedCookery(t_materialIndex materialIndex);
+DFHACK_EXPORT void denyPlantSeedCookery(t_materialSubtype plant);
 
 // fills a map with info from the limit info storage entries in the exclusion list
-DFHACK_EXPORT void fillWatchMap(std::map<t_materialIndex, unsigned int>& watchMap);
+DFHACK_EXPORT void fillWatchMap(std::map<t_materialSubtype, unsigned int>& watchMap);
 
 // removes a limit info storage entry from the exclusion list if it's present
-DFHACK_EXPORT void removeLimit(t_materialIndex materialIndex);
+DFHACK_EXPORT void removeLimit(t_materialSubtype plant);
 
 // add a limit info storage item to the exclusion list, or alters an existing one
-DFHACK_EXPORT void setLimit(t_materialIndex materialIndex, unsigned int limit);
+DFHACK_EXPORT void setLimit(t_materialSubtype plant, unsigned int limit);
 
 // clears all limit info storage items from the exclusion list
 DFHACK_EXPORT void clearLimits();

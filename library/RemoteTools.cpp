@@ -62,19 +62,15 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "df/world_data.h"
 #include "df/unit.h"
 #include "df/unit_misc_trait.h"
-#include "df/unit_soul.h"
 #include "df/unit_skill.h"
-#include "df/material.h"
-#include "df/matter_state.h"
-#include "df/inorganic_raw.h"
 #include "df/creature_raw.h"
-#include "df/plant_raw.h"
+#include "df/matgloss_stone.h"
+#include "df/matgloss_metal.h"
+#include "df/matgloss_plant.h"
+#include "df/matgloss_wood.h"
 #include "df/nemesis_record.h"
 #include "df/historical_figure.h"
 #include "df/historical_entity.h"
-#include "df/squad.h"
-#include "df/squad_position.h"
-#include "df/death_info.h"
 
 #include "BasicApi.pb.h"
 
@@ -135,93 +131,6 @@ void DFHack::describeBitfield(RepeatedPtrField<EnumItemName> *pf,
     }
 }
 
-void DFHack::describeMaterial(BasicMaterialInfo *info, df::material *mat,
-                              const BasicMaterialInfoMask *mask)
-{
-    info->set_token(mat->id);
-
-    if (mask && mask->flags())
-        flagarray_to_ints(info->mutable_flags(), mat->flags);
-
-    if (!mat->prefix.empty())
-        info->set_name_prefix(mat->prefix);
-
-    if (!mask || mask->states_size() == 0)
-    {
-        df::matter_state state = matter_state::Solid;
-        int temp = (mask && mask->has_temperature()) ? mask->temperature() : 10015;
-
-        if (temp >= mat->heat.melting_point)
-            state = matter_state::Liquid;
-        if (temp >= mat->heat.boiling_point)
-            state = matter_state::Gas;
-
-        info->add_state_color(mat->state_color[state]);
-        info->add_state_name(mat->state_name[state]);
-        info->add_state_adj(mat->state_adj[state]);
-    }
-    else
-    {
-        for (int i = 0; i < mask->states_size(); i++)
-        {
-            info->add_state_color(mat->state_color[i]);
-            info->add_state_name(mat->state_name[i]);
-            info->add_state_adj(mat->state_adj[i]);
-        }
-    }
-
-    if (mask && mask->reaction())
-    {
-        for (size_t i = 0; i < mat->reaction_class.size(); i++)
-            info->add_reaction_class(*mat->reaction_class[i]);
-
-        for (size_t i = 0; i < mat->reaction_product.id.size(); i++)
-        {
-            auto ptr = info->add_reaction_product();
-            ptr->set_id(*mat->reaction_product.id[i]);
-            ptr->set_type(mat->reaction_product.material.mat_type[i]);
-            ptr->set_index(mat->reaction_product.material.mat_index[i]);
-        }
-    }
-}
-
-void DFHack::describeMaterial(BasicMaterialInfo *info, const MaterialInfo &mat,
-                              const BasicMaterialInfoMask *mask)
-{
-    assert(mat.isValid());
-
-    info->set_type(mat.type);
-    info->set_index(mat.index);
-
-    describeMaterial(info, mat.material, mask);
-
-    switch (mat.mode) {
-    case MaterialInfo::Inorganic:
-        info->set_token(mat.inorganic->id);
-        if (mask && mask->flags())
-            flagarray_to_ints(info->mutable_inorganic_flags(), mat.inorganic->flags);
-        break;
-
-    case MaterialInfo::Creature:
-        info->set_subtype(mat.subtype);
-        if (mat.figure)
-        {
-            info->set_histfig_id(mat.index);
-            info->set_creature_id(mat.figure->race);
-        }
-        else
-            info->set_creature_id(mat.index);
-        break;
-
-    case MaterialInfo::Plant:
-        info->set_plant_id(mat.index);
-        break;
-
-    default:
-        break;
-    }
-}
-
 void DFHack::describeName(NameInfo *info, df::language_name *name)
 {
     if (!name->first_name.empty())
@@ -266,10 +175,8 @@ void DFHack::describeUnit(BasicUnitInfo *info, df::unit *unit,
 
     info->set_flags1(unit->flags1.whole);
     info->set_flags2(unit->flags2.whole);
-    info->set_flags3(unit->flags3.whole);
 
     info->set_race(unit->race);
-    info->set_caste(unit->caste);
 
     if (unit->sex >= 0)
         info->set_gender(unit->sex);
@@ -278,25 +185,12 @@ void DFHack::describeUnit(BasicUnitInfo *info, df::unit *unit,
     if (unit->hist_figure_id >= 0)
         info->set_histfig_id(unit->hist_figure_id);
 
-    if (unit->counters.death_id >= 0)
-    {
-        info->set_death_id(unit->counters.death_id);
-        if (auto death = df::death_info::find(unit->counters.death_id))
-            info->set_death_flags(death->flags.whole);
-    }
-
     if (mask && mask->profession())
     {
         if (unit->profession >= (df::profession)0)
             info->set_profession(unit->profession);
         if (!unit->custom_profession.empty())
             info->set_custom_profession(unit->custom_profession);
-
-        if (unit->military.squad_id >= 0)
-        {
-            info->set_squad_id(unit->military.squad_id);
-            info->set_squad_position(unit->military.squad_position);
-        }
     }
 
     if (mask && mask->labors())
@@ -306,9 +200,9 @@ void DFHack::describeUnit(BasicUnitInfo *info, df::unit *unit,
                 info->add_labors(i);
     }
 
-    if (mask && mask->skills() && unit->status.current_soul)
+    if (mask && mask->skills())
     {
-        auto &vec = unit->status.current_soul->skills;
+        auto &vec = unit->status.skills;
 
         for (size_t i = 0; i < vec.size(); i++)
         {
@@ -322,7 +216,7 @@ void DFHack::describeUnit(BasicUnitInfo *info, df::unit *unit,
 
     if (mask && mask->misc_traits())
     {
-        auto &vec = unit -> status.misc_traits;
+        auto &vec = unit->status.misc_traits;
 
         for (size_t i = 0; i < vec.size(); i++)
         {
@@ -332,27 +226,6 @@ void DFHack::describeUnit(BasicUnitInfo *info, df::unit *unit,
             item->set_value(trait->value);
         }
     }
-
-    if (unit->curse.add_tags1.whole ||
-        unit->curse.add_tags2.whole ||
-        unit->curse.rem_tags1.whole ||
-        unit->curse.rem_tags2.whole ||
-        unit->curse.name_visible)
-    {
-        auto curse = info->mutable_curse();
-
-        curse->set_add_tags1(unit->curse.add_tags1.whole);
-        curse->set_rem_tags1(unit->curse.rem_tags1.whole);
-        curse->set_add_tags2(unit->curse.add_tags2.whole);
-        curse->set_rem_tags2(unit->curse.rem_tags2.whole);
-
-        if (unit->curse.name_visible)
-            describeNameTriple(curse->mutable_name(), unit->curse.name,
-                               unit->curse.name_plural, unit->curse.name_adjective);
-    }
-
-    for (size_t i = 0; i < unit->burrows.size(); i++)
-        info->add_burrows(unit->burrows[i]);
 }
 
 static command_result GetVersion(color_ostream &stream,
@@ -383,10 +256,10 @@ static command_result GetWorldInfo(color_ostream &stream,
     if (df::global::gametype)
         gt = *df::global::gametype;
 
-    out->set_save_dir(world->cur_savegame.save_dir);
+    //out->set_save_dir(world->cur_savegame.save_dir);
 
-    if (world->world_data->name.has_name)
-        describeName(out->mutable_world_name(), &world->world_data->name);
+    if (world->world_data.name.has_name)
+        describeName(out->mutable_world_name(), &world->world_data.name);
 
     switch (gt)
     {
@@ -407,7 +280,7 @@ static command_result GetWorldInfo(color_ostream &stream,
 
         if (!ui_advmode)
             break;
-
+/*
         if (auto nemesis = vector_get(world->nemesis.all, ui_advmode->player_id))
         {
             if (nemesis->figure)
@@ -420,7 +293,7 @@ static command_result GetWorldInfo(color_ostream &stream,
                     continue;
                 out->add_companion_histfig_ids(unm->figure->id);
             }
-        }
+        }*/
         break;
 
     case game_type::VIEW_LEGENDS:
@@ -440,20 +313,11 @@ static command_result ListEnums(color_ostream &stream,
 #define ENUM(name) describe_enum<df::name>(out->mutable_##name());
 #define BITFIELD(name) describe_bitfield<df::name>(out->mutable_##name());
 
-    ENUM(material_flags);
-    ENUM(inorganic_flags);
-
     BITFIELD(unit_flags1);
     BITFIELD(unit_flags2);
-    BITFIELD(unit_flags3);
 
     ENUM(unit_labor);
     ENUM(job_skill);
-
-    BITFIELD(cie_add_tag_mask1);
-    BITFIELD(cie_add_tag_mask2);
-
-    describe_bitfield<df::death_info::T_flags>(out->mutable_death_info_flags());
 
     ENUM(profession);
 
@@ -504,64 +368,6 @@ static command_result ListJobSkills(color_ostream &stream, const EmptyMessage *,
     return CR_OK;
 }
 
-static void listMaterial(ListMaterialsOut *out, int type, int index, const BasicMaterialInfoMask *mask)
-{
-    MaterialInfo info(type, index);
-    if (info.isValid())
-        describeMaterial(out->add_value(), info, mask);
-}
-
-static command_result ListMaterials(color_ostream &stream,
-                                    const ListMaterialsIn *in, ListMaterialsOut *out)
-{
-    auto mask = in->has_mask() ? &in->mask() : NULL;
-
-    for (int i = 0; i < in->id_list_size(); i++)
-    {
-        auto &elt = in->id_list(i);
-        listMaterial(out, elt.type(), elt.index(), mask);
-    }
-
-    if (in->builtin())
-    {
-        for (int i = 0; i < MaterialInfo::NUM_BUILTIN; i++)
-            listMaterial(out, i, -1, mask);
-    }
-
-    if (in->inorganic())
-    {
-        auto &vec = df::inorganic_raw::get_vector();
-        for (size_t i = 0; i < vec.size(); i++)
-            listMaterial(out, 0, i, mask);
-    }
-
-    if (in->creatures())
-    {
-        auto &vec = df::creature_raw::get_vector();
-        for (size_t i = 0; i < vec.size(); i++)
-        {
-            auto praw = vec[i];
-
-            for (size_t j = 0; j < praw->material.size(); j++)
-                listMaterial(out, MaterialInfo::CREATURE_BASE+j, i, mask);
-        }
-    }
-
-    if (in->plants())
-    {
-        auto &vec = df::plant_raw::get_vector();
-        for (size_t i = 0; i < vec.size(); i++)
-        {
-            auto praw = vec[i];
-
-            for (size_t j = 0; j < praw->material.size(); j++)
-                listMaterial(out, MaterialInfo::PLANT_BASE+j, i, mask);
-        }
-    }
-
-    return out->value_size() ? CR_OK : CR_NOT_FOUND;
-}
-
 static command_result ListUnits(color_ostream &stream,
                                 const ListUnitsIn *in, ListUnitsOut *out)
 {
@@ -603,34 +409,6 @@ static command_result ListUnits(color_ostream &stream,
     return out->value_size() ? CR_OK : CR_NOT_FOUND;
 }
 
-static command_result ListSquads(color_ostream &stream,
-                                 const ListSquadsIn *in, ListSquadsOut *out)
-{
-    auto entity = df::historical_entity::find(df::global::ui->group_id);
-    if (!entity)
-        return CR_NOT_FOUND;
-
-    for (size_t i = 0; i < entity->squads.size(); i++)
-    {
-        auto squad = df::squad::find(entity->squads[i]);
-        if (!squad)
-            continue;
-
-        auto item = out->add_value();
-        item->set_squad_id(squad->id);
-
-        if (squad->name.has_name)
-            describeName(item->mutable_name(), &squad->name);
-        if (!squad->alias.empty())
-            item->set_alias(squad->alias);
-
-        for (size_t j = 0; j < squad->positions.size(); j++)
-            item->add_members(squad->positions[j]->occupant);
-    }
-
-    return CR_OK;
-}
-
 static command_result SetUnitLabors(color_ostream &stream, const SetUnitLaborsIn *in)
 {
     for (int i = 0; i < in->change_size(); i++)
@@ -665,9 +443,7 @@ CoreService::CoreService() {
     addFunction("ListEnums", ListEnums, SF_CALLED_ONCE | SF_DONT_SUSPEND);
     addFunction("ListJobSkills", ListJobSkills, SF_CALLED_ONCE | SF_DONT_SUSPEND);
 
-    addFunction("ListMaterials", ListMaterials, SF_CALLED_ONCE);
     addFunction("ListUnits", ListUnits);
-    addFunction("ListSquads", ListSquads);
 
     addFunction("SetUnitLabors", SetUnitLabors);
 }

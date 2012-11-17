@@ -28,11 +28,13 @@ using namespace std;
 #include "df/world_region_feature.h"
 #include "df/world_geo_biome.h"
 #include "df/world_geo_layer.h"
-#include "df/world_underground_region.h"
 #include "df/feature_init.h"
 #include "df/region_map_entry.h"
 #include "df/inclusion_type.h"
 #include "df/viewscreen_choose_start_sitest.h"
+#include "df/matgloss_stone.h"
+#include "df/matgloss_plant.h"
+#include "df/matgloss_wood.h"
 
 using namespace DFHack;
 using namespace df::enums;
@@ -123,18 +125,23 @@ static void printMatdata(color_ostream &con, const matdata &data, bool only_z = 
         con <<" Z:" << std::setw(4) << data.lower_z << std::endl;
 }
 
-static int getValue(const df::inorganic_raw &info)
-{
-    return info.material.material_value;
-}
-
-static int getValue(const df::plant_raw &info)
+static int getValue(const df::matgloss_stone &info)
 {
     return info.value;
 }
 
+static int getValue(const df::matgloss_plant &info)
+{
+    return info.value;
+}
+
+static int getValue(const df::matgloss_wood &info)
+{
+    return 1;
+}
+
 template <typename T, template <typename> class P>
-void printMats(color_ostream &con, MatMap &mat, std::vector<T*> &materials, bool show_value)
+void printMats(color_ostream &con, MatMap &mat, stl::vector<T*> &materials, bool show_value)
 {
     unsigned int total = 0;
     MatSorter sorting_vector;
@@ -154,8 +161,8 @@ void printMats(color_ostream &con, MatMap &mat, std::vector<T*> &materials, bool
             continue;
         }
         T* mat = materials[it->first];
-        // Somewhat of a hack, but it works because df::inorganic_raw and df::plant_raw both have a field named "id"
-        con << std::setw(25) << mat->id << " : ";
+        // Somewhat of a hack, but it works because df::matgloss_* all have a field named "id"
+        con << std::setw(25) << mat->id.c_str() << " : ";
         if (show_value)
             con << std::setw(3) << getValue(*mat) << " : ";
         printMatdata(con, it->second);
@@ -174,24 +181,24 @@ void printVeins(color_ostream &con, MatMap &mat_map,
 
     for (MatMap::const_iterator it = mat_map.begin(); it != mat_map.end(); ++it)
     {
-        df::inorganic_raw *gloss = world->raws.inorganics[it->first];
+        df::matgloss_stone *gloss = world->raws.matgloss.stone[it->first];
 
-        if (gloss->material.isGem())
+        if (gloss->flags.is_set(matgloss_stone_flags::GEM))
             gems[it->first] = it->second;
-        else if (gloss->isOre())
+        else if (gloss->flags.is_set(matgloss_stone_flags::METAL_ORE))
             ores[it->first] = it->second;
         else
             rest[it->first] = it->second;
     }
 
     con << "Ores:" << std::endl;
-    printMats<df::inorganic_raw, std::greater>(con, ores, world->raws.inorganics, show_value);
+    printMats<df::matgloss_stone, std::greater>(con, ores, world->raws.matgloss.stone, show_value);
 
     con << "Gems:" << std::endl;
-    printMats<df::inorganic_raw, std::greater>(con, gems, world->raws.inorganics, show_value);
+    printMats<df::matgloss_stone, std::greater>(con, gems, world->raws.matgloss.stone, show_value);
 
     con << "Other vein stone:" << std::endl;
-    printMats<df::inorganic_raw, std::greater>(con, rest, world->raws.inorganics, show_value);
+    printMats<df::matgloss_stone, std::greater>(con, rest, world->raws.matgloss.stone, show_value);
 }
 
 command_result prospector (color_ostream &out, vector <string> & parameters);
@@ -244,7 +251,7 @@ bool estimate_underground(color_ostream &out, EmbarkTileLayout &tile, df::world_
     int bv = clip_range(details->biome[x][y] & 15, 1, 9);
     tile.biome_off = biome_delta[bv-1];
 
-    df::world_data *data = world->world_data;
+    df::world_data *data = &world->world_data;
     int bx = clip_range(details->pos.x + tile.biome_off.x, 0, data->world_width-1);
     int by = clip_range(details->pos.y + tile.biome_off.y, 0, data->world_height-1);
     tile.biome_pos = coord2d(bx, by);
@@ -258,73 +265,6 @@ bool estimate_underground(color_ostream &out, EmbarkTileLayout &tile, df::world_
     tile.max_soil_depth = std::max((154-tile.biome->elevation)/5,0);
     tile.base_z = tile.elevation;
     tile.penalty.clear();
-
-    auto &features = details->features[x][y];
-
-    // Collect global feature layer depths and apply penalties
-    std::map<int, int> layer_bottom, layer_top;
-    bool sea_found = false;
-
-    for (size_t i = 0; i < features.size(); i++)
-    {
-        auto feature = features[i];
-        auto layer = df::world_underground_region::find(feature->layer);
-        if (!layer || feature->min_z == -30000) continue;
-
-        layer_bottom[layer->layer_depth] = feature->min_z;
-        layer_top[layer->layer_depth] = feature->max_z;
-        tile.base_z = std::min(tile.base_z, (int)feature->min_z);
-
-        float penalty = 1.0f;
-        switch (layer->type) {
-        case df::world_underground_region::Cavern:
-            penalty = 0.75f;
-            break;
-        case df::world_underground_region::MagmaSea:
-            sea_found = true;
-            tile.min_z = feature->min_z;
-            for (int i = feature->min_z; i <= feature->max_z; i++)
-                tile.penalty[i] = 0.2 + 0.6f*(i-feature->min_z)/(feature->max_z-feature->min_z+1);
-            break;
-        case df::world_underground_region::Underworld:
-            penalty = 0.0f;
-            break;
-        }
-
-        if (penalty != 1.0f)
-        {
-            for (int i = feature->min_z; i <= feature->max_z; i++)
-                tile.penalty[i] = penalty;
-        }
-    }
-
-    if (!sea_found)
-    {
-        out.printerr("Could not find magma sea.\n");
-        return false;
-    }
-
-    // Scan for big local features and apply their penalties
-    for (size_t i = 0; i < features.size(); i++)
-    {
-        auto feature = features[i];
-        auto lfeature = Maps::getLocalInitFeature(details->pos, feature->feature_idx);
-        if (!lfeature)
-            continue;
-
-        switch (lfeature->getType())
-        {
-        case feature_type::pit:
-        case feature_type::magma_pool:
-        case feature_type::volcano:
-            for (int i = layer_bottom[lfeature->end_depth];
-                 i <= layer_top[lfeature->start_depth]; i++)
-                tile.penalty[i] = std::min(0.4f, map_find(tile.penalty, i, 1.0f));
-            break;
-        default:
-            break;
-        }
-    }
 
     return true;
 }
@@ -384,14 +324,14 @@ bool estimate_materials(color_ostream &out, EmbarkTileLayout &tile, MatMap &laye
 
         for (unsigned j = 0; j < layer->vein_mat.size(); j++)
             if (is_valid_enum_item<df::inclusion_type>(layer->vein_type[j]))
-                sums[layer->vein_type[j]] += layer->vein_unk_38[j];
+                sums[layer->vein_type[j]] += layer->vein_frequency[j];
 
         for (unsigned j = 0; j < layer->vein_mat.size(); j++)
         {
             // TODO: find out how to estimate the real density
             // this code assumes that vein_unk_38 is the weight
             // used when choosing the vein material
-            float size = float(layer->vein_unk_38[j]);
+            float size = float(layer->vein_frequency[j]);
             df::inclusion_type type = layer->vein_type[j];
 
             switch (type)
@@ -420,7 +360,7 @@ bool estimate_materials(color_ostream &out, EmbarkTileLayout &tile, MatMap &laye
             add_materials(tile, veinMats[layer->vein_mat[j]], size, bottom_z, top_z);
         }
 
-        add_materials(tile, layerMats[layer->mat_index], layer_size, bottom_z, top_z);
+        add_materials(tile, layerMats[layer->matgloss], layer_size, bottom_z, top_z);
     }
 
     return true;
@@ -429,13 +369,13 @@ bool estimate_materials(color_ostream &out, EmbarkTileLayout &tile, MatMap &laye
 static command_result embark_prospector(color_ostream &out, df::viewscreen_choose_start_sitest *screen,
                                         bool showHidden, bool showValue)
 {
-    if (!world || !world->world_data)
+    if (!world)
     {
         out.printerr("World data is not available.\n");
         return CR_FAILURE;
     }
 
-    df::world_data *data = world->world_data;
+    df::world_data *data = &world->world_data;
     coord2d cur_region = screen->region_pos;
     int d_idx = linear_index(data->region_details, &df::world_region_details::pos, cur_region);
     auto cur_details = vector_get(data->region_details, d_idx);
@@ -476,7 +416,7 @@ static command_result embark_prospector(color_ostream &out, df::viewscreen_choos
 
     // Print the report
     out << "Layer materials:" << std::endl;
-    printMats<df::inorganic_raw, shallower>(out, layerMats, world->raws.inorganics, showValue);
+    printMats<df::matgloss_stone, shallower>(out, layerMats, world->raws.matgloss.stone, showValue);
 
     if (showHidden) {
         DFHack::Materials *mats = Core::getInstance().getMaterials();
@@ -496,10 +436,8 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
 {
     bool showHidden = false;
     bool showPlants = true;
-    bool showSlade = true;
-    bool showTemple = true;
     bool showValue = false;
-    bool showTube = false;
+    bool showHFS = false;
 
     for(size_t i = 0; i < parameters.size();i++)
     {
@@ -513,7 +451,7 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
         }
         else if (parameters[i] == "hell")
         {
-            showHidden = showTube = true;
+            showHidden = showHFS = true;
         }
         else
             return CR_WRONG_USAGE;
@@ -537,12 +475,9 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
 
     DFHack::Materials *mats = Core::getInstance().getMaterials();
 
-    DFHack::t_feature blockFeatureGlobal;
-    DFHack::t_feature blockFeatureLocal;
+    DFHack::t_feature blockFeature;
 
     bool hasAquifer = false;
-    bool hasDemonTemple = false;
-    bool hasLair = false;
     MatMap baseMats;
     MatMap layerMats;
     MatMap veinMats;
@@ -552,7 +487,7 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
     matdata liquidWater;
     matdata liquidMagma;
     matdata aquiferTiles;
-    matdata tubeTiles;
+    matdata hfsTiles;
 
     uint32_t vegCount = 0;
 
@@ -571,8 +506,7 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
                 }
 
                 // Find features
-                b->GetGlobalFeature(&blockFeatureGlobal);
-                b->GetLocalFeature(&blockFeatureLocal);
+                b->GetFeature(&blockFeature);
 
                 int global_z = world->map.region_z + z;
 
@@ -598,12 +532,6 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
                             aquiferTiles.add(global_z);
                         }
 
-                        // Check for lairs
-                        if (occ.bits.monster_lair)
-                        {
-                            hasLair = true;
-                        }
-
                         // Check for liquid
                         if (des.bits.flow_size)
                         {
@@ -624,14 +552,12 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
                         case tiletype_shape::FORTIFICATION:
                             break;
                         case tiletype_shape::EMPTY:
-                            /* A heuristic: tubes inside adamantine have EMPTY:AIR tiles which
-                               still have feature_local set. Also check the unrevealed status,
-                               so as to exclude any holes mined by the player. */
+                            /* find the top of the HFS chamber */
                             if (tilemat == tiletype_material::AIR &&
-                                des.bits.feature_local && des.bits.hidden &&
-                                blockFeatureLocal.type == feature_type::deep_special_tube)
+                                des.bits.feature && des.bits.hidden &&
+                                blockFeature.type == feature_type::glowing_pit)
                             {
-                                tubeTiles.add(global_z);
+                                hfsTiles.add(global_z);
                             }
                         default:
                             continue;
@@ -650,28 +576,6 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
                         case tiletype_material::MINERAL:
                             veinMats[b->veinMaterialAt(coord)].add(global_z);
                             break;
-                        case tiletype_material::FEATURE:
-                            if (blockFeatureLocal.type != -1 && des.bits.feature_local)
-                            {
-                                if (blockFeatureLocal.type == feature_type::deep_special_tube
-                                        && blockFeatureLocal.main_material == 0) // stone
-                                {
-                                    veinMats[blockFeatureLocal.sub_material].add(global_z);
-                                }
-                                else if (showTemple
-                                         && blockFeatureLocal.type == feature_type::deep_surface_portal)
-                                {
-                                    hasDemonTemple = true;
-                                }
-                            }
-
-                            if (showSlade && blockFeatureGlobal.type != -1 && des.bits.feature_global
-                                    && blockFeatureGlobal.type == feature_type::feature_underworld_from_layer
-                                    && blockFeatureGlobal.main_material == 0) // stone
-                            {
-                                layerMats[blockFeatureGlobal.sub_material].add(global_z);
-                            }
-                            break;
                         case tiletype_material::LAVA_STONE:
                             // TODO ?
                             break;
@@ -686,10 +590,10 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
                 if (showPlants)
                 {
                     auto block = Maps::getBlock(b_x,b_y,z);
-                    vector<df::plant *> *plants = block ? &block->plants : NULL;
+                    stl::vector<df::plant *> *plants = block ? &block->plants : NULL;
                     if(plants)
                     {
-                        for (PlantList::const_iterator it = plants->begin(); it != plants->end(); it++)
+                        for (auto it = plants->begin(); it != plants->end(); it++)
                         {
                             const df::plant & plant = *(*it);
                             df::coord2d loc(plant.pos.x, plant.pos.y);
@@ -697,9 +601,9 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
                             if (showHidden || !b->DesignationAt(loc).bits.hidden)
                             {
                                 if(plant.flags.bits.is_shrub)
-                                    plantMats[plant.material].add(global_z);
+                                    plantMats[plant.plant_id].add(global_z);
                                 else
-                                    treeMats[plant.material].add(global_z);
+                                    treeMats[plant.wood_id].add(global_z);
                             }
                         }
                     }
@@ -736,16 +640,16 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
     }
 
     con << std::endl << "Layer materials:" << std::endl;
-    printMats<df::inorganic_raw, shallower>(con, layerMats, world->raws.inorganics, showValue);
+    printMats<df::matgloss_stone, shallower>(con, layerMats, world->raws.matgloss.stone, showValue);
 
     printVeins(con, veinMats, mats, showValue);
 
     if (showPlants)
     {
         con << "Shrubs:" << std::endl;
-        printMats<df::plant_raw, std::greater>(con, plantMats, world->raws.plants.all, showValue);
+        printMats<df::matgloss_plant, std::greater>(con, plantMats, world->raws.matgloss.plant, showValue);
         con << "Wood in trees:" << std::endl;
-        printMats<df::plant_raw, std::greater>(con, treeMats, world->raws.plants.all, showValue);
+        printMats<df::matgloss_wood, std::greater>(con, treeMats, world->raws.matgloss.wood, showValue);
     }
 
     if (hasAquifer)
@@ -760,20 +664,10 @@ command_result prospector (color_ostream &con, vector <string> & parameters)
             con << std::endl;
     }
 
-    if (showTube && tubeTiles.count)
+    if (showHFS && hfsTiles.count)
     {
-        con << "Has HFS tubes             : ";
-        printMatdata(con, tubeTiles);
-    }
-
-    if (hasDemonTemple)
-    {
-        con << "Has demon temple" << std::endl;
-    }
-
-    if (hasLair)
-    {
-        con << "Has lair" << std::endl;
+        con << "Has HFS                   : ";
+        printMatdata(con, hfsTiles);
     }
 
     // Cleanup

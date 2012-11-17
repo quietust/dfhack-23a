@@ -18,7 +18,7 @@
 #include <VTableInterpose.h>
 #include "df/graphic.h"
 #include "df/building_trapst.h"
-#include "df/builtin_mats.h"
+#include "df/material_type.h"
 #include "df/world.h"
 #include "df/buildings_other_id.h"
 #include "df/machine.h"
@@ -76,7 +76,7 @@ struct trap_hook : df::building_trapst {
         return getBuildStage() >= getMaxBuildStage();
     }
 
-    DEFINE_VMETHOD_INTERPOSE(void, getName, (std::string *buf))
+    DEFINE_VMETHOD_INTERPOSE(void, getName, (stl::string *buf))
     {
         if (is_power_meter())
         {
@@ -118,9 +118,9 @@ struct trap_hook : df::building_trapst {
                     int power = machine->cur_power - machine->min_power;
                     if (power < 0 || machine->cur_power <= 0)
                         continue;
-                    if (power < plate_info.track_min)
+                    if (power < plate_info.unit_min)
                         continue;
-                    if (power > plate_info.track_max && plate_info.track_max >= 0)
+                    if (power > plate_info.unit_max && plate_info.unit_max >= 0)
                         continue;
 
                     active = true;
@@ -185,8 +185,8 @@ static bool makePowerMeter(df::pressure_plate_info *info, int min_power, int max
     }
 
     init_plate_info(*info);
-    info->track_min = min_power;
-    info->track_max = max_power;
+    info->unit_min = min_power;
+    info->unit_max = max_power;
     info->flags.bits.citizens = invert;
     return true;
 }

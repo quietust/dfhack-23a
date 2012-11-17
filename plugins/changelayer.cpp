@@ -20,6 +20,7 @@
 #include "df/world_geo_biome.h"
 #include "df/world_geo_layer.h"
 #include "df/region_map_entry.h"
+#include "df/matgloss_stone.h"
 
 using namespace DFHack;
 using namespace df::enums;
@@ -155,20 +156,11 @@ command_result changelayer (color_ostream &out, std::vector <std::string> & para
     material = parameters[0];
 
     MaterialInfo mat_new;
-    if (!mat_new.findInorganic(material))
+    if (!mat_new.findStone(material_type::STONE, material))
     {
         out.printerr("No such material!\n");
         return CR_FAILURE;
     }
-
-    // check if specified material is stone or gem or soil
-    if (mat_new.inorganic->material.flags.is_set(material_flags::IS_METAL) ||
-        mat_new.inorganic->material.flags.is_set(material_flags::NO_STONE_STOCKPILE))
-    {
-        out.printerr("Invalid material - you must select a type of stone or gem or soil.\n");
-        return CR_FAILURE;
-    }
-
 
     MapExtras::MapCache mc;
 
@@ -240,20 +232,20 @@ command_result changelayer (color_ostream &out, std::vector <std::string> & para
             if(verbose) 
                 out << "-checking" << endl;
         }
-
+        auto world_data = &world->world_data;
         // check against worldmap boundaries, fix if needed
         // regionX is in embark squares
         // regionX/16 is in 16x16 embark square regions
         // i provides -1 .. +1 offset from the current region
         int bioRX = world->map.region_x / 16 + ((i % 3) - 1);
         if (bioRX < 0) bioRX = 0;
-        if (bioRX >= world->world_data->world_width) bioRX = world->world_data->world_width - 1;
+        if (bioRX >= world_data->world_width) bioRX = world_data->world_width - 1;
         int bioRY = world->map.region_y / 16 + ((i / 3) - 1);
         if (bioRY < 0) bioRY = 0;
-        if (bioRY >= world->world_data->world_height) bioRY = world->world_data->world_height - 1;
+        if (bioRY >= world_data->world_height) bioRY = world_data->world_height - 1;
 
         // get index into geoblock vector
-        uint16_t geoindex = world->world_data->region_map[bioRX][bioRY].geo_index;
+        uint16_t geoindex = world_data->region_map[bioRX][bioRY].geo_index;
 
         if(verbose)
             out << "geoindex: " << geoindex << endl;
@@ -284,7 +276,7 @@ command_result changelayer (color_ostream &out, std::vector <std::string> & para
             continue;
         }
 
-        vector <df::world_geo_layer*> &geolayers = geo_biome->layers;
+        stl::vector <df::world_geo_layer*> &geolayers = geo_biome->layers;
 
         // complain if layer is out of range
         // geology has up to 16 layers currently, but can have less!
@@ -301,7 +293,7 @@ command_result changelayer (color_ostream &out, std::vector <std::string> & para
             for (size_t j = 0; j < geolayers.size(); j++)
             {
                 MaterialInfo mat_old;
-                mat_old.decode(0, geolayers[j]->mat_index);
+                mat_old.decode(material_type::STONE, geolayers[j]->matgloss);
                 if(conversionAllowed(out, mat_new, mat_old, force))
                 {
                     if(verbose)
@@ -309,14 +301,14 @@ command_result changelayer (color_ostream &out, std::vector <std::string> & para
                             << " from " << mat_old.getToken() 
                             << " to " << mat_new.getToken() 
                             << endl;
-                    geolayers[j]->mat_index = mat_new.index;
+                    geolayers[j]->matgloss = mat_new.subtype;
                 }
             }
         }
         else
         {
             MaterialInfo mat_old;
-            mat_old.decode(0, geolayers[layer]->mat_index);
+            mat_old.decode(material_type::STONE, geolayers[layer]->matgloss);
             if(conversionAllowed(out, mat_new, mat_old, force))
             {
                 if(verbose)
@@ -324,7 +316,7 @@ command_result changelayer (color_ostream &out, std::vector <std::string> & para
                         << " from " << mat_old.getToken()
                         << " to " << mat_new.getToken()
                         << endl;
-                geolayers[layer]->mat_index = mat_new.index;
+                geolayers[layer]->matgloss = mat_new.subtype;
             }
         }
     }
@@ -350,8 +342,8 @@ bool conversionAllowed(color_ostream &out, MaterialInfo mat_new, MaterialInfo ma
     // the floor will turn into soil, though, so it might be useful for creating farm plots
     // therefore it's not completely forbidden and can be enabled by the 'force' option
 
-    if (    mat_new.inorganic->flags.is_set(inorganic_flags::SOIL_ANY)
-        && !mat_old.inorganic->flags.is_set(inorganic_flags::SOIL_ANY))
+    if (    mat_new.stone->flags.is_set(matgloss_stone_flags::SOIL_ANY)
+        && !mat_old.stone->flags.is_set(matgloss_stone_flags::SOIL_ANY))
     {
         if(!warned)
         {
@@ -360,8 +352,8 @@ bool conversionAllowed(color_ostream &out, MaterialInfo mat_new, MaterialInfo ma
         }
         unsafe = true;
     }
-    else if (  !mat_new.inorganic->flags.is_set(inorganic_flags::SOIL_ANY)
-             && mat_old.inorganic->flags.is_set(inorganic_flags::SOIL_ANY))
+    else if (  !mat_new.stone->flags.is_set(matgloss_stone_flags::SOIL_ANY)
+             && mat_old.stone->flags.is_set(matgloss_stone_flags::SOIL_ANY))
     {
         if(!warned)
         {

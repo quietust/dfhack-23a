@@ -47,8 +47,8 @@ command_result df_fixveins (color_ostream &out, vector <string> & parameters)
         return CR_FAILURE;
     }
 
-    int mineral_removed = 0, feature_removed = 0;
-    int mineral_added = 0, feature_added = 0;
+    int mineral_removed = 0;
+    int mineral_added = 0;
 
     int num_blocks = 0, blocks_total = world->map.map_blocks.size();
     for (int i = 0; i < blocks_total; i++)
@@ -64,34 +64,24 @@ command_result df_fixveins (color_ostream &out, vector <string> & parameters)
             for (int k = 0; k < 16; k++)
                 has_mineral[k] |= mineral->tile_bitmask[k];
         }
-        t_feature local, global;
-        Maps::ReadFeatures(block, &local, &global);
         for (int x = 0; x < 16; x++)
         {
             for (int y = 0; y < 16; y++)
             {
-                bool has_feature = ((block->designation[x][y].bits.feature_global) && (global.main_material != -1) && (global.sub_material != -1)) ||
-                    ((block->designation[x][y].bits.feature_local) && (local.main_material != -1) && (local.sub_material != -1));
                 bool has_vein = has_mineral[y] & (1 << x);
-                if (has_feature)
-                    has_vein = false;
                 df::tiletype oldT = block->tiletype[x][y];
                 df::tiletype_material mat = tileMaterial(oldT);
                 if ((mat == tiletype_material::MINERAL) && !has_vein)
                     mineral_removed += setTileMaterial(block->tiletype[x][y], tiletype_material::STONE);
                 if ((mat == tiletype_material::STONE) && has_vein)
                     mineral_added += setTileMaterial(block->tiletype[x][y], tiletype_material::MINERAL);
-                if ((mat == tiletype_material::FEATURE) && !has_feature)
-                    feature_removed += setTileMaterial(block->tiletype[x][y], tiletype_material::STONE);
-                if ((mat == tiletype_material::STONE) && has_feature)
-                    feature_added += setTileMaterial(block->tiletype[x][y], tiletype_material::FEATURE);
             }
         }
     }
-    if (mineral_removed || feature_removed)
-        out.print("Removed invalid references from %i mineral inclusion and %i map feature tiles.\n", mineral_removed, feature_removed);
-    if (mineral_added || feature_added)
-        out.print("Restored missing references to %i mineral inclusion and %i map feature tiles.\n", mineral_added, feature_added);
+    if (mineral_removed)
+        out.print("Removed invalid references from %i mineral inclusion tiles.\n", mineral_removed);
+    if (mineral_added)
+        out.print("Restored missing references to %i mineral inclusion tiles.\n", mineral_added);
     return CR_OK;
 }
 

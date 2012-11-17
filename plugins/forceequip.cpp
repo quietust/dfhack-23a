@@ -30,14 +30,10 @@ using namespace std;
 #include "df/unit_inventory_item.h"
 #include "df/body_part_raw_flags.h"
 #include "df/creature_raw.h"
-#include "df/caste_raw.h"
-#include "df/body_detail_plan.h"
 #include "df/body_template.h"
 #include "df/body_part_template.h"
-#include "df/unit_soul.h"
 #include "df/unit_skill.h"
 #include "df/general_ref.h"
-#include "df/caste_raw.h"
 
 #include "DFHack.h"
 

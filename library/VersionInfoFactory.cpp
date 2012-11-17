@@ -93,7 +93,7 @@ void VersionInfoFactory::ParseVersion (TiXmlElement* entry, VersionInfo* mem)
     string os = cstr_os;
     mem->setVersion(cstr_name);
 
-    if(os == "windows")
+    if(os == "windows" || os == "windows-msvc2005" || os == "windows-msvc6")
     {
         mem->setOS(OS_WINDOWS);
         // set default image base. this is fixed for base relocation later

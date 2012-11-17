@@ -29,6 +29,8 @@ distribution.
 #include <vector>
 #include <map>
 #include <set>
+#include "stl_string.h"
+#include "stl_vector.h"
 
 #include "Core.h"
 #include "BitArray.h"
@@ -61,7 +63,8 @@ namespace DFHack
         IDTYPE_STRUCT,
         IDTYPE_CLASS,
         IDTYPE_BUFFER,
-        IDTYPE_STL_PTR_VECTOR
+        IDTYPE_STL_PTR_VECTOR,
+        IDTYPE_STL2_PTR_VECTOR
     };
 
     typedef void *(*TAllocateFn)(void*,const void*);
@@ -238,6 +241,7 @@ namespace DFHack
             SUBSTRUCT,
             CONTAINER,
             STL_VECTOR_PTR,
+            STL2_VECTOR_PTR,
             OBJ_METHOD,
             CLASS_METHOD
         };

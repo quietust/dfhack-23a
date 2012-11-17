@@ -58,31 +58,25 @@ distribution.
 #include "MiscUtils.h"
 
 #include "df/job.h"
-#include "df/job_item.h"
 #include "df/building.h"
 #include "df/unit.h"
 #include "df/item.h"
-#include "df/material.h"
 #include "df/viewscreen.h"
-#include "df/assumed_identity.h"
 #include "df/nemesis_record.h"
 #include "df/historical_figure.h"
 #include "df/historical_entity.h"
-#include "df/entity_position.h"
-#include "df/entity_position_assignment.h"
-#include "df/histfig_entity_link_positionst.h"
-#include "df/plant_raw.h"
+#include "df/matgloss_plant.h"
 #include "df/creature_raw.h"
-#include "df/inorganic_raw.h"
-#include "df/dfhack_material_category.h"
-#include "df/job_material_category.h"
-#include "df/burrow.h"
+#include "df/matgloss_stone.h"
+#include "df/matgloss_metal.h"
+#include "df/matgloss_wood.h"
 #include "df/building_civzonest.h"
 #include "df/region_map_entry.h"
 #include "df/flow_info.h"
 #include "df/unit_misc_trait.h"
 #include "df/proj_itemst.h"
 #include "df/itemdef.h"
+#include "df/interfacest.h"
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -94,17 +88,6 @@ using namespace DFHack::LuaWrapper;
 using Screen::Pen;
 
 void dfhack_printerr(lua_State *S, const std::string &str);
-
-void Lua::Push(lua_State *state, const Units::NoblePosition &pos)
-{
-    lua_createtable(state, 0, 3);
-    Lua::PushDFObject(state, pos.entity);
-    lua_setfield(state, -2, "entity");
-    Lua::PushDFObject(state, pos.assignment);
-    lua_setfield(state, -2, "assignment");
-    Lua::PushDFObject(state, pos.position);
-    lua_setfield(state, -2, "position");
-}
 
 void Lua::Push(lua_State *state, df::coord pos)
 {
@@ -516,32 +499,28 @@ void Lua::Push(lua_State *state, MaterialInfo &info)
 
     lua_pushinteger(state, info.type);
     lua_setfield(state, -2, "type");
-    lua_pushinteger(state, info.index);
-    lua_setfield(state, -2, "index");
+    lua_pushinteger(state, info.subtype);
+    lua_setfield(state, -2, "subtype");
 
 #define SETOBJ(name) { \
     Lua::PushDFObject(state, info.name); \
     lua_setfield(state, -2, #name); \
 }
-    SETOBJ(material);
+    if (info.wood) SETOBJ(wood);
+    if (info.stone) SETOBJ(stone);
     if (info.plant) SETOBJ(plant);
+    if (info.metal) SETOBJ(metal);
     if (info.creature) SETOBJ(creature);
-    if (info.inorganic) SETOBJ(inorganic);
-    if (info.figure) SETOBJ(figure);
 #undef SETOBJ
-
-    if (info.mode != MaterialInfo::Builtin)
-    {
-        lua_pushinteger(state, info.subtype);
-        lua_setfield(state, -2, "subtype");
-    }
 
     const char *id = "builtin";
     switch (info.mode)
     {
+        case MaterialInfo::Wood: id = "wood"; break;
+        case MaterialInfo::Stone: id = "stone"; break;
         case MaterialInfo::Plant: id = "plant"; break;
+        case MaterialInfo::Metal: id = "metal"; break;
         case MaterialInfo::Creature: id = "creature"; break;
-        case MaterialInfo::Inorganic: id = "inorganic"; break;
         default: break;
     }
 
@@ -586,7 +565,7 @@ static bool decode_matinfo(lua_State *state, MaterialInfo *info, bool numpair = 
             if (lua_rawequal(state, -1, lua_upvalueindex(1)))
             {
                 lua_getfield(state, 1, "type");
-                lua_getfield(state, 1, "index");
+                lua_getfield(state, 1, "subtype");
                 goto int_pair;
             }
 
@@ -601,8 +580,8 @@ static bool decode_matinfo(lua_State *state, MaterialInfo *info, bool numpair = 
                 return info->decode(*mvec, luaL_checkint(state, 2));
         }
 
-        lua_getfield(state, 1, "mat_type");
-        lua_getfield(state, 1, "mat_index");
+        lua_getfield(state, 1, "material");
+        lua_getfield(state, 1, "matgloss");
         goto int_pair;
     }
     else
@@ -620,13 +599,13 @@ int_pair:
         int type = lua_tointegerx(state, -2, &ok);
         if (!ok)
             luaL_argerror(state, 1, "material id is not a number");
-        int index = lua_tointegerx(state, -1, &ok);
+        int subtype = lua_tointegerx(state, -1, &ok);
         if (!ok)
-            index = -1;
+            subtype = -1;
 
         lua_settop(state, curtop);
 
-        return info->decode(type, index);
+        return info->decode((df::material_type)type, subtype);
     }
 }
 
@@ -652,50 +631,9 @@ static int dfhack_matinfo_toString(lua_State *state)
     MaterialInfo info;
     decode_matinfo(state, &info);
 
-    lua_settop(state, 3);
-    auto str = info.toString(luaL_optint(state, 2, 10015), lua_toboolean(state, 3));
+    lua_settop(state, 2);
+    auto str = info.toString(luaL_optint(state, 2, 10015));
     lua_pushstring(state, str.c_str());
-    return 1;
-}
-
-static int dfhack_matinfo_getCraftClass(lua_State *state)
-{
-    MaterialInfo info;
-    if (decode_matinfo(state, &info, true))
-        lua_pushinteger(state, info.getCraftClass());
-    else
-        lua_pushnil(state);
-    return 1;
-}
-
-static int dfhack_matinfo_matches(lua_State *state)
-{
-    MaterialInfo info;
-    if (!decode_matinfo(state, &info))
-        luaL_argerror(state, 1, "material info object expected");
-
-    luaL_checkany(state, 2);
-
-    if (lua_isuserdata(state, 2))
-    {
-        if (auto mc = Lua::GetDFObject<df::job_material_category>(state, 2))
-            lua_pushboolean(state, info.matches(*mc));
-        else if (auto mc = Lua::GetDFObject<df::dfhack_material_category>(state, 2))
-            lua_pushboolean(state, info.matches(*mc));
-        else if (auto mc = Lua::GetDFObject<df::job_item>(state, 2))
-            lua_pushboolean(state, info.matches(*mc));
-        else
-            luaL_argerror(state, 2, "material category object expected");
-    }
-    else if (lua_istable(state, 2))
-    {
-        df::dfhack_material_category tmp;
-        Lua::CheckDFAssign(state, &tmp, 2, false);
-        lua_pushboolean(state, info.matches(tmp));
-    }
-    else
-        luaL_argerror(state, 2, "material category object expected");
-
     return 1;
 }
 
@@ -704,8 +642,6 @@ static const luaL_Reg dfhack_matinfo_funcs[] = {
     { "decode", dfhack_matinfo_decode },
     { "getToken", dfhack_matinfo_getToken },
     { "toString", dfhack_matinfo_toString },
-    { "getCraftClass", dfhack_matinfo_getCraftClass },
-    { "matches", dfhack_matinfo_matches },
     { NULL, NULL }
 };
 
@@ -1106,20 +1042,16 @@ static const LuaWrapper::FunctionReg dfhack_gui_module[] = {
     WRAPM(Gui, getSelectedItem),
     WRAPM(Gui, getSelectedBuilding),
     WRAPM(Gui, showAnnouncement),
-    WRAPM(Gui, showZoomAnnouncement),
     WRAPM(Gui, showPopupAnnouncement),
-    WRAPM(Gui, showAutoAnnouncement),
     { NULL, NULL }
 };
 
 /***** Job module *****/
 
 static bool jobEqual(df::job *job1, df::job *job2) { return *job1 == *job2; }
-static bool jobItemEqual(df::job_item *job1, df::job_item *job2) { return *job1 == *job2; }
 
 static const LuaWrapper::FunctionReg dfhack_job_module[] = {
     WRAPM(Job,cloneJobStruct),
-    WRAPM(Job,printItemDetails),
     WRAPM(Job,printJobDetails),
     WRAPM(Job,getGeneralRef),
     WRAPM(Job,getSpecificRef),
@@ -1127,10 +1059,7 @@ static const LuaWrapper::FunctionReg dfhack_job_module[] = {
     WRAPM(Job,getWorker),
     WRAPM(Job,checkBuildingsNow),
     WRAPM(Job,checkDesignationsNow),
-    WRAPM(Job,isSuitableItem),
-    WRAPM(Job,isSuitableMaterial),
     WRAPN(is_equal, jobEqual),
-    WRAPN(is_item_equal, jobItemEqual),
     { NULL, NULL }
 };
 
@@ -1164,12 +1093,8 @@ static const LuaWrapper::FunctionReg dfhack_units_module[] = {
     WRAPM(Units, getContainer),
     WRAPM(Units, setNickname),
     WRAPM(Units, getVisibleName),
-    WRAPM(Units, getIdentity),
     WRAPM(Units, getNemesis),
-    WRAPM(Units, isCrazed),
-    WRAPM(Units, isOpposedToLife),
     WRAPM(Units, hasExtravision),
-    WRAPM(Units, isBloodsucker),
     WRAPM(Units, isMischievous),
     WRAPM(Units, getMiscTrait),
     WRAPM(Units, isDead),
@@ -1183,9 +1108,9 @@ static const LuaWrapper::FunctionReg dfhack_units_module[] = {
     WRAPM(Units, getExperience),
     WRAPM(Units, computeMovementSpeed),
     WRAPM(Units, getProfessionName),
-    WRAPM(Units, getCasteProfessionName),
+    WRAPM(Units, getCreatureProfessionName),
     WRAPM(Units, getProfessionColor),
-    WRAPM(Units, getCasteProfessionColor),
+    WRAPM(Units, getCreatureProfessionColor),
     { NULL, NULL }
 };
 
@@ -1194,21 +1119,8 @@ static int units_getPosition(lua_State *state)
     return Lua::PushPosXYZ(state, Units::getPosition(Lua::CheckDFObject<df::unit>(state,1)));
 }
 
-static int units_getNoblePositions(lua_State *state)
-{
-    std::vector<Units::NoblePosition> np;
-
-    if (Units::getNoblePositions(&np, Lua::CheckDFObject<df::unit>(state,1)))
-        Lua::PushVector(state, np);
-    else
-        lua_pushnil(state);
-
-    return 1;
-}
-
 static const luaL_Reg dfhack_units_funcs[] = {
     { "getPosition", units_getPosition },
-    { "getNoblePositions", units_getNoblePositions },
     { NULL, NULL }
 };
 
@@ -1260,7 +1172,7 @@ static const LuaWrapper::FunctionReg dfhack_items_module[] = {
     WRAPM(Items, getHolderBuilding),
     WRAPM(Items, getHolderUnit),
     WRAPM(Items, getDescription),
-    WRAPM(Items, isCasteMaterial),
+    WRAPM(Items, isCreatureMaterial),
     WRAPM(Items, getSubtypeCount),
     WRAPM(Items, getSubtypeDef),
     WRAPN(moveToGround, items_moveToGround),
@@ -1312,8 +1224,7 @@ static void resetTileAssignment(df::tile_bitmask *bm, bool val) {
 static const LuaWrapper::FunctionReg dfhack_maps_module[] = {
     WRAPN(getBlock, (df::map_block* (*)(int32_t,int32_t,int32_t))Maps::getBlock),
     WRAPM(Maps, enableBlockUpdates),
-    WRAPM(Maps, getGlobalInitFeature),
-    WRAPM(Maps, getLocalInitFeature),
+    WRAPM(Maps, getInitFeature),
     WRAPM(Maps, canWalkBetween),
     WRAPM(Maps, spawnFlow),
     WRAPN(hasTileAssignment, hasTileAssignment),
@@ -1387,44 +1298,6 @@ static const luaL_Reg dfhack_maps_funcs[] = {
     { NULL, NULL }
 };
 
-/***** Burrows module *****/
-
-static bool burrows_isAssignedBlockTile(df::burrow *burrow, df::map_block *block, int x, int y)
-{
-    return Burrows::isAssignedBlockTile(burrow, block, df::coord2d(x,y));
-}
-
-static bool burrows_setAssignedBlockTile(df::burrow *burrow, df::map_block *block, int x, int y, bool enable)
-{
-    return Burrows::setAssignedBlockTile(burrow, block, df::coord2d(x,y), enable);
-}
-
-static const LuaWrapper::FunctionReg dfhack_burrows_module[] = {
-    WRAPM(Burrows, findByName),
-    WRAPM(Burrows, clearUnits),
-    WRAPM(Burrows, isAssignedUnit),
-    WRAPM(Burrows, setAssignedUnit),
-    WRAPM(Burrows, clearTiles),
-    WRAPN(isAssignedBlockTile, burrows_isAssignedBlockTile),
-    WRAPN(setAssignedBlockTile, burrows_setAssignedBlockTile),
-    WRAPM(Burrows, isAssignedTile),
-    WRAPM(Burrows, setAssignedTile),
-    { NULL, NULL }
-};
-
-static int burrows_listBlocks(lua_State *state)
-{
-    std::vector<df::map_block*> pvec;
-    Burrows::listBlocks(&pvec, Lua::CheckDFObject<df::burrow>(state,1));
-    Lua::PushVector(state, pvec);
-    return 1;
-}
-
-static const luaL_Reg dfhack_burrows_funcs[] = {
-    { "listBlocks", burrows_listBlocks },
-    { NULL, NULL }
-};
-
 /***** Buildings module *****/
 
 static bool buildings_containsTile(df::building *bld, int x, int y, bool room) {
@@ -1442,7 +1315,6 @@ static const LuaWrapper::FunctionReg dfhack_buildings_module[] = {
     WRAPM(Buildings, hasSupport),
     WRAPM(Buildings, constructAbstract),
     WRAPM(Buildings, constructWithItems),
-    WRAPM(Buildings, constructWithFilters),
     WRAPM(Buildings, deconstruct),
     { NULL, NULL }
 };
@@ -1471,11 +1343,10 @@ static int buildings_getCorrectSize(lua_State *state)
 
     auto t = (df::building_type)luaL_optint(state, 3, -1);
     int st = luaL_optint(state, 4, -1);
-    int cu = luaL_optint(state, 5, -1);
     int d = luaL_optint(state, 6, 0);
 
     df::coord2d center;
-    bool flexible = Buildings::getCorrectSize(size, center, t, st, cu, d);
+    bool flexible = Buildings::getCorrectSize(size, center, t, st, d);
 
     lua_pushboolean(state, flexible);
     lua_pushinteger(state, size.x);
@@ -1678,16 +1549,17 @@ static int screen_doSimulateInput(lua_State *L)
         luaL_argerror(L, 1, "NULL screen");
 
     int sz = lua_rawlen(L, 2);
-    std::set<df::interface_key> keys;
-
+    
+    // TODO: throw error if there's more than one key in here
     for (int j = 1; j <= sz; j++)
     {
         lua_rawgeti(L, 2, j);
-        keys.insert((df::interface_key)lua_tointeger(L, -1));
+        df::interface_key key = (df::interface_key)lua_tointeger(L, -1);
+        Screen::setKeyPressed(key);
         lua_pop(L, 1);
     }
 
-    screen->feed(&keys);
+    screen->feed();
     return 0;
 }
 
@@ -2030,7 +1902,6 @@ void OpenDFHackApi(lua_State *state)
     OpenModule(state, "units", dfhack_units_module, dfhack_units_funcs);
     OpenModule(state, "items", dfhack_items_module, dfhack_items_funcs);
     OpenModule(state, "maps", dfhack_maps_module, dfhack_maps_funcs);
-    OpenModule(state, "burrows", dfhack_burrows_module, dfhack_burrows_funcs);
     OpenModule(state, "buildings", dfhack_buildings_module, dfhack_buildings_funcs);
     OpenModule(state, "constructions", dfhack_constructions_module);
     OpenModule(state, "screen", dfhack_screen_module, dfhack_screen_funcs);

@@ -49,7 +49,6 @@ distribution.
 #include "MiscUtils.h"
 
 #include "df/job.h"
-#include "df/job_item.h"
 #include "df/building.h"
 #include "df/unit.h"
 #include "df/item.h"

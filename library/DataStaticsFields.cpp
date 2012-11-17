@@ -31,12 +31,15 @@ namespace df {
     NUMBER_IDENTITY_TRAITS(double);
 
     bool_identity identity_traits<bool>::identity;
-    stl_string_identity identity_traits<std::string>::identity;
+    stl_string_identity identity_traits<stl::string>::identity;
+    stl2_string_identity identity_traits<std::string>::identity;
     ptr_string_identity identity_traits<char*>::identity;
     ptr_string_identity identity_traits<const char*>::identity;
     pointer_identity identity_traits<void*>::identity;
-    stl_ptr_vector_identity identity_traits<std::vector<void*> >::identity;
-    stl_bit_vector_identity identity_traits<std::vector<bool> >::identity;
+    stl_ptr_vector_identity identity_traits<stl::vector<void*> >::identity;
+    stl_bit_vector_identity identity_traits<stl::vector<bool> >::identity;
+    stl2_ptr_vector_identity identity_traits<std::vector<void*> >::identity;
+    stl2_bit_vector_identity identity_traits<std::vector<bool> >::identity;
     bit_array_identity identity_traits<BitArray<int> >::identity;
 
     buffer_container_identity buffer_container_identity::base_instance;

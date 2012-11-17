@@ -150,11 +150,27 @@ void df::ptr_string_identity::lua_write(lua_State *state, int fname_idx, void *p
 
 void df::stl_string_identity::lua_read(lua_State *state, int fname_idx, void *ptr)
 {
+    auto pstr = (stl::string*)ptr;
+    lua_pushlstring(state, pstr->c_str(), pstr->size());
+}
+
+void df::stl_string_identity::lua_write(lua_State *state, int fname_idx, void *ptr, int val_index)
+{
+    size_t size;
+    const char *bytes = lua_tolstring(state, val_index, &size);
+    if (!bytes)
+        field_error(state, fname_idx, "string expected", "write");
+
+    *(stl::string*)ptr = stl::string(bytes, size);
+}
+
+void df::stl2_string_identity::lua_read(lua_State *state, int fname_idx, void *ptr)
+{
     auto pstr = (std::string*)ptr;
     lua_pushlstring(state, pstr->data(), pstr->size());
 }
 
-void df::stl_string_identity::lua_write(lua_State *state, int fname_idx, void *ptr, int val_index)
+void df::stl2_string_identity::lua_write(lua_State *state, int fname_idx, void *ptr, int val_index)
 {
     size_t size;
     const char *bytes = lua_tolstring(state, val_index, &size);
@@ -493,6 +509,7 @@ static void read_field(lua_State *state, const struct_field_info *field, void *p
 
         case struct_field_info::STATIC_ARRAY:
         case struct_field_info::STL_VECTOR_PTR:
+        case struct_field_info::STL2_VECTOR_PTR:
             GetAdHocMetatable(state, field);
             push_object_ref(state, ptr);
             return;
@@ -528,6 +545,7 @@ static void field_reference(lua_State *state, const struct_field_info *field, vo
         case struct_field_info::STATIC_STRING:
         case struct_field_info::STATIC_ARRAY:
         case struct_field_info::STL_VECTOR_PTR:
+        case struct_field_info::STL2_VECTOR_PTR:
             GetAdHocMetatable(state, field);
             push_object_ref(state, ptr);
             return;
@@ -569,6 +587,7 @@ static void write_field(lua_State *state, const struct_field_info *field, void *
 
         case struct_field_info::STATIC_ARRAY:
         case struct_field_info::STL_VECTOR_PTR:
+        case struct_field_info::STL2_VECTOR_PTR:
             lua_getfield(state, LUA_REGISTRYINDEX, DFHACK_ASSIGN_NAME);
             read_field(state, field, ptr);
             lua_pushvalue(state, value_idx);
@@ -1410,6 +1429,11 @@ static void GetAdHocMetatable(lua_State *state, const struct_field_info *field)
             break;
 
         case struct_field_info::STL_VECTOR_PTR:
+            MakeContainerMetatable(state, &df::identity_traits<stl::vector<void*> >::identity,
+                                   field->type, -1, field->eid);
+            break;
+
+        case struct_field_info::STL2_VECTOR_PTR:
             MakeContainerMetatable(state, &df::identity_traits<std::vector<void*> >::identity,
                                    field->type, -1, field->eid);
             break;

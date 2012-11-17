@@ -33,6 +33,7 @@ distribution.
 #include "df/construction.h"
 #include "df/construction_type.h"
 #include "df/item_type.h"
+#include "df/material_type.h"
 
 /**
  * \defgroup grp_constructions Construction module parts
@@ -47,8 +48,8 @@ struct t_construction {
     df::coord pos;
     df::item_type item_type;
     int16_t item_subtype;
-    int16_t mat_type;
-    int32_t mat_index;
+    df::material_type mat_type;
+    int16_t mat_subtype;
     df::construction_flags flags;
     int16_t original_tile;
     // Pointer to original object, in case you want to modify it
@@ -61,7 +62,7 @@ DFHACK_EXPORT bool copyConstruction (const int32_t index, t_construction &out);
 DFHACK_EXPORT df::construction * getConstruction (const int32_t index);
 
 DFHACK_EXPORT bool designateNew(df::coord pos, df::construction_type type,
-                                df::item_type item = df::item_type::NONE, int mat_index = -1);
+                                df::item_type item = df::item_type::NONE, int matgloss = -1);
 
 DFHACK_EXPORT bool designateRemove(df::coord pos, bool *immediate = NULL);
 

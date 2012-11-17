@@ -72,7 +72,7 @@ bool DFHack::hasEnding (std::string const &fullString, std::string const &ending
     }
 }
 
-df::general_ref *DFHack::findRef(std::vector<df::general_ref*> &vec, df::general_ref_type type)
+df::general_ref *DFHack::findRef(stl::vector<df::general_ref*> &vec, df::general_ref_type type)
 {
     for (int i = vec.size()-1; i >= 0; i--)
     {
@@ -84,7 +84,7 @@ df::general_ref *DFHack::findRef(std::vector<df::general_ref*> &vec, df::general
     return NULL;
 }
 
-bool DFHack::removeRef(std::vector<df::general_ref*> &vec, df::general_ref_type type, int id)
+bool DFHack::removeRef(stl::vector<df::general_ref*> &vec, df::general_ref_type type, int id)
 {
     for (int i = vec.size()-1; i >= 0; i--)
     {
@@ -100,25 +100,25 @@ bool DFHack::removeRef(std::vector<df::general_ref*> &vec, df::general_ref_type 
     return false;
 }
 
-df::item *DFHack::findItemRef(std::vector<df::general_ref*> &vec, df::general_ref_type type)
+df::item *DFHack::findItemRef(stl::vector<df::general_ref*> &vec, df::general_ref_type type)
 {
     auto ref = findRef(vec, type);
     return ref ? ref->getItem() : NULL;
 }
 
-df::building *DFHack::findBuildingRef(std::vector<df::general_ref*> &vec, df::general_ref_type type)
+df::building *DFHack::findBuildingRef(stl::vector<df::general_ref*> &vec, df::general_ref_type type)
 {
     auto ref = findRef(vec, type);
     return ref ? ref->getBuilding() : NULL;
 }
 
-df::unit *DFHack::findUnitRef(std::vector<df::general_ref*> &vec, df::general_ref_type type)
+df::unit *DFHack::findUnitRef(stl::vector<df::general_ref*> &vec, df::general_ref_type type)
 {
     auto ref = findRef(vec, type);
     return ref ? ref->getUnit() : NULL;
 }
 
-df::specific_ref *DFHack::findRef(std::vector<df::specific_ref*> &vec, df::specific_ref_type type)
+df::specific_ref *DFHack::findRef(stl::vector<df::specific_ref*> &vec, df::specific_ref_type type)
 {
     for (int i = vec.size()-1; i >= 0; i--)
     {
@@ -130,7 +130,7 @@ df::specific_ref *DFHack::findRef(std::vector<df::specific_ref*> &vec, df::speci
     return NULL;
 }
 
-bool DFHack::removeRef(std::vector<df::specific_ref*> &vec, df::specific_ref_type type, void *ptr)
+bool DFHack::removeRef(stl::vector<df::specific_ref*> &vec, df::specific_ref_type type, void *ptr)
 {
     for (int i = vec.size()-1; i >= 0; i--)
     {

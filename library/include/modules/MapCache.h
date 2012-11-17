@@ -58,15 +58,13 @@ class BlockInfo
 public:
     t_blockmaterials veinmats;
     t_blockmaterials basemats;
-    t_blockmaterials grass;
     std::map<df::coord,df::plant*> plants;
 
-    df::feature_init *global_feature;
-    df::feature_init *local_feature;
+    df::feature_init *feature;
 
     BlockInfo()
         : mblock(NULL), parent(NULL), block(NULL),
-        global_feature(NULL), local_feature(NULL) {}
+        feature(NULL) {}
 
     void prepare(Block *mblock);
 
@@ -76,7 +74,6 @@ public:
     static void SquashFrozenLiquids (df::map_block *mb, tiletypes40d & frozen);
     static void SquashRocks (df::map_block *mb, t_blockmaterials & materials,
                              std::vector< std::vector <int16_t> > * layerassign);
-    static void SquashGrass(df::map_block *mb, t_blockmaterials &materials);
 };
 
 class DFHACK_EXPORT Block
@@ -112,7 +109,7 @@ public:
         if (!basemats) init_tiles(true);
         return t_matpair(
             index_tile<int16_t>(basemats->mat_type,p),
-            index_tile<int16_t>(basemats->mat_index,p)
+            index_tile<int16_t>(basemats->mat_subtype,p)
         );
     }
     bool isVeinAt(df::coord2d p)
@@ -130,7 +127,7 @@ public:
 
     int16_t veinMaterialAt(df::coord2d p)
     {
-        return isVeinAt(p) ? baseMaterialAt(p).mat_index : -1;
+        return isVeinAt(p) ? baseMaterialAt(p).mat_subtype : -1;
     }
     int16_t layerMaterialAt(df::coord2d p)
     {
@@ -152,7 +149,7 @@ public:
         if (tiles->con_info)
             return t_matpair(
                 index_tile<int16_t>(tiles->con_info->mat_type,p),
-                index_tile<int16_t>(tiles->con_info->mat_index,p)
+                index_tile<int16_t>(tiles->con_info->mat_subtype,p)
             );
         return baseMaterialAt(p);
     }
@@ -207,7 +204,7 @@ public:
         //printf("setting block %d/%d/%d , %d %d\n",x,y,z, p.x, p.y);
         index_tile<df::tile_designation&>(designation,p) = des;
         if(des.bits.dig && block)
-            block->flags.bits.designated = true;
+            block->flags.set(block_flags::designated);
         return true;
     }
 
@@ -231,7 +228,7 @@ public:
 
     t_blockflags BlockFlags()
     {
-        return block ? block->flags : t_blockflags();
+        return block ? (t_blockflags)block->flags.bits[0] : t_blockflags();
     }
 
     bool Write();
@@ -239,8 +236,7 @@ public:
     df::coord2d biomeRegionAt(df::coord2d p);
     int16_t GeoIndexAt(df::coord2d p);
 
-    bool GetGlobalFeature(t_feature *out);
-    bool GetLocalFeature(t_feature *out);
+    bool GetFeature(t_feature *out);
 
     bool is_valid() { return valid; }
     df::map_block *getRaw() { return block; }
@@ -285,7 +281,7 @@ private:
         df::tile_bitmask constructed;
         df::tiletype tiles[16][16];
         t_blockmaterials mat_type;
-        t_blockmaterials mat_index;
+        t_blockmaterials mat_subtype;
     };
     struct TileInfo {
         df::tile_bitmask frozen;
@@ -305,7 +301,7 @@ private:
     struct BasematInfo {
         df::tile_bitmask dirty;
         t_blockmaterials mat_type;
-        t_blockmaterials mat_index;
+        t_blockmaterials mat_subtype;
         t_blockmaterials layermat;
 
         BasematInfo();

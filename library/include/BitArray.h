@@ -44,7 +44,7 @@ namespace DFHack
         }
         ~BitArray()
         {
-            free(bits);
+            df_free(bits);
         }
 
         explicit BitArray(T last) : bits(NULL), size(0) {
@@ -63,7 +63,7 @@ namespace DFHack
         {
             if (newsize == size)
                 return;
-            uint8_t* mem = (uint8_t *) realloc(bits, newsize);
+            uint8_t* mem = (uint8_t *) df_realloc(bits, newsize);
             if(!mem && newsize != 0)
                 throw std::bad_alloc();
             bits = mem;
@@ -176,7 +176,7 @@ namespace DFHack
         unsigned short m_size;
     public:
         DfArray() : m_data(NULL), m_size(0) {}
-        ~DfArray() { free(m_data); }
+        ~DfArray() { df_free(m_data); }
 
         DfArray(const DfArray<T> &other) : m_data(NULL), m_size(0)
         {
@@ -202,11 +202,11 @@ namespace DFHack
                 return;
             if(!m_data)
             {
-                m_data = (T*) malloc(sizeof(T)*new_size);
+                m_data = (T*) df_malloc(sizeof(T)*new_size);
             }
             else
             {
-                T* mem = (T*) realloc(m_data, sizeof(T)*new_size);
+                T* mem = (T*) df_realloc(m_data, sizeof(T)*new_size);
                 if(!mem && new_size != 0)
                     throw std::bad_alloc();
                 m_data = mem;

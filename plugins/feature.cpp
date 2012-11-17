@@ -33,13 +33,11 @@ static command_result feature(color_ostream &out, vector <string> &parameters)
     {
         if (parameters.size() != 1)
             return CR_WRONG_USAGE;
-        for (size_t i = 0; i < world->cur_savegame.map_features.size(); i++)
+        for (size_t i = 0; i < world->map_features.size(); i++)
         {
-            df::feature_init *feature_init = world->cur_savegame.map_features[i];
-            string name;
-            feature_init->getName(&name);
-            out.print("Feature #%i (\"%s\", type %s) is %s\n",
-                      i, name.c_str(), ENUM_KEY_STR(feature_type, feature_init->getType()).c_str(),
+            df::feature_init *feature_init = world->map_features[i];
+            out.print("Feature #%i (type %s) is %s\n",
+                      i, ENUM_KEY_STR(feature_type, feature_init->type).c_str(),
                       feature_init->flags.is_set(feature_init_flags::Discovered) ? "discovered" : "hidden");
         }
     }
@@ -48,44 +46,40 @@ static command_result feature(color_ostream &out, vector <string> &parameters)
         if (parameters.size() != 2)
             return CR_WRONG_USAGE;
         size_t i = atoi(parameters[1].c_str());
-        if ((i < 0) || (i >= world->cur_savegame.map_features.size()))
+        if ((i < 0) || (i >= world->map_features.size()))
         {
             out.print("No such feature!\n");
             return CR_FAILURE;
         }
-        df::feature_init *feature_init = world->cur_savegame.map_features[i];
+        df::feature_init *feature_init = world->map_features[i];
         if (feature_init->flags.is_set(feature_init_flags::Discovered))
         {
             out.print("Selected feature is already discovered!\n");
             return CR_OK;
         }
         feature_init->flags.set(feature_init_flags::Discovered);
-        string name;
-        feature_init->getName(&name);
         out.print("Feature #%i (\"%s\", type %s) is now discovered\n",
-                  i, name.c_str(), ENUM_KEY_STR(feature_type, feature_init->getType()).c_str());
+                  i, ENUM_KEY_STR(feature_type, feature_init->type).c_str());
     }
     else if(cmd == "hide")
     {
         if (parameters.size() != 2)
             return CR_WRONG_USAGE;
         size_t i = atoi(parameters[1].c_str());
-        if ((i < 0) || (i >= world->cur_savegame.map_features.size()))
+        if ((i < 0) || (i >= world->map_features.size()))
         {
             out.print("No such feature!\n");
             return CR_FAILURE;
         }
-        df::feature_init *feature_init = world->cur_savegame.map_features[i];
+        df::feature_init *feature_init = world->map_features[i];
         if (!feature_init->flags.is_set(feature_init_flags::Discovered))
         {
             out.print("Selected feature is already hidden!\n");
             return CR_OK;
         }
         feature_init->flags.clear(feature_init_flags::Discovered);
-        string name;
-        feature_init->getName(&name);
         out.print("Feature #%i (\"%s\", type %s) is now hidden\n",
-                  i, name.c_str(), ENUM_KEY_STR(feature_type, feature_init->getType()).c_str());
+                  i, ENUM_KEY_STR(feature_type, feature_init->type).c_str());
     }
     else return CR_WRONG_USAGE;
 

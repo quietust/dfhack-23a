@@ -7,10 +7,9 @@
 #include "DataDefs.h"
 #include "df/item_actual.h"
 #include "df/unit.h"
-#include "df/unit_spatter.h"
-#include "df/matter_state.h"
+#include "df/unit_contaminant.h"
 #include "df/global_objects.h"
-#include "df/builtin_mats.h"
+#include "df/material_type.h"
 #include "df/contaminant.h"
 
 using std::vector;
@@ -23,6 +22,27 @@ using df::global::cursor;
 
 DFHACK_PLUGIN("cleaners");
 
+static bool clean_tile (df::tile_occupancy &tile, bool snow, bool mud)
+{
+    tile.bits.arrow_color = 0;
+    tile.bits.arrow_variant = 0;
+    tile.bits.blood = 0;
+    tile.bits.blood_b = 0;
+    tile.bits.blood_c = 0;
+    tile.bits.blood_g = 0;
+    tile.bits.blood_m = 0;
+    tile.bits.goo = 0;
+    tile.bits.ichor = 0;
+    tile.bits.pus = 0;
+    tile.bits.slime = 0;
+    tile.bits.vomit = 0;
+    if (snow)
+        tile.bits.snow = 0;
+    if (mud)
+        tile.bits.mud = 0;
+    return true;
+}
+
 command_result cleanmap (color_ostream &out, bool snow, bool mud)
 {
     // Invoked from clean(), already suspended
@@ -32,37 +52,8 @@ command_result cleanmap (color_ostream &out, bool snow, bool mud)
         df::map_block *block = world->map.map_blocks[i];
         bool cleaned = false;
         for(int x = 0; x < 16; x++)
-        {
             for(int y = 0; y < 16; y++)
-            {
-                block->occupancy[x][y].bits.arrow_color = 0;
-                block->occupancy[x][y].bits.arrow_variant = 0;
-            }
-        }
-        for (size_t j = 0; j < block->block_events.size(); j++)
-        {
-            df::block_square_event *evt = block->block_events[j];
-            if (evt->getType() != block_square_event_type::material_spatter)
-                continue;
-            // type verified - recast to subclass
-            df::block_square_event_material_spatterst *spatter = (df::block_square_event_material_spatterst *)evt;
-
-            // filter snow
-            if(!snow
-                && spatter->mat_type == builtin_mats::WATER
-                && spatter->mat_state == (short)matter_state::Powder)
-                continue;
-            // filter mud
-            if(!mud
-                && spatter->mat_type == builtin_mats::MUD
-                && spatter->mat_state == (short)matter_state::Solid)
-                continue;
-
-            delete evt;
-            block->block_events.erase(block->block_events.begin() + j);
-            j--;
-            cleaned = true;
-        }
+                cleaned |= clean_tile(block->occupancy[x][y], snow, mud);
         num_blocks += cleaned;
     }
 
@@ -81,18 +72,11 @@ command_result cleanitems (color_ostream &out)
         df::item_actual *item = (df::item_actual *)world->items.all[i];
         if (item->contaminants && item->contaminants->size())
         {
-            std::vector<df::contaminant*> saved;
             for (size_t j = 0; j < item->contaminants->size(); j++)
-            {
-                auto obj = (*item->contaminants)[j];
-                if (obj->flags.whole & 0x8000) // DFHack-generated contaminant
-                    saved.push_back(obj);
-                else
-                    delete obj;
-            }
+                delete item->contaminants->at(j);
             cleaned_items++;
-            cleaned_total += item->contaminants->size() - saved.size();
-            item->contaminants->swap(saved);
+            cleaned_total += item->contaminants->size();
+            item->contaminants->clear();
         }
     }
     if (cleaned_total)
@@ -107,13 +91,13 @@ command_result cleanunits (color_ostream &out)
     for (size_t i = 0; i < world->units.all.size(); i++)
     {
         df::unit *unit = world->units.all[i];
-        if (unit->body.spatters.size())
+        if (unit->contaminants.size())
         {
-            for (size_t j = 0; j < unit->body.spatters.size(); j++)
-                delete unit->body.spatters[j];
+            for (size_t j = 0; j < unit->contaminants.size(); j++)
+                delete unit->contaminants[j];
             cleaned_units++;
-            cleaned_total += unit->body.spatters.size();
-            unit->body.spatters.clear();
+            cleaned_total += unit->contaminants.size();
+            unit->contaminants.clear();
         }
     }
     if (cleaned_total)
@@ -162,16 +146,7 @@ command_result spotclean (color_ostream &out, vector <string> & parameters)
         out.printerr("Invalid map block selected!\n");
         return CR_FAILURE;
     }
-
-    for (size_t i = 0; i < block->block_events.size(); i++)
-    {
-        df::block_square_event *evt = block->block_events[i];
-        if (evt->getType() != block_square_event_type::material_spatter)
-            continue;
-        // type verified - recast to subclass
-        df::block_square_event_material_spatterst *spatter = (df::block_square_event_material_spatterst *)evt;
-        spatter->amount[cursor->x % 16][cursor->y % 16] = 0;
-    }
+    clean_tile(block->occupancy[cursor->x % 16][cursor->y % 16], true, true);
     return CR_OK;
 }
 

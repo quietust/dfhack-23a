@@ -296,6 +296,18 @@ bool LuaWrapper::is_type_compatible(lua_State *state, type_identity *type1, int 
         return is_type_compatible(state, item1, 0, item2, 0, exact_equal);
     }
 
+    case IDTYPE_STL2_PTR_VECTOR:
+    {
+        auto b1 = (df::stl2_ptr_vector_identity*)type1;
+        auto b2 = (df::stl2_ptr_vector_identity*)type2;
+        type_identity *item1 = b1->getItemType(), *item2 = b2->getItemType();
+
+        fetch_container_details(state, meta1, &item1, NULL);
+        fetch_container_details(state, meta1, &item2, NULL);
+
+        return is_type_compatible(state, item1, 0, item2, 0, exact_equal);
+    }
+
     case IDTYPE_STRUCT:
     case IDTYPE_CLASS:
     {
@@ -672,7 +684,7 @@ static int meta_new(lua_State *state)
             luaL_error(state, "Cannot allocate arrays of non-primitive types.");
 
         size_t sz = id->byte_size() * cnt;
-        ptr = malloc(sz);
+        ptr = df_malloc(sz);
         if (ptr)
             memset(ptr, 0, sz);
     }

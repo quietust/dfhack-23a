@@ -8,7 +8,7 @@
 #include "DataDefs.h"
 #include "df/world.h"
 #include "df/item.h"
-#include "df/builtin_mats.h"
+#include "df/material_type.h"
 
 using std::string;
 using std::vector;
@@ -30,7 +30,7 @@ command_result df_drybuckets (color_ostream &out, vector <string> & parameters)
     for (size_t i = 0; i < world->items.all.size(); i++)
     {
         df::item *item = world->items.all[i];
-        if ((item->getType() == item_type::LIQUID_MISC) && (item->getMaterial() == builtin_mats::WATER))
+        if ((item->getType() == item_type::LIQUID_MISC) && (item->getMaterial() == material_type::WATER))
         {
             item->flags.bits.garbage_collect = 1;
             dried_total++;

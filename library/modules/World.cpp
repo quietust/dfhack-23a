@@ -146,7 +146,7 @@ void World::SetCurrentWeather(uint8_t weather)
 
 string World::ReadWorldFolder()
 {
-    return world->cur_savegame.save_dir;
+    return world->world_data.save_folder_name;
 }
 
 static PersistentDataItem dataFromHFig(df::historical_figure *hfig)
@@ -167,7 +167,7 @@ static bool BuildPersistentCache()
     if (!Core::getInstance().isWorldLoaded())
         return false;
 
-    std::vector<df::historical_figure*> &hfvec = df::historical_figure::get_vector();
+    stl::vector<df::historical_figure*> &hfvec = df::historical_figure::get_vector();
 
     // Determine the next entry id as min(-100, lowest_id-1)
     next_persistent_id = -100;
@@ -194,7 +194,7 @@ PersistentDataItem World::AddPersistentData(const std::string &key)
     if (!BuildPersistentCache() || key.empty())
         return PersistentDataItem();
 
-    std::vector<df::historical_figure*> &hfvec = df::historical_figure::get_vector();
+    stl::vector<df::historical_figure*> &hfvec = df::historical_figure::get_vector();
 
     df::historical_figure *hfig = new df::historical_figure();
     hfig->id = next_persistent_id;
@@ -296,7 +296,7 @@ bool World::DeletePersistentData(const PersistentDataItem &item)
     if (!BuildPersistentCache())
         return false;
 
-    std::vector<df::historical_figure*> &hfvec = df::historical_figure::get_vector();
+    stl::vector<df::historical_figure*> &hfvec = df::historical_figure::get_vector();
 
     auto eqrange = persistent_index.equal_range(item.key());
 

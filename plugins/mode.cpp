@@ -56,12 +56,6 @@ void printCurrentModes(t_gamemodes gm, Console & con)
     case game_type::DWARF_RECLAIM:
         con << "Reclaim)" << endl;
         break;
-    case game_type::DWARF_ARENA:
-        con << "Arena)" << endl;
-        break;
-    case game_type::ADVENTURE_ARENA:
-        con << "Arena - control creature)" << endl;
-        break;
     case game_type::num:
         con << "INVALID)" << endl;
         break;
@@ -136,9 +130,7 @@ command_result mode (color_ostream &out_, vector <string> & parameters)
             out << "\nPossible choices:" << endl
                    << "0 = Fortress Mode" << endl
                    << "1 = Adventurer Mode" << endl
-                   << "2 = Arena Mode" << endl
-                   << "3 = Arena, controlling creature" << endl
-                   << "4 = Reclaim Fortress Mode" << endl
+                   << "2 = Reclaim Fortress Mode" << endl
                    << "c = cancel/do nothing" << endl;
             uint32_t select=99;
 
@@ -167,14 +159,6 @@ command_result mode (color_ostream &out_, vector <string> & parameters)
                     gm.g_type = game_type::ADVENTURE_MAIN;
                     break;
                 case 2:
-                    gm.g_mode = game_mode::DWARF;
-                    gm.g_type = game_type::DWARF_ARENA;
-                    break;
-                case 3:
-                    gm.g_mode = game_mode::ADVENTURE;
-                    gm.g_type = game_type::ADVENTURE_ARENA;
-                    break;
-                case 4:
                     gm.g_mode = game_mode::DWARF;
                     gm.g_type = game_type::DWARF_RECLAIM;
                     break;

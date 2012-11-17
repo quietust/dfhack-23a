@@ -33,18 +33,13 @@ distribution.
 #include "DataDefs.h"
 #include "df/unit.h"
 #include "df/misc_trait_type.h"
-#include "df/physical_attribute_type.h"
-#include "df/mental_attribute_type.h"
 #include "df/job_skill.h"
+#include "df/histfig_entity_link_type.h"
 
 namespace df
 {
     struct nemesis_record;
-    struct burrow;
-    struct assumed_identity;
     struct historical_entity;
-    struct entity_position_assignment;
-    struct entity_position;
     struct unit_misc_trait;
 }
 
@@ -89,36 +84,12 @@ struct t_like
 };
 
 // FIXME: THIS IS VERY, VERY BAD.
-#define NUM_CREATURE_LABORS 96
+#define NUM_CREATURE_LABORS 74
 #define NUM_CREATURE_TRAITS 30
-#define NUM_CREATURE_MENTAL_ATTRIBUTES 13
-#define NUM_CREATURE_PHYSICAL_ATTRIBUTES 6
 /**
  * Structure for holding a copy of a DF unit's soul
  * \ingroup grp_units
  */
-struct t_soul
-{
-    uint8_t numSkills;
-    t_skill skills[256];
-    //uint8_t numLikes;
-    //t_like likes[32];
-    uint16_t traits[NUM_CREATURE_TRAITS];
-    t_attrib analytical_ability;
-    t_attrib focus;
-    t_attrib willpower;
-    t_attrib creativity;
-    t_attrib intuition;
-    t_attrib patience;
-    t_attrib memory;
-    t_attrib linguistic_ability;
-    t_attrib spatial_sense;
-    t_attrib musicality;
-    t_attrib kinesthetic_sense;
-    t_attrib empathy;
-    t_attrib social_awareness;
-};
-#define MAX_COLORS  15
 struct df_unit;
 /**
  * Structure for holding a limited copy of a DF unit
@@ -135,7 +106,6 @@ struct t_unit
 
     df::unit_flags1 flags1;
     df::unit_flags2 flags2;
-    df::unit_flags3 flags3;
 
     t_name name;
 
@@ -152,20 +122,11 @@ struct t_unit
 
     uint32_t happiness;
     uint32_t id;
-    t_attrib strength;
-    t_attrib agility;
-    t_attrib toughness;
-    t_attrib endurance;
-    t_attrib recuperation;
-    t_attrib disease_resistance;
-    int32_t squad_leader_id;
+    uint32_t strength;
+    uint32_t agility;
+    uint32_t toughness;
     uint8_t sex;
-    uint16_t caste;
     uint32_t pregnancy_timer; //Countdown timer to giving birth
-    //bool has_default_soul;
-    //t_soul defaultSoul;
-    uint32_t nbcolors;
-    uint32_t color[MAX_COLORS];
 
     int32_t birth_year;
     uint32_t birth_time;
@@ -213,17 +174,9 @@ DFHACK_EXPORT df::item *getContainer(df::unit *unit);
 DFHACK_EXPORT void setNickname(df::unit *unit, std::string nick);
 DFHACK_EXPORT df::language_name *getVisibleName(df::unit *unit);
 
-DFHACK_EXPORT df::assumed_identity *getIdentity(df::unit *unit);
 DFHACK_EXPORT df::nemesis_record *getNemesis(df::unit *unit);
 
-DFHACK_EXPORT bool isHidingCurse(df::unit *unit);
-DFHACK_EXPORT int getPhysicalAttrValue(df::unit *unit, df::physical_attribute_type attr);
-DFHACK_EXPORT int getMentalAttrValue(df::unit *unit, df::mental_attribute_type attr);
-
-DFHACK_EXPORT bool isCrazed(df::unit *unit);
-DFHACK_EXPORT bool isOpposedToLife(df::unit *unit);
 DFHACK_EXPORT bool hasExtravision(df::unit *unit);
-DFHACK_EXPORT bool isBloodsucker(df::unit *unit);
 DFHACK_EXPORT bool isMischievous(df::unit *unit);
 
 DFHACK_EXPORT df::unit_misc_trait *getMiscTrait(df::unit *unit, df::misc_trait_type type, bool create = false);
@@ -243,18 +196,19 @@ DFHACK_EXPORT int getExperience(df::unit *unit, df::job_skill skill_id, bool tot
 DFHACK_EXPORT int computeMovementSpeed(df::unit *unit);
 
 struct NoblePosition {
-    df::historical_entity *entity;
-    df::entity_position_assignment *assignment;
-    df::entity_position *position;
+    df::histfig_entity_link_type position;
+    int32_t precedence;
+    int16_t color[3];
+    std::string name;
 };
 
 DFHACK_EXPORT bool getNoblePositions(std::vector<NoblePosition> *pvec, df::unit *unit);
 
 DFHACK_EXPORT std::string getProfessionName(df::unit *unit, bool ignore_noble = false, bool plural = false);
-DFHACK_EXPORT std::string getCasteProfessionName(int race, int caste, df::profession pid, bool plural = false);
+DFHACK_EXPORT std::string getCreatureProfessionName(int race, df::profession pid, bool plural = false);
 
 DFHACK_EXPORT int8_t getProfessionColor(df::unit *unit, bool ignore_noble = false);
-DFHACK_EXPORT int8_t getCasteProfessionColor(int race, int caste, df::profession pid);
+DFHACK_EXPORT int8_t getCreatureProfessionColor(int race, df::profession pid);
 }
 }
 #endif
