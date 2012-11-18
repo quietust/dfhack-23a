@@ -104,22 +104,22 @@ public:
 		_tidy();
 		assign(other, pos, n);
 	}
-	basic_string(const E *s, size_t n) : _allocator(A())
+	basic_string (const E *s, size_t n) : _allocator(A())
 	{
 		_tidy();
 		assign(s, n);
 	}
-	basic_string(const E *s) : _allocator(A())
+	basic_string (const E *s) : _allocator(A())
 	{
 		_tidy();
 		assign(s);
 	}
-	basic_string(size_t n, E c) : _allocator(A())
+	basic_string (size_t n, E c) : _allocator(A())
 	{
 		_tidy();
 		assign(n, c);
 	}
-	basic_string(iterator begin, iterator end) : _allocator(A())
+	basic_string (iterator begin, iterator end) : _allocator(A())
 	{
 		_tidy();
 		assign(begin, end);
