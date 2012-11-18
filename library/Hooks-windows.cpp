@@ -35,11 +35,11 @@ distribution.
 #include "tinythread.h"
 #include "modules/Graphic.h"
 
-DFhackCExport void dfhackInit(void)
+DFhackCExport bool dfhackInit(void)
 {
     DFHack::Core & c = DFHack::Core::getInstance();
     DFHack::CoreSuspendClaimer suspend;
-    c.Init();
+    return c.Init();
 }
 DFhackCExport void dfhackUnload(void)
 {

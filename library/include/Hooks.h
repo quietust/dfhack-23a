@@ -30,7 +30,7 @@ distribution.
 #include <stdint.h>
 
 // hook - called early from DF's main()
-DFhackCExport void dfhackInit(void);
+DFhackCExport bool dfhackInit(void);
 
 // hook - called before shutdown
 DFhackCExport void dfhackUnload(void);

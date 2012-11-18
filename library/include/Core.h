@@ -113,7 +113,7 @@ namespace DFHack
     // Better than tracking some weird variables all over the place.
     class DFHACK_EXPORT Core
     {
-        friend void  ::dfhackInit(void);
+        friend bool  ::dfhackInit(void);
         friend void  ::dfhackUnload(void);
         friend void  ::dfhackUpdate(void);
         friend void  ::dfhackRender(void);
