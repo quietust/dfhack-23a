@@ -1559,7 +1559,10 @@ static int screen_doSimulateInput(lua_State *L)
         lua_pop(L, 1);
     }
 
-    screen->feed();
+    if (screen->is_legacy_screen())
+        screen->view();
+    else
+        screen->input();
     return 0;
 }
 

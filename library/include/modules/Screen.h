@@ -152,9 +152,11 @@ namespace DFHack
         static bool is_instance(df::viewscreen *screen);
         static dfhack_viewscreen *try_cast(df::viewscreen *screen);
 
+        virtual void input();
+        virtual void feed(std::set<df::interface_key> *keys) = 0;
         virtual void logic();
         virtual void render();
-        virtual bool use_old_interface() { return false; }
+        virtual bool is_legacy_screen() { return false; }
 
         virtual int8_t movies_okay() { return 1; }
         virtual bool key_conflict(df::interface_key key);
@@ -195,7 +197,7 @@ namespace DFHack
         virtual void render();
         virtual void logic();
         virtual void help();
-        virtual void feed();
+        virtual void feed(std::set<df::interface_key> *keys);
 
         virtual void onShow();
         virtual void onDismiss();

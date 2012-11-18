@@ -393,6 +393,13 @@ dfhack_viewscreen *dfhack_viewscreen::try_cast(df::viewscreen *screen)
     return is_instance(screen) ? static_cast<dfhack_viewscreen*>(screen) : NULL;
 }
 
+void dfhack_viewscreen::input()
+{
+    std::set<df::interface_key> keys;
+    Screen::getKeys(keys);
+    feed(&keys);
+}
+
 void dfhack_viewscreen::logic()
 {
     // Various stuff works poorly unless always repainting
@@ -679,13 +686,11 @@ void dfhack_lua_viewscreen::help()
     safe_call_lua(do_notify, 1, 0);
 }
 
-void dfhack_lua_viewscreen::feed()
+void dfhack_lua_viewscreen::feed(std::set<df::interface_key> *keys)
 {
     if (Screen::isDismissed(this)) return;
 
-    std::set<df::interface_key> keys;
-    Screen::getKeys(keys);
-    lua_pushlightuserdata(Lua::Core::State, &keys);
+    lua_pushlightuserdata(Lua::Core::State, keys);
     safe_call_lua(do_input, 1, 0);
 }
 

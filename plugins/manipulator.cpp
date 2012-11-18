@@ -318,7 +318,7 @@ enum display_columns {
 
 class viewscreen_unitlaborsst : public dfhack_viewscreen {
 public:
-    void feed();
+    void feed(std::set<df::interface_key> *keys);
 
     void logic() {
         dfhack_viewscreen::logic();
@@ -552,19 +552,15 @@ void viewscreen_unitlaborsst::calcSize()
         first_column = sel_column - col_widths[DISP_COLUMN_LABORS] + 1;
 }
 
-void viewscreen_unitlaborsst::feed()
+void viewscreen_unitlaborsst::feed(std::set<df::interface_key> *events)
 {
-    set<df::interface_key> keys;
-    Screen::getKeys(keys);
-    auto events = &keys;
-
     bool leave_all = events->count(interface_key::LEAVESCREEN_ALL);
     if (leave_all || events->count(interface_key::LEAVESCREEN))
     {
         events->clear();
         Screen::dismiss(this);
         if (leave_all)
-            parent->update();
+            parent->view();
         return;
     }
 
@@ -900,7 +896,7 @@ void viewscreen_unitlaborsst::feed()
                     df::viewscreen_unitjobsst::T_mode old_mode = unitjobs->mode;
                     unitjobs->mode = df::viewscreen_unitjobsst::T_mode::Units;
                     unitjobs->cursor_pos = i;
-                    unitjobs->update();
+                    unitjobs->view();
                     unitjobs->mode = old_mode;
                     if (Screen::isDismissed(unitjobs))
                         Screen::dismiss(this);
@@ -1157,7 +1153,7 @@ struct unitjobs_hook : df::viewscreen_unitjobsst
 {
     typedef df::viewscreen_unitjobsst interpose_base;
 
-    DEFINE_VMETHOD_INTERPOSE(void, update, ())
+    DEFINE_VMETHOD_INTERPOSE(void, view, ())
     {
         if (Screen::isKeyPressed(interface_key::UNITVIEW_PRF_PROF))
         {
@@ -1167,24 +1163,24 @@ struct unitjobs_hook : df::viewscreen_unitjobsst
                 return;
             }
         }
-        INTERPOSE_NEXT(update)();
+        INTERPOSE_NEXT(view)();
     }
 
 };
 
-IMPLEMENT_VMETHOD_INTERPOSE(unitjobs_hook, update);
+IMPLEMENT_VMETHOD_INTERPOSE(unitjobs_hook, view);
 
 DFHACK_PLUGIN("manipulator");
 
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
-    if (!gps || !INTERPOSE_HOOK(unitjobs_hook, update).apply())
+    if (!gps || !INTERPOSE_HOOK(unitjobs_hook, view).apply())
         out.printerr("Could not insert Dwarf Manipulator hooks!\n");
     return CR_OK;
 }
 
 DFhackCExport command_result plugin_shutdown ( color_ostream &out )
 {
-    INTERPOSE_HOOK(unitjobs_hook, update).remove();
+    INTERPOSE_HOOK(unitjobs_hook, view).remove();
     return CR_OK;
 }
