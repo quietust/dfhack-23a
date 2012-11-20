@@ -224,7 +224,6 @@ bool resume()
 	return false;
 }
 
-
 bool	ReadDFMemory (const void *address, void *buffer, size_t len)
 {
 	SIZE_T bytesRead;
@@ -271,6 +270,8 @@ bool	checkVersion (void)
 	return true;
 }
 
+BOOL CALLBACK EnumWindowsProc (HWND hWnd, LPARAM lParam);
+
 class DFProcess
 {
 public:
@@ -279,20 +280,7 @@ public:
 		h_process = NULL;
 		pid = -1;
 
-		HWND h_window = FindWindow(NULL, DF_PROC_NAME);
-		if (!h_window)
-			return;
-
-		GetWindowThreadProcessId(h_window, &pid);
-		h_process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
-		if (!h_process)
-			return;
-		if (!checkVersion())
-		{
-			CloseHandle(h_process);
-			h_process = NULL;
-			pid = -1;
-		}
+		EnumWindows(EnumWindowsProc, (LPARAM)this);
 	}
 	~DFProcess()
 	{
@@ -305,6 +293,33 @@ public:
 		return (h_process != NULL);
 	}
 };
+
+BOOL CALLBACK EnumWindowsProc (HWND hWnd, LPARAM lParam)
+{
+//	DFProcess *self = (DFProcess *)lParam);
+
+	char title[MAX_PATH];
+	if (!GetWindowText(hWnd, title, MAX_PATH))
+		return TRUE;
+	if (strcmp(title, DF_PROC_NAME))
+		return TRUE;
+
+	GetWindowThreadProcessId(hWnd, &pid);
+	h_process = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
+	if (!h_process)
+	{
+		pid = -1;
+		return TRUE;
+	}
+	if (!checkVersion())
+	{
+		CloseHandle(h_process);
+		h_process = NULL;
+		pid = -1;
+		return TRUE;
+	}
+	return FALSE;
+}
 
 void genHook (BYTE *hookData, DWORD hookAddr)
 {

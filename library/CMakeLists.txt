@@ -266,6 +266,10 @@ ELSE()
     SET_TARGET_PROPERTIES(dfhack-client PROPERTIES COMPILE_FLAGS "-include Export.h" )
 ENDIF()
 
+ADD_EXECUTABLE(dfhack-loader dfhack-loader.cpp)
+SET_TARGET_PROPERTIES(dfhack-loader PROPERTIES COMPILE_FLAGS "/DDFHACK_40d" )
+SET_TARGET_PROPERTIES(dfhack-loader PROPERTIES OUTPUT_NAME "dfhack" )
+
 #effectively disables debug builds...
 SET_TARGET_PROPERTIES(dfhack  PROPERTIES DEBUG_POSTFIX "-debug" )
 
@@ -329,7 +333,7 @@ install(FILES xml/symbols.xml
 install(FILES ../dfhack.init-example
         DESTINATION ${DFHACK_BINARY_DESTINATION})
 
-install(TARGETS dfhack-run dfhack-client binpatch
+install(TARGETS dfhack-run dfhack-client binpatch dfhack-loader
         LIBRARY DESTINATION ${DFHACK_LIBRARY_DESTINATION}
         RUNTIME DESTINATION ${DFHACK_LIBRARY_DESTINATION})
 
