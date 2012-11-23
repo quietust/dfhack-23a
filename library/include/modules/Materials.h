@@ -90,7 +90,7 @@ namespace DFHack
         MaterialInfo(const t_matpair &mp) { decode((df::material_type)mp.mat_type, mp.mat_subtype); }
         template<class T> MaterialInfo(T *ptr) { decode(ptr); }
 
-        bool isValid() const { return mode == Invalid; }
+        bool isValid() const { return mode != Invalid; }
 
         bool isNone() const { return mode == None; }
         bool isBuiltin() const { return mode == Builtin; }
