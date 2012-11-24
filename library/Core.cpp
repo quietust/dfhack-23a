@@ -76,15 +76,14 @@ using df::global::world;
 
 #include <new>
 typedef int (__cdecl * _PNH)( size_t );
-_PNH *df_pnhHeap = (_PNH *)0xA0226C;
-int *df_newmode = (int *)0xA02270;
-HANDLE *df_crtheap = (HANDLE *)0xA01DF8;
+_PNH *df_pnhHeap = (_PNH *)0xF1921C;
+int *df_newmode = (int *)0xF19214;
+HANDLE *df_crtheap = (HANDLE *)0xF19D00;
+
 
 int df_callnewh (size_t size)
 {
-    _PNH pnh = (_PNH) DecodePointer(*df_pnhHeap);
-    if (pnh == NULL)
-        return 0;
+    _PNH pnh = *df_pnhHeap;
     if ((*pnh)(size) == 0)
         return 0;
     return 1;
@@ -97,8 +96,7 @@ __forceinline void * __cdecl df_heap_alloc (size_t size)
 
 void * __cdecl df_realloc (void *pBlock, size_t newsize)
 {
-    void *pvReturn;
-    size_t origSize = newsize;
+    void *      pvReturn;
 
     //  if ptr is NULL, call malloc
     if (pBlock == NULL)
@@ -114,33 +112,43 @@ void * __cdecl df_realloc (void *pBlock, size_t newsize)
     for (;;) {
         pvReturn = NULL;
         if (newsize <= _HEAP_MAXREQ)
-        {
-            if (newsize == 0)
-                newsize = 1;
-            pvReturn = HeapReAlloc(*df_crtheap, 0, pBlock, newsize);
-        }
-        else
-        {
-            df_callnewh(newsize);
-            errno = ENOMEM;
-            return NULL;
-        }
+            pvReturn = HeapReAlloc(*df_crtheap, 0, pBlock, newsize ? newsize : 1);
 
         if ( pvReturn || *df_newmode == 0)
-        {
-            if (!pvReturn)
-            {
-                errno = EINVAL;//_get_errno_from_oserr(GetLastError());
-            }
             return pvReturn;
-        }
 
         //  call installed new handler
         if (!df_callnewh(newsize))
-        {
-            errno = EINVAL;//_get_errno_from_oserr(GetLastError());
             return NULL;
-        }
+
+        //  new handler was successful -- try to allocate again
+    }
+}
+
+void * __cdecl df_nhmalloc (size_t size, int nhFlag)
+{
+    void *pvReturn;
+
+    //  validate size
+    if (size > _HEAP_MAXREQ)
+        return NULL;
+
+    for (;;) {
+        //  allocate memory block
+        if (size <= _HEAP_MAXREQ)
+            pvReturn = df_heap_alloc(size);
+        else
+            pvReturn = NULL;
+
+        // if successful allocation, return pointer to memory
+        // if new handling turned off altogether, return NULL
+
+        if (pvReturn || nhFlag == 0)
+            return pvReturn;
+
+        //  call installed new handler
+        if (!df_callnewh(size))
+            return NULL;
 
         //  new handler was successful -- try to allocate again
     }
@@ -148,54 +156,15 @@ void * __cdecl df_realloc (void *pBlock, size_t newsize)
 
 void * __cdecl df_malloc (size_t size)
 {
-    void *res = NULL;
-
-    //  validate size
-    if (size <= _HEAP_MAXREQ)
-    {
-        for (;;) {
-            //  allocate memory block
-            res = df_heap_alloc(size);
-
-            //  if successful allocation, return pointer to memory
-            //  if new handling turned off altogether, return NULL
-
-            if (res != NULL)
-                break;
-            if (*df_newmode == 0)
-            {
-                errno = ENOMEM;
-                break;
-            }
-
-            //  call installed new handler
-            if (!df_callnewh(size))
-                break;
-
-            //  new handler was successful -- try to allocate again
-        }
-    } else {
-        df_callnewh(size);
-        errno = ENOMEM;
-        return NULL;
-    }
-
-    if (res == NULL)
-        errno = ENOMEM;
-    return res;
+    return df_nhmalloc(size, *df_newmode);
 }
 
 void df_free (void *pBlock)
 {
-    int retval = 0;
-
     if (pBlock == NULL)
         return;
 
-    retval = HeapFree(*df_crtheap, 0, pBlock);
-
-    if (retval == 0)
-        errno = EINVAL;//_get_errno_from_oserr(GetLastError());
+    HeapFree(*df_crtheap, 0, pBlock);
 }
 
 static bool parseKeySpec(std::string keyspec, int *psym, int *pmod, std::string *pfocus = NULL);
@@ -1421,7 +1390,7 @@ bool Core::SelectHotkey(int sym, int modifiers)
             cmd = bindings[i].cmdline;
             break;
         }
-
+/*
         if (cmd.empty()) {
             // Check the hotkey keybindings
             int idx = sym;
@@ -1438,6 +1407,7 @@ bool Core::SelectHotkey(int sym, int modifiers)
                 }
             }
         }
+*/
     }
 
     if (!cmd.empty()) {
@@ -1699,5 +1669,4 @@ TYPE * Core::get##TYPE() \
 }
 
 MODULE_GETTER(Materials);
-MODULE_GETTER(Notes);
 MODULE_GETTER(Graphic);

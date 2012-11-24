@@ -10,8 +10,6 @@
 #include "modules/World.h"
 #include "modules/MapCache.h"
 #include "modules/Gui.h"
-#include "df/construction.h"
-#include "df/block_square_event_frozen_liquidst.h"
 using MapExtras::MapCache;
 
 using std::string;
@@ -23,20 +21,14 @@ using namespace df::enums;
 using df::global::world;
 
 /*
- * Anything that might reveal Hell is unsafe.
+ * Anything that might reveal HFS is unsafe.
  */
 bool isSafe(df::coord c)
 {
-    t_feature feature;
-    // get features of block
-    // error -> obviously not safe to manipulate
-    if(!Maps::ReadFeatures(c.x >> 4,c.y >> 4,c.z,&feature))
+    // avoid revealing glowing pits
+    if (tileMaterial(Maps::getTileType(c)) == tiletype_material::HFS)
         return false;
 
-    // if the glowing pit is revealed, it will break
-    if (feature.type == feature_type::glowing_pit)
-        return false;
-    // otherwise it's safe.
     return true;
 }
 
@@ -417,7 +409,6 @@ command_result revflood(color_ostream &out, vector<string> & params)
         case tiletype_shape::RAMP_TOP:
         case tiletype_shape::STAIR_UPDOWN:
         case tiletype_shape::STAIR_DOWN:
-        case tiletype_shape::BROOK_TOP:
             above = below = sides = true;
             break;
         // has floor
@@ -428,10 +419,9 @@ command_result revflood(color_ostream &out, vector<string> & params)
         case tiletype_shape::TREE:
         case tiletype_shape::SAPLING:
         case tiletype_shape::SHRUB:
-        case tiletype_shape::BOULDER:
-        case tiletype_shape::PEBBLES:
-        case tiletype_shape::BROOK_BED:
         case tiletype_shape::ENDLESS_PIT:
+        case tiletype_shape::LIQUID:
+        case tiletype_shape::CHANNEL:
             if(from_below)
                 unhide = 0;
             above = sides = true;
@@ -445,13 +435,9 @@ command_result revflood(color_ostream &out, vector<string> & params)
         if(sides)
         {
             flood.push(foo(DFCoord(current.x + 1, current.y ,current.z),0));
-            flood.push(foo(DFCoord(current.x + 1, current.y + 1 ,current.z),0));
             flood.push(foo(DFCoord(current.x, current.y + 1 ,current.z),0));
-            flood.push(foo(DFCoord(current.x - 1, current.y + 1 ,current.z),0));
             flood.push(foo(DFCoord(current.x - 1, current.y ,current.z),0));
-            flood.push(foo(DFCoord(current.x - 1, current.y - 1 ,current.z),0));
             flood.push(foo(DFCoord(current.x, current.y - 1 ,current.z),0));
-            flood.push(foo(DFCoord(current.x + 1, current.y - 1 ,current.z),0));
         }
         if(above)
         {

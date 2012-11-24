@@ -34,7 +34,6 @@ distribution.
 #include "df/unit.h"
 #include "df/misc_trait_type.h"
 #include "df/job_skill.h"
-#include "df/histfig_entity_link_type.h"
 
 namespace df
 {
@@ -84,8 +83,7 @@ struct t_like
 };
 
 // FIXME: THIS IS VERY, VERY BAD.
-#define NUM_CREATURE_LABORS 74
-#define NUM_CREATURE_TRAITS 30
+#define NUM_CREATURE_LABORS 62
 /**
  * Structure for holding a copy of a DF unit's soul
  * \ingroup grp_units
@@ -196,8 +194,6 @@ DFHACK_EXPORT int getExperience(df::unit *unit, df::job_skill skill_id, bool tot
 DFHACK_EXPORT int computeMovementSpeed(df::unit *unit);
 
 struct NoblePosition {
-    df::histfig_entity_link_type position;
-    int32_t precedence;
     int16_t color[3];
     std::string name;
 };

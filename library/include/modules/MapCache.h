@@ -32,8 +32,6 @@ distribution.
 #include <cstring>
 #include "df/map_block.h"
 #include "df/tile_bitmask.h"
-#include "df/block_square_event_mineralst.h"
-#include "df/construction.h"
 #include "df/item.h"
 
 using namespace DFHack;
@@ -56,24 +54,19 @@ class BlockInfo
     df::map_block *block;
 
 public:
-    t_blockmaterials veinmats;
+    t_blockmaterials material, matgloss;
     t_blockmaterials basemats;
     std::map<df::coord,df::plant*> plants;
 
-    df::feature_init *feature;
-
     BlockInfo()
-        : mblock(NULL), parent(NULL), block(NULL),
-        feature(NULL) {}
+        : mblock(NULL), parent(NULL), block(NULL) {}
 
     void prepare(Block *mblock);
 
     t_matpair getBaseMaterial(df::tiletype tt, df::coord2d pos);
 
-    static void SquashVeins(df::map_block *mb, t_blockmaterials & materials);
-    static void SquashFrozenLiquids (df::map_block *mb, tiletypes40d & frozen);
-    static void SquashRocks (df::map_block *mb, t_blockmaterials & materials,
-                             std::vector< std::vector <int16_t> > * layerassign);
+    static void SquashVeins(df::map_block *mb, t_blockmaterials &material, t_blockmaterials &matgloss);
+    static void SquashRocks(df::map_block *mb, t_blockmaterials &matgloss);
 };
 
 class DFHACK_EXPORT Block
@@ -116,18 +109,23 @@ public:
     {
         using namespace df::enums::tiletype_material;
         auto tm = tileMaterial(baseTiletypeAt(p));
-        return tm == MINERAL;
+        return tm == ORE || tm == GEM || tm == STONE_LIGHT || tm == STONE_DARK;
     }
     bool isLayerAt(df::coord2d p)
     {
         using namespace df::enums::tiletype_material;
         auto tm = tileMaterial(baseTiletypeAt(p));
-        return tm == STONE || tm == SOIL;
+        return tm == STONE;
     }
 
-    int16_t veinMaterialAt(df::coord2d p)
+    t_matpair veinMaterialAt(df::coord2d p)
     {
-        return isVeinAt(p) ? baseMaterialAt(p).mat_subtype : -1;
+        if (!isVeinAt(p))
+            return t_matpair();
+        return t_matpair(
+            baseMaterialAt(p).mat_type,
+            baseMaterialAt(p).mat_subtype
+        );
     }
     int16_t layerMaterialAt(df::coord2d p)
     {
@@ -135,37 +133,12 @@ public:
         return index_tile<int16_t>(basemats->layermat,p);
     }
 
-    // Static layer (base + constructions)
-    df::tiletype staticTiletypeAt(df::coord2d p)
-    {
-        if (!tiles) init_tiles();
-        if (tiles->con_info)
-            return index_tile<df::tiletype>(tiles->con_info->tiles,p);
-        return baseTiletypeAt(p);
-    }
-    t_matpair staticMaterialAt(df::coord2d p)
-    {
-        if (!basemats) init_tiles(true);
-        if (tiles->con_info)
-            return t_matpair(
-                index_tile<int16_t>(tiles->con_info->mat_type,p),
-                index_tile<int16_t>(tiles->con_info->mat_subtype,p)
-            );
-        return baseMaterialAt(p);
-    }
-    bool hasConstructionAt(df::coord2d p)
-    {
-        if (!tiles) init_tiles();
-        return tiles->con_info &&
-               tiles->con_info->constructed.getassignment(p);
-    }
-
     df::tiletype tiletypeAt(df::coord2d p)
     {
         if (!block) return tiletype::Void;
         if (tiles)
             return index_tile<df::tiletype>(tiles->raw_tiles,p);
-        return index_tile<df::tiletype>(block->tiletype,p);
+        return convertTile(index_tile<df::tile_chr>(block->chr,p),index_tile<df::tile_color>(block->color,p));
     }
     bool setTiletypeAt(df::coord2d, df::tiletype tt, bool force = false);
 
@@ -236,8 +209,6 @@ public:
     df::coord2d biomeRegionAt(df::coord2d p);
     int16_t GeoIndexAt(df::coord2d p);
 
-    bool GetFeature(t_feature *out);
-
     bool is_valid() { return valid; }
     df::map_block *getRaw() { return block; }
 
@@ -253,8 +224,6 @@ private:
     df::map_block *block;
 
     void init();
-
-    int biomeIndexAt(df::coord2d p);
 
     bool valid;
     bool dirty_designations:1;
@@ -277,18 +246,10 @@ private:
     bool addItemOnGround(df::item *item);
     bool removeItemOnGround(df::item *item);
 
-    struct ConInfo {
-        df::tile_bitmask constructed;
-        df::tiletype tiles[16][16];
-        t_blockmaterials mat_type;
-        t_blockmaterials mat_subtype;
-    };
     struct TileInfo {
         df::tile_bitmask frozen;
         df::tile_bitmask dirty_raw;
         df::tiletype raw_tiles[16][16];
-
-        ConInfo *con_info;
 
         df::tile_bitmask dirty_base;
         df::tiletype base_tiles[16][16];
@@ -355,10 +316,10 @@ class DFHACK_EXPORT MapCache
         Block *b = BlockAtTile(tilecoord);
         return b ? b->baseMaterialAt(tilecoord) : t_matpair();
     }
-    int16_t veinMaterialAt (DFCoord tilecoord)
+    t_matpair veinMaterialAt (DFCoord tilecoord)
     {
         Block *b = BlockAtTile(tilecoord);
-        return b ? b->veinMaterialAt(tilecoord) : -1;
+        return b ? b->veinMaterialAt(tilecoord) : t_matpair();
     }
     int16_t layerMaterialAt (DFCoord tilecoord)
     {
@@ -374,22 +335,6 @@ class DFHACK_EXPORT MapCache
     {
         Block *b = BlockAtTile(tilecoord);
         return b && b->isLayerAt(tilecoord);
-    }
-
-    df::tiletype staticTiletypeAt (DFCoord tilecoord)
-    {
-        Block *b = BlockAtTile(tilecoord);
-        return b ? b->staticTiletypeAt(tilecoord) : tiletype::Void;
-    }
-    t_matpair staticMaterialAt (DFCoord tilecoord)
-    {
-        Block *b = BlockAtTile(tilecoord);
-        return b ? b->staticMaterialAt(tilecoord) : t_matpair();
-    }
-    bool hasConstructionAt (DFCoord tilecoord)
-    {
-        Block *b = BlockAtTile(tilecoord);
-        return b && b->hasConstructionAt(tilecoord);
     }
 
     df::tiletype tiletypeAt (DFCoord tilecoord)

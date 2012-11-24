@@ -284,6 +284,13 @@ namespace DFHack
         static bool is_instance(df::viewscreen *screen);
         static dfhack_viewscreen *try_cast(df::viewscreen *screen);
 
+        virtual void view()
+        {
+            // TODO - check for key conflict
+            render();
+            input();
+            logic();
+        }
         virtual void input();
         virtual void feed(std::set<df::interface_key> *keys) = 0;
         virtual void logic();

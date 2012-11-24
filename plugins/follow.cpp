@@ -67,7 +67,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
 
     if (World::ReadPauseState() && prevX==-1) return CR_OK; //Wait until the game is unpaused after first running "follow" to begin following
 
-    df::coord &unitPos = followedUnit->pos;
+    df::coord32 &unitPos = followedUnit->pos;
 
     //Get all of the relevant data for determining the size of the map on the window
     int32_t x,y,z,w,h,c_x,c_y,c_z;

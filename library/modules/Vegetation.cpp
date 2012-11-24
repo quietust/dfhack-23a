@@ -75,7 +75,6 @@ bool Vegetation::copyPlant(const int32_t index, t_plant &out)
     out.temperature_2 = out.origin->temperature.fraction;
     out.is_burning = out.origin->is_burning;
     out.hitpoints = out.origin->hitpoints;
-    out.update_order = out.origin->update_order;
     //out.unk1 = out.origin->anon_1;
     //out.unk2 = out.origin->anon_2;
     //out.temperature_3 = out.origin->temperature_unk;

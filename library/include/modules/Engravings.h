@@ -42,7 +42,6 @@ namespace Engravings
 // "Simplified" copy of engraving
 struct t_engraving {
     int32_t artist;
-    int32_t masterpiece_event;
     int32_t skill_rating;
     df::coord pos;
     df::engraving_flags flags;

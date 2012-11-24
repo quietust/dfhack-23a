@@ -143,7 +143,7 @@ command_result df_probe (color_ostream &out, vector <string> & parameters)
 
     DFHack::Materials *Materials = Core::getInstance().getMaterials();
 
-    std::vector<t_matglossStone> inorganic;
+    std::vector<t_matgloss> inorganic;
     bool hasmats = Materials->CopyInorganicMaterials(inorganic);
 
     if (!Maps::IsValid())
@@ -152,9 +152,6 @@ command_result df_probe (color_ostream &out, vector <string> & parameters)
         return CR_FAILURE;
     }
     MapExtras::MapCache mc;
-
-    int32_t regionX, regionY, regionZ;
-    Maps::getPosition(regionX,regionY,regionZ);
 
     int32_t cursorX, cursorY, cursorZ;
     Gui::getCursorCoords(cursorX,cursorY,cursorZ);
@@ -188,6 +185,8 @@ command_result df_probe (color_ostream &out, vector <string> & parameters)
     }
 */
     df::tiletype tiletype = mc.tiletypeAt(cursor);
+    df::tile_chr &chr = block.chr[tileX][tileY];
+    df::tile_color &color = block.color[tileX][tileY];
     df::tile_designation &des = block.designation[tileX][tileY];
     df::tile_occupancy &occ = block.occupancy[tileX][tileY];
 /*
@@ -211,17 +210,14 @@ command_result df_probe (color_ostream &out, vector <string> & parameters)
     // tiletype
     out.print("tiletype: ");
     describeTile(out, tiletype);
-    out.print("static: ");
-    describeTile(out, mc.staticTiletypeAt(cursor));
-    out.print("base: ");
-    describeTile(out, mc.baseTiletypeAt(cursor));
+    out.print("chr: %02x\n",chr);
+    out.print("color: %02x\n",color.whole);
 
     out.print("temperature1: %d U\n",mc.temperature1At(cursor));
     out.print("temperature2: %d U\n",mc.temperature2At(cursor));
 
-    int offset = block.region_offset[des.bits.biome];
-    int bx = clip_range(block.region_pos.x + (offset % 3) - 1, 0, world->world_data.world_width-1);
-    int by = clip_range(block.region_pos.y + (offset / 3) - 1, 0, world->world_data.world_height-1);
+    int bx = world->fortress.pos.x;
+    int by = world->fortress.pos.y;
 
     auto biome = &world->world_data.region_map[bx][by];
 
@@ -234,7 +230,7 @@ command_result df_probe (color_ostream &out, vector <string> & parameters)
     const char* surroundings[] = { "Serene", "Mirthful", "Joyous Wilds", "Calm", "Wilderness", "Untamed Wilds", "Sinister", "Haunted", "Terrifying" };
 
     // biome, geolayer
-    out << "biome: " << des.bits.biome << " (" << 
+    out <<
         "region id=" << biome->region_id << ", " <<
         surroundings[surr] << ", " <<
         "savagery " << biome->savagery << ", " <<
@@ -253,90 +249,28 @@ command_result df_probe (color_ostream &out, vector <string> & parameters)
         else
             out << endl;
     }
-    int16_t vein_rock = mc.veinMaterialAt(cursor);
-    if(vein_rock != -1)
-    {
-        out << "Vein material (final): " << dec << vein_rock;
-        if(hasmats)
-            out << " / " << inorganic[vein_rock].id
-                << " / "
-                << inorganic[vein_rock].name
-                << endl;
-        else
-            out << endl;
-    }
-    MaterialInfo minfo(mc.baseMaterialAt(cursor));
+    MaterialInfo minfo;
+    minfo.decode(mc.veinMaterialAt(cursor));
+    if (minfo.isValid())
+        out << "Vein material: " << minfo.getToken() << " / " << minfo.toString() << endl;
+    minfo.decode(mc.baseMaterialAt(cursor));
     if (minfo.isValid())
         out << "Base material: " << minfo.getToken() << " / " << minfo.toString() << endl;
-    minfo.decode(mc.staticMaterialAt(cursor));
-    if (minfo.isValid())
-        out << "Static material: " << minfo.getToken() << " / " << minfo.toString() << endl;
-    // liquids
-    if(des.bits.flow_size)
-    {
-        if(des.bits.liquid_type == tile_liquid::Magma)
-            out <<"magma: ";
-        else out <<"water: ";
-        out << des.bits.flow_size << std::endl;
-    }
-    if(des.bits.flow_forbid)
-        out << "flow forbid" << std::endl;
     if(des.bits.pile)
         out << "stockpile?" << std::endl;
-    if(des.bits.rained)
+    if(color.bits.rain)
         out << "rained?" << std::endl;
     if(des.bits.smooth)
         out << "smooth?" << std::endl;
-    if(des.bits.water_salt)
-        out << "salty" << endl;
-    if(des.bits.water_stagnant)
-        out << "stagnant" << endl;
 
     #define PRINT_FLAG( FIELD, BIT )  out.print("%-16s= %c\n", #BIT , ( FIELD.bits.BIT ? 'Y' : ' ' ) )
     PRINT_FLAG( des, hidden );
     PRINT_FLAG( des, light );
     PRINT_FLAG( des, outside );
     PRINT_FLAG( des, subterranean );
-    PRINT_FLAG( des, water_table );
-    PRINT_FLAG( des, rained );
+    PRINT_FLAG( color, rain );
 
     df::coord2d pc(blockX, blockY);
-
-    t_feature local;
-    Maps::ReadFeatures(&block,&local);
-    PRINT_FLAG( des, feature );
-    if(local.type != -1)
-    {
-        out.print("%-16s", "");
-        out.print("  %4d", block.feature);
-        out.print(" (%2d)", local.type);
-        out.print(" addr 0x%X ", local.origin);
-        out.print(" %s\n", sa_feature(local.type));
-    }
-    #undef PRINT_FLAG
-    out << "local feature idx: " << block.feature
-        << endl;
-    out << std::endl;
-
-    for(size_t e=0; e<block.block_events.size(); e++)
-    {            
-        df::block_square_event * blev = block.block_events[e];
-        df::block_square_event_type blevtype = blev->getType();
-        switch(blevtype)
-        {
-        case df::block_square_event_type::world_construction:
-            {
-                df::block_square_event_world_constructionst * co_ev = (df::block_square_event_world_constructionst*)blev;
-                uint16_t bits = co_ev->tile_bitmask[tileY];
-                out << "construction bits: " << bits << endl;
-                break;
-            }
-        default:
-            //out << "unhandled block event type!" << endl;
-            break;
-        }
-    }
-
 
     return CR_OK;
 }
@@ -384,11 +318,6 @@ command_result df_bprobe (color_ostream &out, vector <string> & parameters)
             out.print(", subtype %s (%i)",
                       ENUM_KEY_STR(workshop_type, building.workshop_type).c_str(),
                       building.workshop_type);
-            break;
-        case building_type::Construction:
-            out.print(", subtype %s (%i)",
-                      ENUM_KEY_STR(construction_type, building.construction_type).c_str(),
-                      building.construction_type);
             break;
         case building_type::Shop:
             out.print(", subtype %s (%i)",

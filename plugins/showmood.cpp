@@ -11,7 +11,6 @@
 #include "DataDefs.h"
 #include "df/world.h"
 #include "df/job.h"
-#include "df/matgloss_metal.h"
 #include "df/general_ref.h"
 #include "df/unit.h"
 #include "df/building.h"
@@ -188,21 +187,37 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
                 out.print("%s logs", mat_name.c_str());
                 break;
             case item_type::BAR:
-                if (material == material_type::METAL &&
-                    matgloss >= 0 && matgloss < df::global::world->raws.matgloss.metal.size() &&
-                    df::global::world->raws.matgloss.metal[matgloss]->flags.is_set(matgloss_metal_flags::WAFERS))
-                    out.print("%s wafers", mat_name.c_str());
-                else
-                    out.print("%s bars", mat_name.c_str());
+                out.print("%s bars", mat_name.c_str());
                 break;
             case item_type::SMALLGEM:
                 out.print("%s cut gems", mat_name.c_str());
                 break;
             case item_type::ROUGH:
-                if (material == material_type::STONE)
+                if (material == material_type::GEM_ORNAMENTAL)
                 {
                     if (matgloss == -1)
-                        mat_name = "any";
+                        mat_name = "any ornamental";
+                    out.print("%s rough gems", mat_name.c_str());
+                }
+                else
+                if (material == material_type::GEM_SEMI)
+                {
+                    if (matgloss == -1)
+                        mat_name = "any semi-rare";
+                    out.print("%s rough gems", mat_name.c_str());
+                }
+                else
+                if (material == material_type::GEM_PRECIOUS)
+                {
+                    if (matgloss == -1)
+                        mat_name = "any precious";
+                    out.print("%s rough gems", mat_name.c_str());
+                }
+                else
+                if (material == material_type::GEM_RARE)
+                {
+                    if (matgloss == -1)
+                        mat_name = "any rare";
                     out.print("%s rough gems", mat_name.c_str());
                 }
                 else

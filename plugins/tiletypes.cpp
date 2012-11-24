@@ -39,7 +39,6 @@ using std::set;
 #include "modules/Gui.h"
 #include "TileTypes.h"
 #include "modules/MapCache.h"
-#include "df/tile_dig_designation.h"
 #include "Brushes.h"
 using namespace MapExtras;
 using namespace DFHack;
@@ -215,12 +214,11 @@ struct TileType
         rv &= (material == -1 || material == tileMaterial(source));
         rv &= (special == -1 || special == tileSpecial(source));
         rv &= (variant == -1 || variant == tileVariant(source));
-        rv &= (dig == -1 || (dig != 0) == (des.bits.dig != tile_dig_designation::No));
+        rv &= (dig == -1 || (dig != 0) == (des.bits.dig));
         rv &= (hidden == -1 || (hidden != 0) == des.bits.hidden);
         rv &= (light == -1 || (light != 0) == des.bits.light);
         rv &= (subterranean == -1 || (subterranean != 0) == des.bits.subterranean);
         rv &= (skyview == -1 || (skyview != 0) == des.bits.outside);
-        rv &= (aquifer == -1 || (aquifer != 0) == des.bits.water_table);
         return rv;
     }
 };
@@ -677,6 +675,7 @@ command_result executePaintJob(color_ostream &out)
     {
         const df::tiletype source = map.tiletypeAt(*iter);
         df::tile_designation des = map.designationAt(*iter);
+        df::tile_occupancy occ = map.occupancyAt(*iter);
 
         if (!filter.matches(source, des))
         {
@@ -726,7 +725,7 @@ command_result executePaintJob(color_ostream &out)
         */
         // Remove direction from directionless tiles
         DFHack::TileDirection direction = tileDirection(source);
-        if (!(material == tiletype_material::RIVER || shape == tiletype_shape::BROOK_BED || shape == tiletype_shape::WALL && (material == tiletype_material::CONSTRUCTION || special == tiletype_special::SMOOTH)))
+        if (shape != tiletype_shape::WALL)
         {
             direction.whole = 0;
         }
@@ -761,21 +760,11 @@ command_result executePaintJob(color_ostream &out)
             des.bits.outside = paint.skyview;
         }
 
-        if (paint.aquifer > -1)
-        {
-            des.bits.water_table = paint.aquifer;
-        }
-
         // Remove liquid from walls, etc
         if (type != (df::tiletype)-1 && !DFHack::FlowPassable(type))
         {
-            des.bits.flow_size = 0;
-            //des.bits.liquid_type = DFHack::liquid_water;
-            //des.bits.water_table = 0;
-            des.bits.flow_forbid = 0;
-            //des.bits.liquid_static = 0;
-            //des.bits.water_stagnant = 0;
-            //des.bits.water_salt = 0;
+            occ.bits.water = 0;
+            occ.bits.lava = 0;
         }
 
         map.setDesignationAt(*iter, des);

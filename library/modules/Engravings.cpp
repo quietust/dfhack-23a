@@ -66,7 +66,6 @@ bool Engravings::copyEngraving(const int32_t index, t_engraving &out)
     out.origin = world->engravings[index];
 
     out.artist = out.origin->artist;
-    out.masterpiece_event = out.origin->masterpiece_event;
     out.skill_rating = out.origin->skill_rating;
     out.pos = out.origin->pos;
     out.flags = out.origin->flags;

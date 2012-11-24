@@ -169,6 +169,80 @@ namespace DFHack
         uint32_t size;
     };
 
+    template <unsigned int S, typename T = int>
+    class StaticBitArray
+    {
+    public:
+        StaticBitArray() { memset(bits, 0, S); }
+        StaticBitArray(const StaticBitArray<S,T> &other)
+        {
+            memcpy(bits, other.bits, S);
+        }
+        ~StaticBitArray() {}
+
+        void clear_all ( void )
+        {
+            memset(bits, 0, S);
+        }
+        void set (T index, bool value = true)
+        {
+            if(!value)
+            {
+                clear(index);
+                return;
+            }
+            uint32_t byte = index / 8;
+            if(byte < S)
+            {
+                uint8_t bit = 1 << (index % 8);
+                bits[byte] |= bit;
+            }
+        }
+        void clear (T index)
+        {
+            uint32_t byte = index / 8;
+            if(byte < S)
+            {
+                uint8_t bit = 1 << (index % 8);
+                bits[byte] &= ~bit;
+            }
+        }
+        void toggle (T index)
+        {
+            uint32_t byte = index / 8;
+            if(byte < S)
+            {
+                uint8_t bit = 1 << (index % 8);
+                bits[byte] ^= bit;
+            }
+        }
+        bool is_set (T index) const
+        {
+            uint32_t byte = index / 8;
+            if(byte < S)
+            {
+                uint8_t bit = 1 << (index % 8);
+                return bit & bits[byte];
+            }
+            else return false;
+        }
+        friend std::ostream& operator<< (std::ostream &out, StaticBitArray<S,T> &ba)
+        {
+            std::stringstream sstr;
+            for (int i = 0; i < S * 8; i++)
+            {
+                if(ba.is_set((T)i))
+                    sstr << "1 ";
+                else
+                    sstr << "0 ";
+            }
+            out << sstr.str();
+            return out;
+        }
+    //private:
+        uint8_t bits[S];
+    };
+
     template <typename T = int>
     class DfArray
     {

@@ -50,7 +50,6 @@ distribution.
 #include "modules/MapCache.h"
 #include "modules/Burrows.h"
 #include "modules/Buildings.h"
-#include "modules/Constructions.h"
 
 #include "LuaWrapper.h"
 #include "LuaTools.h"
@@ -68,8 +67,9 @@ distribution.
 #include "df/matgloss_plant.h"
 #include "df/creature_raw.h"
 #include "df/matgloss_stone.h"
-#include "df/matgloss_metal.h"
+#include "df/matgloss_gem.h"
 #include "df/matgloss_wood.h"
+#include "df/matgloss_plant.h"
 #include "df/building_civzonest.h"
 #include "df/region_map_entry.h"
 #include "df/flow_info.h"
@@ -508,8 +508,8 @@ void Lua::Push(lua_State *state, MaterialInfo &info)
 }
     if (info.wood) SETOBJ(wood);
     if (info.stone) SETOBJ(stone);
+    if (info.gem) SETOBJ(gem);
     if (info.plant) SETOBJ(plant);
-    if (info.metal) SETOBJ(metal);
     if (info.creature) SETOBJ(creature);
 #undef SETOBJ
 
@@ -518,8 +518,8 @@ void Lua::Push(lua_State *state, MaterialInfo &info)
     {
         case MaterialInfo::Wood: id = "wood"; break;
         case MaterialInfo::Stone: id = "stone"; break;
+        case MaterialInfo::Gem: id = "gem"; break;
         case MaterialInfo::Plant: id = "plant"; break;
-        case MaterialInfo::Metal: id = "metal"; break;
         case MaterialInfo::Creature: id = "creature"; break;
         default: break;
     }
@@ -1042,7 +1042,6 @@ static const LuaWrapper::FunctionReg dfhack_gui_module[] = {
     WRAPM(Gui, getSelectedItem),
     WRAPM(Gui, getSelectedBuilding),
     WRAPM(Gui, showAnnouncement),
-    WRAPM(Gui, showPopupAnnouncement),
     { NULL, NULL }
 };
 
@@ -1224,7 +1223,6 @@ static void resetTileAssignment(df::tile_bitmask *bm, bool val) {
 static const LuaWrapper::FunctionReg dfhack_maps_module[] = {
     WRAPN(getBlock, (df::map_block* (*)(int32_t,int32_t,int32_t))Maps::getBlock),
     WRAPM(Maps, enableBlockUpdates),
-    WRAPM(Maps, getInitFeature),
     WRAPM(Maps, canWalkBetween),
     WRAPM(Maps, spawnFlow),
     WRAPN(hasTileAssignment, hasTileAssignment),
@@ -1259,8 +1257,8 @@ static int maps_getTileType(lua_State *L)
 {
     auto pos = CheckCoordXYZ(L, 1, true);
     auto ptype = Maps::getTileType(pos);
-    if (ptype)
-        lua_pushinteger(L, *ptype);
+    if (ptype != tiletype::Void)
+        lua_pushinteger(L, ptype);
     else
         lua_pushnil(L);
     return 1;
@@ -1281,12 +1279,6 @@ static int maps_getRegionBiome(lua_State *L)
     return 1;
 }
 
-static int maps_getTileBiomeRgn(lua_State *L)
-{
-    auto pos = CheckCoordXYZ(L, 1, true);
-    return Lua::PushPosXY(L, Maps::getTileBiomeRgn(pos));
-}
-
 static const luaL_Reg dfhack_maps_funcs[] = {
     { "isValidTilePos", maps_isValidTilePos },
     { "getTileBlock", maps_getTileBlock },
@@ -1294,7 +1286,6 @@ static const luaL_Reg dfhack_maps_funcs[] = {
     { "getTileType", maps_getTileType },
     { "getTileFlags", maps_getTileFlags },
     { "getRegionBiome", maps_getRegionBiome },
-    { "getTileBiomeRgn", maps_getTileBiomeRgn },
     { NULL, NULL }
 };
 
@@ -1386,27 +1377,6 @@ static const luaL_Reg dfhack_buildings_funcs[] = {
     { "findCivzonesAt", buildings_findCivzonesAt },
     { "getCorrectSize", buildings_getCorrectSize },
     { "setSize", &Lua::CallWithCatchWrapper<buildings_setSize> },
-    { NULL, NULL }
-};
-
-/***** Constructions module *****/
-
-static const LuaWrapper::FunctionReg dfhack_constructions_module[] = {
-    WRAPM(Constructions, designateNew),
-    { NULL, NULL }
-};
-
-static int constructions_designateRemove(lua_State *L)
-{
-    auto pos = CheckCoordXYZ(L, 1, true);
-    bool imm = false;
-    lua_pushboolean(L, Constructions::designateRemove(pos, &imm));
-    lua_pushboolean(L, imm);
-    return 2;
-}
-
-static const luaL_Reg dfhack_constructions_funcs[] = {
-    { "designateRemove", constructions_designateRemove },
     { NULL, NULL }
 };
 
@@ -1559,10 +1529,7 @@ static int screen_doSimulateInput(lua_State *L)
         lua_pop(L, 1);
     }
 
-    if (screen->is_legacy_screen())
-        screen->view();
-    else
-        screen->input();
+    screen->view();
     return 0;
 }
 
@@ -1906,7 +1873,6 @@ void OpenDFHackApi(lua_State *state)
     OpenModule(state, "items", dfhack_items_module, dfhack_items_funcs);
     OpenModule(state, "maps", dfhack_maps_module, dfhack_maps_funcs);
     OpenModule(state, "buildings", dfhack_buildings_module, dfhack_buildings_funcs);
-    OpenModule(state, "constructions", dfhack_constructions_module);
     OpenModule(state, "screen", dfhack_screen_module, dfhack_screen_funcs);
     OpenModule(state, "internal", dfhack_internal_module, dfhack_internal_funcs);
 }

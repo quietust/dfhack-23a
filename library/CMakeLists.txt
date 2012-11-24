@@ -107,7 +107,6 @@ Process-linux.cpp
 
 SET(MODULE_HEADERS
 include/modules/Buildings.h
-include/modules/Constructions.h
 include/modules/Units.h
 include/modules/Engravings.h
 include/modules/Gui.h
@@ -117,7 +116,6 @@ include/modules/kitchen.h
 include/modules/Maps.h
 include/modules/MapCache.h
 include/modules/Materials.h
-include/modules/Notes.h
 include/modules/Screen.h
 include/modules/Translation.h
 include/modules/Vegetation.h
@@ -128,7 +126,6 @@ include/modules/Graphic.h
 
 SET( MODULE_SOURCES
 modules/Buildings.cpp
-modules/Constructions.cpp
 modules/Units.cpp
 modules/Engravings.cpp
 modules/Gui.cpp
@@ -137,7 +134,6 @@ modules/Job.cpp
 modules/kitchen.cpp
 modules/Maps.cpp
 modules/Materials.cpp
-modules/Notes.cpp
 modules/Screen.cpp
 modules/Translation.cpp
 modules/Vegetation.cpp
@@ -267,7 +263,7 @@ ELSE()
 ENDIF()
 
 ADD_EXECUTABLE(dfhack-loader dfhack-loader.cpp)
-SET_TARGET_PROPERTIES(dfhack-loader PROPERTIES COMPILE_FLAGS "/DDFHACK_40d" )
+SET_TARGET_PROPERTIES(dfhack-loader PROPERTIES COMPILE_FLAGS "/DDFHACK_23a" )
 SET_TARGET_PROPERTIES(dfhack-loader PROPERTIES OUTPUT_NAME "dfhack" )
 
 #effectively disables debug builds...

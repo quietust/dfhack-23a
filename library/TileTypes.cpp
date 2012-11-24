@@ -52,22 +52,18 @@ namespace DFHack
         // When you want a smooth wall, no need to search for best match.  Just use a pillar instead.
         // Choosing the right direction would require knowing neighbors.
 
-        if ((tshape == tiletype_shape::WALL) && ((cur_special == tiletype_special::SMOOTH) || (cur_material == tiletype_material::CONSTRUCTION)))
+        if ((tshape == tiletype_shape::WALL) && ((cur_special == tiletype_special::SMOOTH)))
         {
             switch (cur_material)
             {
-            case tiletype_material::CONSTRUCTION:
-                return tiletype::ConstructedPillar;
-            case tiletype_material::FROZEN_LIQUID:
-                return tiletype::FrozenPillar;
-            case tiletype_material::MINERAL:
-                return tiletype::MineralPillar;
-            case tiletype_material::FEATURE:
-                return tiletype::FeaturePillar;
-            case tiletype_material::LAVA_STONE:
-                return tiletype::LavaPillar;
             case tiletype_material::STONE:
                 return tiletype::StonePillar;
+            case tiletype_material::STONE_DARK:
+                return tiletype::DarkStonePillar;
+            case tiletype_material::STONE_LIGHT:
+                return tiletype::LightStonePillar;
+            case tiletype_material::WOOD:
+                return tiletype::WoodPillar;
             default:
                 break;
             }
@@ -82,11 +78,6 @@ namespace DFHack
             {
                 // Special flag match is mandatory, but only if it might possibly make a difference
                 if (tileSpecial(tt) != tiletype_special::NONE && cur_special != tiletype_special::NONE && tileSpecial(tt) != cur_special)
-                    continue;
-
-                // Special case for constructions.
-                // Never turn a construction into a non-contruction.
-                if ((cur_material == tiletype_material::CONSTRUCTION) && (tileMaterial(tt) != cur_material))
                     continue;
 
                 value = 0;
@@ -131,4 +122,23 @@ namespace DFHack
         }
         return matches[rand() % matches.size()];
     }
+
+    df::tiletype convertTile(const df::tile_chr chr, const df::tile_color color)
+    {
+        std::vector<df::tiletype> matches;
+        FOR_ENUM_ITEMS(tiletype, tt)
+        {
+            if (tileChr(tt) == chr && tileColor(tt) == color.bits.color)
+                matches.push_back(tt);
+        }
+        if (!matches.size())
+            return tiletype::Void;
+        return matches[rand() % matches.size()];
+    }
+    void convertTile(const df::tiletype tile, df::tile_chr &chr, df::tile_color &color)
+    {
+        chr = tileChr(tile);
+        color.bits.color = tileColor(tile);
+    }
+
 }

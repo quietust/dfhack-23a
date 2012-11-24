@@ -10,25 +10,20 @@ template<class E, class A = std::allocator<E>>
 class basic_string
 {
 protected:
-	static const int base_len = 0x10;
-
 	A _allocator;
-	union
-	{
-		E _inbuf[base_len];
-		E *_data;
-		E _init;
-	};
+	E *_data;
 	size_t _size;
 	size_t _alloc;
 
+	static const E _empty = 0;
+
 	void _copy (size_t newlen, size_t oldlen)
 	{
-		E *newdata = _allocator.allocate(newlen + 1);
+		E *newdata = _allocator.allocate(newlen + 2);
 		if (oldlen > 0)
-			memcpy(newdata, _getptr(), oldlen);
+			memcpy(newdata + 1, _getptr(), oldlen);
 		_tidy(true);
-		_data = newdata;
+		_data = newdata + 1;
 		_alloc = newlen;
 		_setlen(oldlen);
 	}
@@ -42,8 +37,8 @@ protected:
 		// throw if too long
 		if (len > _alloc)
 			_copy(len, size());
-		else if (trim && len < base_len)
-			_tidy(true, len < size() ? len : size());
+		else if (trim && len == 0)
+			_tidy(true);
 		else if (len == 0)
 			_setlen(0);
 		return (len > 0);
@@ -58,27 +53,26 @@ protected:
 			return false;
 		return true;
 	}
-	void _tidy(bool built = false, size_t newsize = 0)
+	void _tidy(bool built = false)
 	{
 		if (!built)
 			;
-		else if (_alloc >= base_len)
+		else if (_data)
 		{
-			E *ptr = _data;
-			if (newsize > 0)
-				memcpy(_inbuf, ptr, newsize);
-			_allocator.deallocate(ptr, _alloc + 1);
+			E *ptr = _data - 1;
+			_allocator.deallocate(ptr, _alloc + 2);
 		}
-		_alloc = base_len - 1;
-		_setlen(newsize);
+		_data = 0;
+		_size = 0;
+		_alloc = 0;
 	}
 	E *_getptr()
 	{
-		return (base_len <= _alloc ? _data : _inbuf);
+		return (_data ? _data : (E *)&_empty);
 	}
 	const E *_getptr() const
 	{
-		return (base_len <= _alloc ? _data : _inbuf);
+		return (_data ? _data : (E *)&_empty);
 	}
 
 public:

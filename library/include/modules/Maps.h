@@ -40,15 +40,8 @@ distribution.
 #include "df/world.h"
 #include "df/world_data.h"
 #include "df/map_block.h"
-#include "df/block_square_event.h"
-#include "df/block_square_event_mineralst.h"
-#include "df/block_square_event_frozen_liquidst.h"
-#include "df/block_square_event_world_constructionst.h"
-#include "df/tile_liquid.h"
-#include "df/tile_dig_designation.h"
-#include "df/tile_traffic.h"
-#include "df/feature_init.h"
 #include "df/flow_type.h"
+#include "df/tiletype.h"
 
 /**
  * \defgroup grp_maps Maps module and its types
@@ -69,40 +62,8 @@ namespace DFHack
     * Function for translating feature index to its name
     * \ingroup grp_maps
     */
-extern DFHACK_EXPORT const char * sa_feature(df::feature_type index);
-
 typedef df::coord DFCoord;
 typedef DFCoord planecoord;
-
-/**
- * A local or global map feature
- * \ingroup grp_maps
- */
-struct t_feature
-{
-    df::feature_type type;
-    /// placeholder
-    bool discovered;
-    /// this is NOT part of the DF feature, but an address of the feature as seen by DFhack.
-    df::feature_init * origin;
-};
-
-/**
- * \ingroup grp_maps
- */
-enum BiomeOffset
-{
-    eNorthWest,
-    eNorth,
-    eNorthEast,
-    eWest,
-    eHere,
-    eEast,
-    eSouthWest,
-    eSouth,
-    eSouthEast,
-    eBiomeCount
-};
 
 /**
  * map block flags wrapper
@@ -132,11 +93,6 @@ typedef t_designation designations40d [16][16];
  */
 typedef df::tile_occupancy t_occupancy;
 typedef t_occupancy occupancies40d [16][16];
-/**
- * array of 16 biome indexes valid for the block
- * \ingroup grp_maps
- */
-typedef uint8_t biome_indices40d [9];
 /**
  * 16x16 array of temperatures
  * \ingroup grp_maps
@@ -168,71 +124,12 @@ namespace Maps
 
 extern DFHACK_EXPORT bool IsValid();
 
-/**
- * Method for reading the geological surrounding of the currently loaded region.
- * assign is a reference to an array of nine vectors of unsigned words that are to be filled with the data
- * array is indexed by the BiomeOffset enum
- * 
- * I omitted resolving the layer matgloss in this API, because it would
- * introduce overhead by calling some method for each tile. You have to do it
- * yourself.
- *
- * First get the stuff from ReadGeology and then for each block get the RegionOffsets.
- * For each tile get the real region from RegionOffsets and cross-reference it with
- * the geology stuff (region -- array of vectors, depth -- vector).
- * I'm thinking about turning that Geology stuff into a two-dimensional array
- * with static size.
- *
- * this is the algorithm for applying matgloss:
- * @code
-
-void DfMap::applyGeoMatgloss(Block * b)
-{
-    // load layer matgloss
-    for(int x_b = 0; x_b < BLOCK_SIZE; x_b++)
-    {
-        for(int y_b = 0; y_b < BLOCK_SIZE; y_b++)
-        {
-            int geolayer = b->designation[x_b][y_b].bits.geolayer_index;
-            int biome = b->designation[x_b][y_b].bits.biome;
-            b->material[x_b][y_b].type = Mat_Stone;
-            b->material[x_b][y_b].index = v_geology[b->RegionOffsets[biome]][geolayer];
-        }
-    }
-}
-
- * @endcode
- */
-extern DFHACK_EXPORT bool ReadGeology(std::vector<std::vector<int16_t> > *layer_mats,
-                                      std::vector<df::coord2d> *geoidx);
-/**
- * Get pointers to features of a block
- */
-extern DFHACK_EXPORT bool ReadFeatures(uint32_t x, uint32_t y, uint32_t z, t_feature * feature);
-/**
- * Get pointers to features of an already read block
- */
-extern DFHACK_EXPORT bool ReadFeatures(df::map_block * block,t_feature * feature);
-
-/**
- * Get a pointer to a specific feature directly. rgn_coord is in the world region grid.
- */
-DFHACK_EXPORT df::feature_init *getInitFeature(df::coord2d rgn_coord, int32_t index);
-
-/**
- * Read a specific feature directly
- */
-//extern DFHACK_EXPORT bool GetLocalFeature(t_feature &feature, df::coord2d rgn_coord, int32_t index);
-
-
 /*
  * BLOCK DATA
  */
 
 /// get size of the map in tiles
 extern DFHACK_EXPORT void getSize(uint32_t& x, uint32_t& y, uint32_t& z);
-/// get the position of the map on world map
-extern DFHACK_EXPORT void getPosition(int32_t& x, int32_t& y, int32_t& z);
 
 extern DFHACK_EXPORT bool isValidTilePos(int32_t x, int32_t y, int32_t z);
 inline bool isValidTilePos(df::coord pos) { return isValidTilePos(pos.x, pos.y, pos.z); }
@@ -248,11 +145,19 @@ inline df::map_block * getBlock (df::coord pos) { return getBlock(pos.x, pos.y, 
 inline df::map_block * getTileBlock (df::coord pos) { return getTileBlock(pos.x, pos.y, pos.z); }
 inline df::map_block * ensureTileBlock (df::coord pos) { return ensureTileBlock(pos.x, pos.y, pos.z); }
 
-extern DFHACK_EXPORT df::tiletype *getTileType(int32_t x, int32_t y, int32_t z);
+extern DFHACK_EXPORT df::tile_chr *getTileChr(int32_t x, int32_t y, int32_t z);
+extern DFHACK_EXPORT df::tile_color *getTileColor(int32_t x, int32_t y, int32_t z);
+extern DFHACK_EXPORT df::tiletype getTileType(int32_t x, int32_t y, int32_t z);
 extern DFHACK_EXPORT df::tile_designation *getTileDesignation(int32_t x, int32_t y, int32_t z);
 extern DFHACK_EXPORT df::tile_occupancy *getTileOccupancy(int32_t x, int32_t y, int32_t z);
 
-inline df::tiletype *getTileType(df::coord pos) {
+inline df::tile_chr *getTileChr(df::coord pos) {
+    return getTileChr(pos.x, pos.y, pos.z);
+}
+inline df::tile_color *getTileColor(df::coord pos) {
+    return getTileColor(pos.x, pos.y, pos.z);
+}
+inline df::tiletype getTileType(df::coord pos) {
     return getTileType(pos.x, pos.y, pos.z);
 }
 inline df::tile_designation *getTileDesignation(df::coord pos) {
@@ -267,30 +172,10 @@ inline df::tile_occupancy *getTileOccupancy(df::coord pos) {
  */
 DFHACK_EXPORT df::region_map_entry *getRegionBiome(df::coord2d rgn_pos);
 
-/**
- * Returns biome world region coordinates for the given tile within given block.
- */
-DFHACK_EXPORT df::coord2d getBlockTileBiomeRgn(df::map_block *block, df::coord2d pos);
-
-inline df::coord2d getTileBiomeRgn(df::coord pos) {
-    return getBlockTileBiomeRgn(getTileBlock(pos), pos);
-}
-
 // Enables per-frame updates for liquid flow and/or temperature.
 DFHACK_EXPORT void enableBlockUpdates(df::map_block *blk, bool flow = false, bool temperature = false);
 
 DFHACK_EXPORT df::flow_info *spawnFlow(df::coord pos, df::flow_type type, int mat_type = 0, int mat_index = -1, int density = 100);
-
-/// sorts the block event vector into multiple vectors by type
-/// mineral veins, what's under ice, blood smears and mud
-extern DFHACK_EXPORT bool SortBlockEvents(df::map_block *block,
-    std::vector<df::block_square_event_mineralst *>* veins,
-    std::vector<df::block_square_event_frozen_liquidst *>* ices = 0,
-    std::vector<df::block_square_event_world_constructionst *>* constructions = 0
-);
-
-/// remove a block event from the block by address
-extern DFHACK_EXPORT bool RemoveBlockEvent(uint32_t x, uint32_t y, uint32_t z, df::block_square_event * which );
 
 DFHACK_EXPORT bool canWalkBetween(df::coord pos1, df::coord pos2);
 }

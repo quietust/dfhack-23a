@@ -22,7 +22,7 @@ using df::global::cursor;
 
 DFHACK_PLUGIN("cleaners");
 
-static bool clean_tile (df::tile_occupancy &tile, bool snow, bool mud)
+static bool clean_tile (df::tile_occupancy &tile, df::tile_color &col, bool snow, bool mud)
 {
     tile.bits.arrow_color = 0;
     tile.bits.arrow_variant = 0;
@@ -37,9 +37,9 @@ static bool clean_tile (df::tile_occupancy &tile, bool snow, bool mud)
     tile.bits.slime = 0;
     tile.bits.vomit = 0;
     if (snow)
-        tile.bits.snow = 0;
+        col.bits.snow = 0;
     if (mud)
-        tile.bits.mud = 0;
+        col.bits.mud = 0;
     return true;
 }
 
@@ -53,7 +53,7 @@ command_result cleanmap (color_ostream &out, bool snow, bool mud)
         bool cleaned = false;
         for(int x = 0; x < 16; x++)
             for(int y = 0; y < 16; y++)
-                cleaned |= clean_tile(block->occupancy[x][y], snow, mud);
+                cleaned |= clean_tile(block->occupancy[x][y], block->color[x][y], snow, mud);
         num_blocks += cleaned;
     }
 
@@ -146,7 +146,7 @@ command_result spotclean (color_ostream &out, vector <string> & parameters)
         out.printerr("Invalid map block selected!\n");
         return CR_FAILURE;
     }
-    clean_tile(block->occupancy[cursor->x % 16][cursor->y % 16], true, true);
+    clean_tile(block->occupancy[cursor->x % 16][cursor->y % 16], block->color[cursor->x % 16][cursor->y % 16], true, true);
     return CR_OK;
 }
 

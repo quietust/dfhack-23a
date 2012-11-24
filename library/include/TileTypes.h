@@ -28,6 +28,8 @@ distribution.
 #include "Export.h"
 #include "DataDefs.h"
 #include "df/tiletype.h"
+#include "df/tile_chr.h"
+#include "df/tile_color.h"
 
 namespace DFHack
 {
@@ -140,6 +142,17 @@ namespace DFHack
     };
 
     using namespace df::enums;
+
+    inline
+    df::tile_chr tileChr(df::tiletype tiletype)
+    {
+        return ENUM_ATTR(tiletype, tile_chr, tiletype);
+    }
+    inline
+    int8_t tileColor(df::tiletype tiletype)
+    {
+        return ENUM_ATTR(tiletype, tile_color, tiletype);
+    }
 
     inline
         const char * tileName(df::tiletype tiletype)
@@ -295,5 +308,14 @@ namespace DFHack
      * If there are no variants, returns the same tile
      */
     DFHACK_EXPORT df::tiletype findRandomVariant(const df::tiletype tile);
+
+    /**
+     * Converts a 23a-style chr+color pair into a modern tile ID
+     */
+    DFHACK_EXPORT df::tiletype convertTile(const df::tile_chr chr, const df::tile_color color);
+    /**
+     * Converts a 23a-style chr+color pair into a modern tile ID
+     */
+    DFHACK_EXPORT void convertTile(const df::tiletype tile, df::tile_chr &chr, df::tile_color &color);
 }
 

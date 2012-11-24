@@ -35,10 +35,11 @@ distribution.
 #include "BitArray.h"
 
 #include "DataDefs.h"
+#include "df/material_type.h"
 #include "df/matgloss_wood.h"
 #include "df/matgloss_stone.h"
+#include "df/matgloss_gem.h"
 #include "df/matgloss_plant.h"
-#include "df/matgloss_metal.h"
 
 #include <vector>
 #include <string>
@@ -72,8 +73,8 @@ namespace DFHack
             Builtin,
             Wood,
             Stone,
+            Gem,
             Plant,
-            Metal,
             Creature,
             Invalid
         };
@@ -81,8 +82,8 @@ namespace DFHack
 
         df::matgloss_wood *wood;
         df::matgloss_stone *stone;
+        df::matgloss_gem *gem;
         df::matgloss_plant *plant;
-        df::matgloss_metal *metal;
         df::creature_raw *creature;
 
     public:
@@ -96,8 +97,8 @@ namespace DFHack
         bool isBuiltin() const { return mode == Builtin; }
         bool isWood() const { return mode == Wood; }
         bool isStone() const { return mode == Stone; }
+        bool isGem() const { return mode == Gem; }
         bool isPlant() const { return mode == Plant; }
-        bool isMetal() const { return mode == Metal; }
         bool isCreature() const { return mode == Creature; }
 
         bool decode(df::material_type type, int16_t subtype = -1);
@@ -116,8 +117,8 @@ namespace DFHack
         bool findBuiltin(df::material_type type, const std::string &token);
         bool findWood(df::material_type type, const std::string &token);
         bool findStone(df::material_type type, const std::string &token);
+        bool findGem(df::material_type type, const std::string &token);
         bool findPlant(df::material_type type, const std::string &token);
-        bool findMetal(df::material_type type, const std::string &token);
         bool findCreature(df::material_type type, const std::string &token);
 
         std::string getToken();
@@ -155,38 +156,9 @@ namespace DFHack
 
         int32_t value;        // Material value
         uint8_t wall_tile;    // Tile when a natural wall
-        uint8_t boulder_tile; // Tile when a dug-out stone;
-        bool is_gem;
 
     public:
         t_matgloss();
-    };
-    /**
-     * A copy of the game's stone material data.
-     * \ingroup grp_materials
-     */
-    class DFHACK_EXPORT t_matglossStone : public t_matgloss
-    {
-    public:
-        // Types of metals the ore will produce when smelted.  Each number
-        // is an index into the inorganic matglass vector.
-        std::vector<int16_t> ore_types;
-
-        // Percent chance that the ore will produce each type of metal
-        // when smelted.
-        std::vector<int16_t> ore_chances;
-
-        // Types of metals the ore will produce from strand extraction.
-        // Each number is an index into the inorganic matglass vector.
-        std::vector<int16_t> strand_types;
-
-        // Percent chance that the ore will produce each type of metal
-        // fram strand extraction.
-        std::vector<int16_t> strand_chances;
-
-    public:
-        bool isOre();
-        bool isGem();
     };
 
     /**
@@ -284,7 +256,7 @@ namespace DFHack
         std::vector<t_matglossOther> other;
         std::vector<t_matgloss> alldesc;
 
-        bool CopyInorganicMaterials (std::vector<t_matglossStone> & inorganic);
+        bool CopyInorganicMaterials (std::vector<t_matgloss> & inorganic);
         bool CopyWoodMaterials (std::vector<t_matgloss> & tree);
         bool CopyPlantMaterials (std::vector<t_matgloss> & plant);
 

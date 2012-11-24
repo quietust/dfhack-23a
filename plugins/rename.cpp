@@ -51,8 +51,6 @@ DFhackCExport command_result plugin_init (color_ostream &out, std::vector <Plugi
     if (world && ui) {
         commands.push_back(PluginCommand(
             "rename", "Rename various things.", rename, false,
-            "  rename hotkey <index> \"name\"\n"
-            "    (identified by ordinal index)\n"
             "  rename unit \"nickname\"\n"
             "  rename unit-profession \"custom profession\"\n"
             "    (a unit must be highlighted in the ui)\n"
@@ -104,20 +102,7 @@ static command_result rename(color_ostream &out, vector <string> &parameters)
     if (!parameters.empty())
         cmd = parameters[0];
 
-    if (cmd == "hotkey")
-    {
-        if (parameters.size() != 3)
-            return CR_WRONG_USAGE;
-
-        int id = atoi(parameters[1].c_str());
-        if (id < 1 || id > 16) {
-            out.printerr("Invalid hotkey index\n");
-            return CR_WRONG_USAGE;
-        }
-
-        ui->main.hotkeys[id-1].name = parameters[2];
-    }
-    else if (cmd == "unit")
+    if (cmd == "unit")
     {
         if (parameters.size() != 2)
             return CR_WRONG_USAGE;

@@ -41,6 +41,8 @@ namespace df {
     stl2_ptr_vector_identity identity_traits<std::vector<void*> >::identity;
     stl2_bit_vector_identity identity_traits<std::vector<bool> >::identity;
     bit_array_identity identity_traits<BitArray<int> >::identity;
+    template<size_t S>
+    static_bit_array_identity<S> identity_traits<StaticBitArray<S,int> >::identity;
 
     buffer_container_identity buffer_container_identity::base_instance;
 

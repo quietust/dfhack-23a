@@ -51,7 +51,6 @@ struct t_plant {
     uint16_t temperature_2;
     int32_t is_burning;
     int32_t hitpoints;
-    int16_t update_order;
     //std::vector<void *> unk1;
     //int32_t unk2;
     //uint16_t temperature_3;

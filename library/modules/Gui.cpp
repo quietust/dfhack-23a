@@ -48,6 +48,7 @@ using namespace DFHack;
 #include "DataDefs.h"
 #include "df/world.h"
 #include "df/global_objects.h"
+#include "df/viewscreen_assigntradest.h"
 #include "df/viewscreen_dwarfmodest.h"
 #include "df/viewscreen_dungeonmodest.h"
 #include "df/viewscreen_dungeon_monsterstatusst.h"
@@ -56,9 +57,8 @@ using namespace DFHack;
 #include "df/viewscreen_itemst.h"
 #include "df/viewscreen_layer.h"
 #include "df/viewscreen_layer_workshop_profilest.h"
-#include "df/viewscreen_layer_noblelistst.h"
-#include "df/viewscreen_layer_assigntradest.h"
 #include "df/viewscreen_layer_stockpilest.h"
+#include "df/viewscreen_noblelistst.h"
 #include "df/viewscreen_petst.h"
 #include "df/viewscreen_tradegoodsst.h"
 #include "df/viewscreen_storesst.h"
@@ -75,7 +75,6 @@ using namespace DFHack;
 #include "df/general_ref.h"
 #include "df/unit_inventory_item.h"
 #include "df/report.h"
-#include "df/popup_message.h"
 #include "df/interfacest.h"
 #include "df/enabler.h"
 #include "df/layer_object_listst.h"
@@ -204,6 +203,8 @@ DEFINE_GET_FOCUS_STRING_HANDLER(dwarfmode)
     case Build:
         if (ui_build_selector)
         {
+            /*
+            // This worked totally differently in 23a
             // Not selecting, or no choices?
             if (ui_build_selector->building_type < 0)
                 focus += "/Type";
@@ -219,11 +220,9 @@ DEFINE_GET_FOCUS_STRING_HANDLER(dwarfmode)
             else
             {
                 focus += "/Material";
-                if (ui_build_selector->is_grouped)
-                    focus += "/Groups";
-                else
-                    focus += "/Items";
+                focus += "/Items";
             }
+            */
         }
         break;
 
@@ -298,15 +297,10 @@ DEFINE_GET_FOCUS_STRING_HANDLER(layer_workshop_profile)
         focus += "/None";
 }
 
-DEFINE_GET_FOCUS_STRING_HANDLER(layer_noblelist)
+DEFINE_GET_FOCUS_STRING_HANDLER(noblelist)
 {
-    auto list1 = getLayerList(screen, 0);
-    auto list2 = getLayerList(screen, 1);
-    if (!list1 || !list2) return;
-
-    focus += "/" + enum_item_key(screen->mode);
+    focus += "/List";
 }
-
 DEFINE_GET_FOCUS_STRING_HANDLER(pet)
 {
     focus += "/List";
@@ -322,23 +316,10 @@ DEFINE_GET_FOCUS_STRING_HANDLER(tradegoods)
         focus += (screen->in_right_pane ? "/Items/Broker" : "/Items/Trader");
 }
 
-DEFINE_GET_FOCUS_STRING_HANDLER(layer_assigntrade)
+DEFINE_GET_FOCUS_STRING_HANDLER(assigntrade)
 {
-    auto list1 = getLayerList(screen, 0);
-    auto list2 = getLayerList(screen, 1);
-    if (!list1 || !list2) return;
-
-    int list_idx = vector_get(screen->visible_lists, list1->cursor, (int16_t)-1);
-    unsigned num_lists = sizeof(screen->lists)/sizeof(screen->lists[0]);
-    if (unsigned(list_idx) >= num_lists)
-        return;
-
-    if (list1->active)
-        focus += "/Groups";
-    else
-        focus += "/Items";
+    focus += "/Items";
 }
-
 DEFINE_GET_FOCUS_STRING_HANDLER(stores)
 {
     if (!screen->in_right_list)
@@ -502,15 +483,16 @@ bool Gui::build_selector_hotkey(df::viewscreen *top)
     switch (ui->main.mode) {
     case Build:
         {
-            if (!ui_build_selector) // allow missing
+//          if (!ui_build_selector) // allow missing
                 return false;
+            /* Doesn't work this way
 
             // Not selecting, or no choices?
             if (ui_build_selector->building_type < 0 ||
                 ui_build_selector->stage != 2 ||
                 ui_build_selector->choices.empty())
                 return false;
-
+            */
             return true;
         };
     default:
@@ -630,29 +612,9 @@ static df::unit *getAnyUnit(df::viewscreen *top)
         return NULL;
     }
 
-    if (VIRTUAL_CAST_VAR(screen, df::viewscreen_layer_noblelistst, top))
+    if (VIRTUAL_CAST_VAR(screen, df::viewscreen_noblelistst, top))
     {
-        switch (screen->mode)
-        {
-        case df::viewscreen_layer_noblelistst::List:
-            if (auto list1 = getLayerList(screen, 0))
-            {
-                if (auto info = vector_get(screen->info, list1->cursor))
-                    return info->unit;
-            }
-            return NULL;
-
-        case df::viewscreen_layer_noblelistst::Appoint:
-            if (auto list2 = getLayerList(screen, 1))
-            {
-                if (auto info = vector_get(screen->candidates, list2->cursor))
-                    return info->unit;
-            }
-            return NULL;
-
-        default:
-            return NULL;
-        }
+        return vector_get(screen->nobles, screen->cursor);
     }
 
     if (VIRTUAL_CAST_VAR(screen, df::viewscreen_petst, top))
@@ -724,20 +686,9 @@ static df::item *getAnyItem(df::viewscreen *top)
         return ref ? ref->getItem() : NULL;
     }
 
-    if (VIRTUAL_CAST_VAR(screen, df::viewscreen_layer_assigntradest, top))
+    if (VIRTUAL_CAST_VAR(screen, df::viewscreen_assigntradest, top))
     {
-        auto list1 = getLayerList(screen, 0);
-        auto list2 = getLayerList(screen, 1);
-        if (!list1 || !list2 || !list2->active)
-            return NULL;
-
-        int list_idx = vector_get(screen->visible_lists, list1->cursor, (int16_t)-1);
-        unsigned num_lists = sizeof(screen->lists)/sizeof(std::vector<int32_t>);
-        if (unsigned(list_idx) >= num_lists)
-            return NULL;
-
-        int idx = vector_get(screen->lists[list_idx], list2->cursor, -1);
-        if (auto info = vector_get(screen->info, idx))
+        if (auto info = vector_get(screen->info, screen->cursor))
             return info->item;
 
         return NULL;
@@ -774,8 +725,9 @@ static df::item *getAnyItem(df::viewscreen *top)
         if (ui_unit_view_mode->value != df::ui_unit_view_mode::Inventory)
             return NULL;
 
-        auto inv_item = vector_get(ui_sidebar_menus->unit.inv_items, *ui_look_cursor);
-        return inv_item ? inv_item->item : NULL;
+        // no inv_items here - need to do it the hard way
+        //auto inv_item = vector_get(ui_sidebar_menus->unit.inv_items, *ui_look_cursor);
+        return /*inv_item ? inv_item->item :*/ NULL;
     }
     case LookAround:
     {
@@ -912,15 +864,6 @@ void Gui::showAnnouncement(std::string message, int color, bool bright)
         gview->announcements.reports.push_back(new_rep);
         gview->announcements.report_timer = 2000;
     }
-}
-
-void Gui::showPopupAnnouncement(std::string message, int color, bool bright)
-{
-    df::popup_message *popup = new df::popup_message();
-    popup->text = message.c_str();
-    popup->color = color;
-    popup->bright = bright;
-    gview->announcements.popups.push_back(popup);
 }
 
 df::viewscreen *Gui::getCurViewscreen(bool skip_dismissed)
@@ -1109,8 +1052,8 @@ bool Gui::setDesignationCoords (const int32_t x, const int32_t y, const int32_t 
 bool Gui::getMousePos (int32_t & x, int32_t & y)
 {
     if (enabler && init) {
-        x = enabler->mouse_x / (enabler->window_x / init->display.grid_x);
-        y = enabler->mouse_y / (enabler->window_y / init->display.grid_y);
+        x = enabler->mouse_x / (enabler->window_x / 80);
+        y = enabler->mouse_y / (enabler->window_y / 25);
     }
     else {
         x = -1;
@@ -1121,16 +1064,9 @@ bool Gui::getMousePos (int32_t & x, int32_t & y)
 
 bool Gui::getWindowSize (int32_t &width, int32_t &height)
 {
-    if (init) {
-        width = init->display.grid_x;
-        height = init->display.grid_y;
-        return true;
-    }
-    else {
-        width = 80;
-        height = 25;
-        return false;
-    }
+    width = 80;
+    height = 25;
+    return true;
 }
 
 bool Gui::getMenuWidth(uint8_t &menu_width, uint8_t &area_map_width)

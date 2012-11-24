@@ -110,7 +110,8 @@ static command_result immolations (color_ostream &out, do_what what, bool shrubs
         for(size_t i = 0 ; i < world->plants.all.size(); i++)
         {
             df::plant *p = world->plants.all[i];
-            if(shrubs && p->flags.bits.is_shrub || trees && !p->flags.bits.is_shrub)
+            bool is_shrub = p->flags >= plant_flags::shrub_forest;
+            if(shrubs && is_shrub || trees && !is_shrub)
             {
                 if (what == do_immolate)
                     p->is_burning = true;
@@ -126,7 +127,7 @@ static command_result immolations (color_ostream &out, do_what what, bool shrubs
         if(Gui::getCursorCoords(x,y,z))
         {
             auto block = Maps::getTileBlock(x,y,z);
-            stl::vector<df::plant *> *alltrees = block ? &block->plants : NULL;
+            stl::vector<df::plant *> *alltrees = &world->plants.all;
             if(alltrees)
             {
                 bool didit = false;
@@ -208,7 +209,7 @@ command_result df_grow (color_ostream &out, vector <string> & parameters)
     if(Gui::getCursorCoords(x,y,z))
     {
         auto block = Maps::getTileBlock(x,y,z);
-        stl::vector<df::plant *> *alltrees = block ? &block->plants : NULL;
+        stl::vector<df::plant *> *alltrees = &world->plants.all;
         if(alltrees)
         {
             for(size_t i = 0 ; i < alltrees->size(); i++)
@@ -233,7 +234,8 @@ command_result df_grow (color_ostream &out, vector <string> & parameters)
         {
             df::plant *p = world->plants.all[i];
             df::tiletype ttype = map.tiletypeAt(df::coord(p->pos.x,p->pos.y,p->pos.z));
-            if(!p->flags.bits.is_shrub && tileShape(ttype) == tiletype_shape::SAPLING && tileSpecial(ttype) != tiletype_special::DEAD)
+            bool is_shrub = p->flags >= plant_flags::shrub_forest;
+            if(!is_shrub && tileShape(ttype) == tiletype_shape::SAPLING && tileSpecial(ttype) != tiletype_special::DEAD)
             {
                 p->grow_counter = Vegetation::sapling_to_tree_threshold;
             }

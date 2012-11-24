@@ -65,7 +65,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #include "df/unit_skill.h"
 #include "df/creature_raw.h"
 #include "df/matgloss_stone.h"
-#include "df/matgloss_metal.h"
+#include "df/matgloss_gem.h"
 #include "df/matgloss_plant.h"
 #include "df/matgloss_wood.h"
 #include "df/nemesis_record.h"
@@ -267,7 +267,6 @@ static command_result GetWorldInfo(color_ostream &stream,
     case game_type::DWARF_RECLAIM:
         out->set_mode(GetWorldInfoOut::MODE_DWARF);
         out->set_civ_id(ui->civ_id);
-        out->set_site_id(ui->site_id);
         out->set_group_id(ui->group_id);
         out->set_race_id(ui->race_id);
         break;

@@ -38,12 +38,15 @@ distribution.
 
 struct WINDOW;
 
+// never use this directly
+DFHACK_EXPORT void * __cdecl df_nhmalloc (size_t size, int newmode);
+
 DFHACK_EXPORT void * __cdecl df_realloc (void *p, size_t size);
 DFHACK_EXPORT void * __cdecl df_malloc (size_t size);
 DFHACK_EXPORT void df_free (void *pBlock);
 inline void* operator new (size_t size)
 {
-    void *p = df_malloc(size);
+    void *p = df_nhmalloc(size, 1);
     if (!p)
         throw std::bad_alloc();
     return p;
@@ -56,7 +59,7 @@ inline void operator delete (void *p)
 
 inline void* operator new[] (size_t size)
 {
-    void *p = df_malloc(size);
+    void *p = df_nhmalloc(size, 1);
     if (!p)
         throw std::bad_alloc();
     return p;
@@ -84,7 +87,6 @@ namespace DFHack
     class Process;
     class Module;
     class Materials;
-    class Notes;
     struct VersionInfo;
     class VersionInfoFactory;
     class PluginManager;
@@ -136,8 +138,6 @@ namespace DFHack
 
         /// get the materials module
         Materials * getMaterials();
-        /// get the notes module
-        Notes * getNotes();
         /// get the graphic module
         Graphic * getGraphic();
         /// sets the current hotkey command
@@ -216,7 +216,6 @@ namespace DFHack
         struct
         {
             Materials * pMaterials;
-            Notes * pNotes;
             Graphic * pGraphic;
         } s_mods;
         std::vector <Module *> allModules;

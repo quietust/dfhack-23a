@@ -46,7 +46,6 @@ using namespace std;
 #include "df/world.h"
 #include "df/historical_figure.h"
 #include "df/map_block.h"
-#include "df/block_square_event_world_constructionst.h"
 
 using namespace DFHack;
 using namespace df::enums;
@@ -134,24 +133,24 @@ uint32_t World::ReadCurrentDay()
 uint8_t World::ReadCurrentWeather()
 {
     if (df::global::current_weather)
-        return (*df::global::current_weather)[2][2];
+        return (*df::global::current_weather);
     return 0;
 }
 
 void World::SetCurrentWeather(uint8_t weather)
 {
     if (df::global::current_weather)
-        memset(df::global::current_weather, weather, 25);
+        *df::global::current_weather = (df::weather_type)weather;
 }
 
 string World::ReadWorldFolder()
 {
-    return world->world_data.save_folder_name;
+    return stl_sprintf("region%i", world->world_data.save_folder_number);
 }
 
 static PersistentDataItem dataFromHFig(df::historical_figure *hfig)
 {
-    return PersistentDataItem(hfig->id, hfig->name.first_name, &hfig->name.nickname, hfig->name.words);
+    return PersistentDataItem(hfig->id, hfig->name.first_name, &hfig->name.nickname, hfig->name.parts);
 }
 
 void World::ClearPersistentCache()
@@ -200,7 +199,7 @@ PersistentDataItem World::AddPersistentData(const std::string &key)
     hfig->id = next_persistent_id;
     hfig->name.has_name = true;
     hfig->name.first_name = key;
-    memset(hfig->name.words, 0xFF, sizeof(hfig->name.words));
+    memset(hfig->name.parts, 0xFF, sizeof(hfig->name.parts));
 
     if (!hfvec.empty())
         hfig->id = std::min(hfig->id, hfvec[0]->id-1);
@@ -324,60 +323,11 @@ bool World::DeletePersistentData(const PersistentDataItem &item)
 
 df::tile_bitmask *World::getPersistentTilemask(const PersistentDataItem &item, df::map_block *block, bool create)
 {
-    if (!block)
-        return NULL;
-
-    int id = item.raw_id();
-    if (id > -100)
-        return NULL;
-
-    for (size_t i = 0; i < block->block_events.size(); i++)
-    {
-        auto ev = block->block_events[i];
-        if (ev->getType() != block_square_event_type::world_construction)
-            continue;
-        auto wcsev = strict_virtual_cast<df::block_square_event_world_constructionst>(ev);
-        if (!wcsev || wcsev->construction_id != id)
-            continue;
-        return &wcsev->tile_bitmask;
-    }
-
-    if (!create)
-        return NULL;
-
-    auto ev = df::allocate<df::block_square_event_world_constructionst>();
-    if (!ev)
-        return NULL;
-
-    ev->construction_id = id;
-    ev->tile_bitmask.clear();
-    vector_insert_at(block->block_events, 0, (df::block_square_event*)ev);
-
-    return &ev->tile_bitmask;
+    // this cannot work
+    return NULL;
 }
 
 bool World::deletePersistentTilemask(const PersistentDataItem &item, df::map_block *block)
 {
-    if (!block)
-        return false;
-    int id = item.raw_id();
-    if (id > -100)
-        return false;
-
-    bool found = false;
-    for (int i = block->block_events.size()-1; i >= 0; i--)
-    {
-        auto ev = block->block_events[i];
-        if (ev->getType() != block_square_event_type::world_construction)
-            continue;
-        auto wcsev = strict_virtual_cast<df::block_square_event_world_constructionst>(ev);
-        if (!wcsev || wcsev->construction_id != id)
-            continue;
-
-        delete wcsev;
-        vector_erase_at(block->block_events, i);
-        found = true;
-    }
-
-    return found;
+    return false;
 }

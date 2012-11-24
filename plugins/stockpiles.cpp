@@ -92,7 +92,7 @@ static command_result copystock(color_ostream &out, vector <string> & parameters
 
     ui->stockpile.custom_settings = sp->settings;
     ui->main.mode = ui_sidebar_mode::Stockpiles;
-    world->selected_stockpile_type = stockpile_category::Custom;
+    world->build_type.selected_stockpile_type = stockpile_category::Custom;
 
     out << "Stockpile options copied." << endl;
     return CR_OK;

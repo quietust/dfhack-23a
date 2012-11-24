@@ -14,7 +14,7 @@ using namespace DFHack;
 using namespace df::enums;
 
 bool locked = false;
-unsigned char locked_data[25];
+unsigned char locked_data;
 
 command_result weather (color_ostream &out, vector <string> & parameters);
 
@@ -93,11 +93,7 @@ command_result weather (color_ostream &con, vector <string> & parameters)
     {
         // paint weather map
         con << "Weather map (C = clear, R = rain, S = snow):" << std::endl;
-        for(int y = 0; y<5;y++)
-        {
-            for(int x = 0; x<5;x++)
-            {
-                switch((*df::global::current_weather)[x][y])
+                switch(*df::global::current_weather)
                 {
                 case weather_type::None:
                     con << "C ";
@@ -109,12 +105,10 @@ command_result weather (color_ostream &con, vector <string> & parameters)
                     con << "S ";
                     break;
                 default:
-                    con << (int) (*df::global::current_weather)[x][y] << " ";
+                    con << (int) (*df::global::current_weather) << " ";
                     break;
                 }
-            }
             con << std::endl;
-        }
     }
     else
     {

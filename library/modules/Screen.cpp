@@ -74,14 +74,12 @@ df::coord2d Screen::getMousePos()
     if (!init || (enabler && !enabler->tracking_on))
         return df::coord2d(-1, -1);
 
-    return df::coord2d(enabler->mouse_x / (enabler->window_x / init->display.grid_x),
-                       enabler->mouse_y / (enabler->window_y / init->display.grid_y));
+    return df::coord2d(enabler->mouse_x / (enabler->window_x / 80),
+                       enabler->mouse_y / (enabler->window_y / 25));
 }
 bool Screen::isKeyPressed(df::interface_key key)
 {
     if ((gview->keybinds[key].key == gview->current_key) &&
-        (gview->keybinds[key].is_ctrl == gview->current_ctrl) &&
-        (gview->keybinds[key].is_alt == gview->current_alt) && 
         (gview->keybinds[key].is_shift == gview->current_shift))
         return true;
     return false;
@@ -89,8 +87,6 @@ bool Screen::isKeyPressed(df::interface_key key)
 void Screen::setKeyPressed(df::interface_key key)
 {
     gview->current_key = gview->keybinds[key].key;
-    gview->current_ctrl = gview->keybinds[key].is_ctrl;
-    gview->current_alt = gview->keybinds[key].is_alt;
     gview->current_shift = gview->keybinds[key].is_shift;
 }
 
@@ -103,9 +99,7 @@ void Screen::getKeys(std::set<df::interface_key> &keys)
 
 df::coord2d Screen::getWindowSize()
 {
-    if (!gps) return df::coord2d(80, 25);
-
-    return df::coord2d(init->display.grid_x, init->display.grid_y);
+    return df::coord2d(80, 25);
 }
 
 bool Screen::inGraphicsMode()
@@ -304,8 +298,6 @@ bool Screen::show(df::viewscreen *screen, df::viewscreen *before)
 
     if (!parent) return false;
 
-    gps->force_full_display_count += 2;
-
     screen->child = parent->child;
     screen->parent = parent;
     parent->child = screen;
@@ -345,40 +337,10 @@ string Screen::getKeyDisplay(df::interface_key key)
 {
     auto binding = gview->keybinds[key];
     // TODO - this is populated on demand
-    if (binding.is_alt)
-    {
-        if (binding.is_ctrl)
-        {
-            if (binding.is_shift)
-                return gview->keyNames[binding.key].alt_ctrl_shift;
-            else
-                return gview->keyNames[binding.key].alt_ctrl;
-        }
-        else
-        {
-            if (binding.is_shift)
-                return gview->keyNames[binding.key].alt_shift;
-            else
-                return gview->keyNames[binding.key].alt;
-        }
-    }
+    if (binding.is_shift)
+        return gview->keyNames[binding.key].shift;
     else
-    {
-        if (binding.is_ctrl)
-        {
-            if (binding.is_shift)
-                return gview->keyNames[binding.key].ctrl_shift;
-            else
-                return gview->keyNames[binding.key].ctrl;
-        }
-        else
-        {
-            if (binding.is_shift)
-                return gview->keyNames[binding.key].shift;
-            else
-                return gview->keyNames[binding.key].normal;
-        }
-    }
+        return gview->keyNames[binding.key].normal;
 
     return "?";
 }
@@ -627,10 +589,10 @@ int dfhack_lua_viewscreen::do_input(lua_State *L)
         lua_pushboolean(L, true);
         lua_rawset(L, -3);
 
-        if (key >= interface_key::STRING_A000 &&
-            key <= interface_key::STRING_A255)
+        if (key >= interface_key::STRING_A &&
+            key <= interface_key::STRING_BACKSPACE)
         {
-            lua_pushinteger(L, key - interface_key::STRING_A000);
+            lua_pushinteger(L, key - interface_key::STRING_A);
             lua_setfield(L, -2, "_STRING");
         }
     }
@@ -677,7 +639,7 @@ void dfhack_lua_viewscreen::render()
     if (Screen::isDismissed(this))
     {
         if (parent)
-            parent->render();
+            parent->view();
         return;
     }
 

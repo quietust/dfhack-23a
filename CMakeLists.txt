@@ -58,7 +58,7 @@ if (NOT EXISTS ${dfhack_SOURCE_DIR}/library/xml/codegen.pl OR NOT EXISTS ${dfhac
 endif()
 
 # set up versioning.
-set(DF_VERSION "0.28.181.40d")
+set(DF_VERSION "0.23.130.23a")
 
 SET(DFHACK_RELEASE "r1" CACHE STRING "Current release revision.")
 

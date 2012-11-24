@@ -40,7 +40,7 @@ void Kitchen::debug_print(color_ostream &out)
                        ui->kitchen.materials[i],
                        ui->kitchen.matglosses[i],
                        ui->kitchen.exc_types[i],
-                       (ui->kitchen.materials[i] == material_type::PLANT || ui->kitchen.materials[i] == material_type::PLANT_ALCOHOL) ? world->raws.matgloss.plant[ui->kitchen.matglosses[i]]->id.c_str() : "n/a"
+                       (ui->kitchen.materials[i] == material_type::PLANT) ? world->raws.matgloss.plant[ui->kitchen.matglosses[i]]->id.c_str() : "n/a"
         );
     }
     out.print("\n");

@@ -466,6 +466,36 @@ namespace df
             ((container*)ptr)->set(idx, val);
         }
     };
+
+    template<size_t S>
+    class static_bit_array_identity : public bit_container_identity {
+    public:
+        /*
+         * This class assumes that BitArray<T> is equivalent
+         * in layout and behavior to BitArray<int> for any T.
+         */
+
+        typedef StaticBitArray<S,int> container;
+
+        static_bit_array_identity(enum_identity *ienum = NULL)
+            : bit_container_identity(sizeof(container), &allocator_fn<container>, ienum)
+        {}
+
+        std::string getFullName(type_identity *item) {
+            return "StaticBitArray<>";
+        }
+
+    protected:
+        virtual int item_count(void *ptr, CountMode cnt) {
+            return cnt == COUNT_LEN ? S * 8 : -1;
+        }
+        virtual bool get_item(void *ptr, int idx) {
+            return ((container*)ptr)->is_set(idx);
+        }
+        virtual void set_item(void *ptr, int idx, bool val) {
+            ((container*)ptr)->set(idx, val);
+        }
+    };
 #endif
 
     class DFHACK_EXPORT stl_bit_vector_identity : public bit_container_identity {
@@ -670,6 +700,15 @@ namespace df
         static bit_container_identity *get();
     };
 
+    template<size_t S> struct identity_traits<StaticBitArray<S> > {
+        static static_bit_array_identity<S> identity;
+        static bit_container_identity *get();
+    };
+
+    template<size_t S, class T> struct identity_traits<StaticBitArray<S,T> > {
+        static bit_container_identity *get();
+    };
+
     template<class T> struct identity_traits<DfArray<T> > {
         static container_identity *get();
     };
@@ -744,6 +783,12 @@ namespace df
     template<class T>
     inline bit_container_identity *identity_traits<BitArray<T> >::get() {
         static bit_array_identity identity(identity_traits<T>::get());
+        return &identity;
+    }
+
+    template<size_t S, class T>
+    inline bit_container_identity *identity_traits<StaticBitArray<S,T> >::get() {
+        static static_bit_array_identity<S> identity(identity_traits<T>::get());
         return &identity;
     }
 

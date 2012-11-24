@@ -424,6 +424,7 @@ namespace df
     using DFHack::enum_identity;
     using DFHack::enum_list_attr;
     using DFHack::BitArray;
+    using DFHack::StaticBitArray;
     using DFHack::DfArray;
 
     template<class T>
@@ -718,4 +719,5 @@ namespace DFHack {
 // A couple of headers that have to be included at once
 #include "df/coord2d.h"
 #include "df/coord.h"
+#include "df/coord2d32.h"
 #include "df/coord32.h"

@@ -96,9 +96,8 @@ namespace DFHack
         DFHACK_EXPORT bool any_building_hotkey(df::viewscreen *top);
         DFHACK_EXPORT df::building *getSelectedBuilding(color_ostream &out, bool quiet = false);
 
-        // Show a plain announcement, or a titan-style popup message
+        // Show an announcement
         DFHACK_EXPORT void showAnnouncement(std::string message, int color = 7, bool bright = true);
-        DFHACK_EXPORT void showPopupAnnouncement(std::string message, int color = 7, bool bright = true);
 
         /*
          * Cursor and window coords

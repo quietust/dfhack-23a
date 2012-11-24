@@ -550,9 +550,11 @@ df::nemesis_record *Units::getNemesis(df::unit *unit)
     if (!unit)
         return NULL;
 
-    for (unsigned i = 0; i < unit->general_refs.size(); i++)
+    for (unsigned i = 0; i < unit->specific_refs.size(); i++)
     {
-        df::nemesis_record *rv = unit->general_refs[i]->getNemesis();
+        df::nemesis_record *rv = NULL;
+        if (unit->specific_refs[i]->type == specific_ref_type::IS_NEMESIS)
+            rv = (df::nemesis_record *)unit->specific_refs[i]->object;
         if (rv && rv->unit == unit)
             return rv;
     }
@@ -834,7 +836,7 @@ static int calcInventoryWeight(df::unit *unit)
     {
         auto item = unit->inventory[i]->item;
 
-        int wval = (item->getBaseWeight() >> item->getWeightShiftBits()) * item->getDensity() / 1000;
+        int wval = (item->getBaseWeight() >> item->getWeightShiftBits()) / ENUM_ATTR(material_type,weight_divisor,item->getMaterial());
         auto mode = unit->inventory[i]->mode;
 
         if ((mode == df::unit_inventory_item::Worn) &&
@@ -865,30 +867,13 @@ int Units::computeMovementSpeed(df::unit *unit)
 
     // Swimming
 
-    auto cur_liquid = unit->status2.liquid_type.bits.liquid_type;
-    bool in_magma = (cur_liquid == tile_liquid::Magma);
-
     if (unit->flags2.bits.swimming)
     {
-        speed = craw->swim_speed;
-        if (in_magma)
-            speed *= 2;
-
-        if (craw->flags.is_set(creature_raw_flags::SWIMS_LEARNED))
-        {
-            int skill = Units::getEffectiveSkill(unit, job_skill::SWIMMING);
-
-            // Originally a switch:
-            if (skill > 1)
-                speed = speed * std::max(6, 21-skill) / 20;
-        }
+        // ???
     }
     else
     {
-        int delta = 150*unit->status2.liquid_depth;
-        if (in_magma)
-            delta *= 2;
-        speed += delta;
+        // ???
     }
 
     // General counters and flags
@@ -1006,87 +991,34 @@ int Units::computeMovementSpeed(df::unit *unit)
     return std::min(10000, std::max(0, speed));
 }
 
-static bool noble_pos_compare(const Units::NoblePosition &a, const Units::NoblePosition &b)
-{
-    return (a.precedence > b.precedence);
-}
-
 bool DFHack::Units::getNoblePositions(std::vector<NoblePosition> *pvec, df::unit *unit)
 {
     CHECK_NULL_POINTER(unit);
 
     pvec->clear();
 
-    auto histfig = df::historical_figure::find(unit->hist_figure_id);
-    if (!histfig)
-        return false;
+    NoblePosition pos;
 
-    for (size_t i = 0; i < histfig->entity_links.size(); i++)
+    if (unit->flags1.bits.fortress_guard)
     {
-        auto link = histfig->entity_links[i];
-        NoblePosition pos;
-        pos.position = link->type;
-        switch (link->type)
-        {
-        case histfig_entity_link_type::MAYOR:
-            pos.precedence = 2;
-            pos.color[0] = 5;
-            pos.color[1] = 0;
-            pos.color[2] = 0;
-            pos.name = "Mayor";
-            break;
-        case histfig_entity_link_type::GUARD:
-            pos.precedence = 0;
-            pos.color[0] = 1;
-            pos.color[1] = 0;
-            pos.color[2] = 0;
-            pos.name = "Guard";
-            break;
-        case histfig_entity_link_type::ROYAL_GUARD:
-            pos.precedence = 0;
-            pos.color[0] = 5;
-            pos.color[1] = 0;
-            pos.color[2] = 0;
-            pos.name = "Royal Guard";
-            break;
-/*
-        case histfig_entity_link_type::MANAGER:
-            pos.precedence = -1;
-            break;
-        case histfig_entity_link_type::BOOKKEEPER:
-            pos.precedence = -1;
-            break;
-        case histfig_entity_link_type::BROKER:
-            pos.precedence = -1;
-            break;
-*/
-        case histfig_entity_link_type::SHERIFF:
-            pos.precedence = 1;
-            pos.color[0] = 1;
-            pos.color[1] = 0;
-            pos.color[2] = 1;
-            pos.name = "Sheriff";
-            break;
-        case histfig_entity_link_type::GUARD_CAPTAIN:
-            pos.precedence = 1;
-            pos.color[0] = 1;
-            pos.color[1] = 0;
-            pos.color[2] = 1;
-            pos.name = "Captain of the Guard";
-            break;
-        default:
-            pos.precedence = -1;
-        }
-        if (pos.precedence == -1)
-            continue;
-
+        pos.color[0] = 1;
+        pos.color[1] = 0;
+        pos.color[2] = 0;
+        pos.name = "Guard";
+        pvec->push_back(pos);
+    }
+    if (unit->flags1.bits.royal_guard)
+    {
+        pos.color[0] = 5;
+        pos.color[1] = 0;
+        pos.color[2] = 0;
+        pos.name = "Royal Guard";
         pvec->push_back(pos);
     }
 
     if (pvec->empty())
         return false;
 
-    std::sort(pvec->begin(), pvec->end(), noble_pos_compare);
     return true;
 }
 

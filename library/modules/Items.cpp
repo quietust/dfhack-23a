@@ -450,12 +450,12 @@ std::string Items::getDescription(df::item *item, int type, bool decorate)
         if (item->flags.bits.foreign)
             tmp = "(" + tmp + ")";
 
-        addQuality(tmp, item->getQuality());
-
         if (item->isImproved()) {
             tmp = "<" + tmp + ">";
-            addQuality(tmp, item->getImprovementQuality());
+            addQuality(tmp, item->getOverallQuality());
         }
+        else
+            addQuality(tmp, item->getQuality());
     }
 
     return tmp;

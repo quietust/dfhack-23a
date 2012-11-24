@@ -107,8 +107,7 @@ bool DFHack::operator== (const df::job &a, const df::job &b)
 
     if (!(CMP(job_type) &&
           CMP(material) && CMP(matgloss) &&
-          CMP(item_subtype) && CMP(item_category.whole) &&
-          CMP(reaction_name)))
+          CMP(item_subtype) && CMP(item_category.whole)))
         return false;
 
     return true;
@@ -144,9 +143,6 @@ void DFHack::Job::printJobDetails(color_ostream &out, df::job *job)
         out << "    item: " << iinfo.toString()
                << " (" << bitfield_to_string(job->item_category) << ")" << endl;
     }
-
-    if (!job->reaction_name.empty())
-        out << "    reaction: " << job->reaction_name << endl;
 }
 
 df::general_ref *Job::getGeneralRef(df::job *job, df::general_ref_type type)

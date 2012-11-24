@@ -54,7 +54,6 @@ using namespace DFHack;
 #include "df/general_ref_building_holderst.h"
 #include "df/buildings_other_id.h"
 #include "df/building_design.h"
-#include "df/building_axle_horizontalst.h"
 #include "df/building_trapst.h"
 #include "df/building_bridgest.h"
 #include "df/building_coffinst.h"
@@ -62,8 +61,6 @@ using namespace DFHack;
 #include "df/building_stockpilest.h"
 #include "df/building_furnacest.h"
 #include "df/building_workshopst.h"
-#include "df/building_screw_pumpst.h"
-#include "df/building_water_wheelst.h"
 #include "df/building_wellst.h"
 
 using namespace df::enums;
@@ -279,29 +276,16 @@ df::building *Buildings::allocInstance(df::coord pos, df::building_type type, in
     // Type specific init
     switch (type)
     {
-    case building_type::Well:
-        {
-            auto obj = (df::building_wellst*)bld;
-            obj->bucket_z = bld->z;
-            break;
-        }
     case building_type::Furnace:
         {
             auto obj = (df::building_furnacest*)bld;
-            obj->melt_remainder.resize(df::matgloss_metal::get_vector().size(), 0);
+            memset(obj->melt_remainder, 0, sizeof(obj->melt_remainder));
             break;
         }
     case building_type::Coffin:
         {
             auto obj = (df::building_coffinst*)bld;
             obj->initBurialFlags(); // DF has this copy&pasted
-            break;
-        }
-    case building_type::Trap:
-        {
-            auto obj = (df::building_trapst*)bld;
-            if (obj->trap_type == trap_type::PressurePlate)
-                obj->ready_timeout = 500;
             break;
         }
     default:
@@ -334,8 +318,7 @@ bool Buildings::getCorrectSize(df::coord2d &size, df::coord2d &center,
     {
     case FarmPlot:
     case Bridge:
-    case RoadDirt:
-    case RoadPaved:
+    case Road:
     case Stockpile:
     case Civzone:
         center = size/2;
@@ -348,19 +331,9 @@ bool Buildings::getCorrectSize(df::coord2d &size, df::coord2d &center,
         return false;
 
     case SiegeEngine:
-    case Windmill:
     case Wagon:
         size = df::coord2d(3,3);
         center = df::coord2d(1,1);
-        return false;
-
-    case AxleHorizontal:
-        makeOneDim(size, center, direction);
-        return true;
-
-    case WaterWheel:
-        size = df::coord2d(3,3);
-        makeOneDim(size, center, direction);
         return false;
 
     case Workshop:
@@ -369,12 +342,6 @@ bool Buildings::getCorrectSize(df::coord2d &size, df::coord2d &center,
 
         switch ((df::workshop_type)subtype)
         {
-            case Quern:
-            case Millstone:
-                size = df::coord2d(1,1);
-                center = df::coord2d(0,0);
-                break;
-
             case Siege:
             case Kennels:
                 size = df::coord2d(5,5);
@@ -395,32 +362,6 @@ bool Buildings::getCorrectSize(df::coord2d &size, df::coord2d &center,
 
         size = df::coord2d(3,3);
         center = df::coord2d(1,1);
-
-        return false;
-    }
-
-    case ScrewPump:
-    {
-        using namespace df::enums::screw_pump_direction;
-
-        switch ((df::screw_pump_direction)direction)
-        {
-            case FromEast:
-                size = df::coord2d(2,1);
-                center = df::coord2d(1,0);
-                break;
-            case FromSouth:
-                size = df::coord2d(1,2);
-                center = df::coord2d(0,1);
-                break;
-            case FromWest:
-                size = df::coord2d(2,1);
-                center = df::coord2d(0,0);
-                break;
-            default:
-                size = df::coord2d(1,2);
-                center = df::coord2d(0,0);
-        }
 
         return false;
     }
@@ -468,8 +409,8 @@ bool Buildings::checkFreeTiles(df::coord pos, df::coord2d size,
                 allowed = false;
             else
             {
-                auto tile = block->tiletype[btile.x][btile.y];
-                if (!HighPassable(tile))
+                auto tilenum = Maps::getTileType(tile);
+                if (!HighPassable(tilenum))
                     allowed = false;
             }
 
@@ -570,12 +511,7 @@ bool Buildings::hasSupport(df::coord pos, df::coord2d size)
                 continue;
 
             df::coord tile = pos + df::coord(dx,dy,0);
-            df::map_block *block = Maps::getTileBlock(tile);
-            if (!block)
-                continue;
-
-            df::coord2d btile = df::coord2d(tile) & 15;
-            if (!isOpenTerrain(block->tiletype[btile.x][btile.y]))
+            if (!isOpenTerrain(Maps::getTileType(tile)))
                 return true;
         }
     }
@@ -622,24 +558,6 @@ bool Buildings::setSize(df::building *bld, df::coord2d size, int direction)
 
     switch (type)
     {
-    case WaterWheel:
-        {
-            auto obj = (df::building_water_wheelst*)bld;
-            obj->is_vertical = !!direction;
-            break;
-        }
-    case AxleHorizontal:
-        {
-            auto obj = (df::building_axle_horizontalst*)bld;
-            obj->is_vertical = !!direction;
-            break;
-        }
-    case ScrewPump:
-        {
-            auto obj = (df::building_screw_pumpst*)bld;
-            obj->direction = (df::screw_pump_direction)direction;
-            break;
-        }
     case Bridge:
         {
             auto obj = (df::building_bridgest*)bld;
@@ -654,8 +572,7 @@ bool Buildings::setSize(df::building *bld, df::coord2d size, int direction)
 
     bool ok = checkBuildingTiles(bld, true);
 
-    if (type != Construction)
-        bld->setMaterialAmount(computeMaterialAmount(bld));
+    bld->setMaterialAmount(computeMaterialAmount(bld));
 
     return ok;
 }
@@ -689,7 +606,7 @@ static void markBuildingTiles(df::building *bld, bool remove)
 
             des.bits.pile = stockpile;
             if (!remove)
-                des.bits.dig = tile_dig_designation::No;
+                des.bits.dig = 0;
 
             if (complete)
                 bld->updateOccupancy(tx, ty);
@@ -855,7 +772,7 @@ static bool needsItems(df::building *bld)
     switch (bld->getType())
     {
         case building_type::FarmPlot:
-        case building_type::RoadDirt:
+        case building_type::Road:
             return false;
 
         default:

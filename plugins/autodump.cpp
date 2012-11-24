@@ -50,8 +50,6 @@ DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCom
         "Options:\n"
         "  destroy       - instead of dumping, destroy the items instantly.\n"
         "  destroy-here  - only affect the tile under cursor.\n"
-        "  visible       - only process items that are not hidden.\n"
-        "  hidden        - only process hidden items.\n"
         "  forbidden     - only process forbidden items (default: only unforbidden).\n"
     ));
     commands.push_back(PluginCommand(
@@ -81,8 +79,6 @@ static command_result autodump_main(color_ostream &out, vector <string> & parame
     // Command line options
     bool destroy = false;
     bool here = false;
-    bool need_visible = false;
-    bool need_hidden = false;
     bool need_forbidden = false;
     for (size_t i = 0; i < parameters.size(); i++)
     {
@@ -91,20 +87,10 @@ static command_result autodump_main(color_ostream &out, vector <string> & parame
             destroy = true;
         else if (p == "destroy-here")
             destroy = here = true;
-        else if (p == "visible")
-            need_visible = true;
-        else if (p == "hidden")
-            need_hidden = true;
         else if (p == "forbidden")
             need_forbidden = true;
         else
             return CR_WRONG_USAGE;
-    }
-
-    if (need_visible && need_hidden)
-    {
-        out.printerr("An item can't be both hidden and visible.\n");
-        return CR_WRONG_USAGE;
     }
 
     //DFHack::VersionInfo *mem = Core::getInstance().vinfo;
@@ -159,16 +145,12 @@ static command_result autodump_main(color_ostream &out, vector <string> & parame
 //          || !itm->flags.bits.on_ground
             ||  itm->flags.bits.construction
             ||  itm->flags.bits.in_building
-            ||  itm->flags.bits.in_chest
+//          ||  itm->flags.bits.in_chest
 //          ||  itm->flags.bits.in_inventory
             ||  itm->flags.bits.artifact1
         )
             continue;
 
-        if (need_visible && itm->flags.bits.hidden)
-            continue;
-        if (need_hidden && !itm->flags.bits.hidden)
-            continue;
         if (need_forbidden && !itm->flags.bits.forbid)
             continue;
         if (!need_forbidden && itm->flags.bits.forbid)
@@ -197,7 +179,6 @@ static command_result autodump_main(color_ostream &out, vector <string> & parame
 
             // Cosmetic changes: make them disappear from view instantly
             itm->flags.bits.forbid = true;
-            itm->flags.bits.hidden = true;
         }
 
         dumped_total++;
@@ -256,7 +237,6 @@ command_result df_autodump_destroy_item(color_ostream &out, vector <string> & pa
         pending_destroy.erase(item->id);
 
         item->flags.bits.garbage_collect = false;
-        item->flags.bits.hidden = old_flags.bits.hidden;
         item->flags.bits.dump = old_flags.bits.dump;
         item->flags.bits.forbid = old_flags.bits.forbid;
         return CR_OK;
@@ -291,7 +271,6 @@ command_result df_autodump_destroy_item(color_ostream &out, vector <string> & pa
     pending_destroy[item->id] = item->flags;
 
     item->flags.bits.garbage_collect = true;
-    item->flags.bits.hidden = true;
     item->flags.bits.dump = true;
     item->flags.bits.forbid = true;
     return CR_OK;

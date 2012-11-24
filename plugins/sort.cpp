@@ -15,8 +15,8 @@
 #include "df/world.h"
 #include "df/viewscreen_unitjobsst.h"
 #include "df/viewscreen_layer_workshop_profilest.h"
-#include "df/viewscreen_layer_noblelistst.h"
-#include "df/viewscreen_layer_assigntradest.h"
+#include "df/viewscreen_noblelistst.h"
+#include "df/viewscreen_assigntradest.h"
 #include "df/viewscreen_tradegoodsst.h"
 #include "df/viewscreen_dwarfmodest.h"
 #include "df/viewscreen_petst.h"
@@ -288,24 +288,6 @@ DEFINE_SORT_HANDLER(unit_sorters, layer_workshop_profile, "/Unit", profile)
     }
 }
 
-DEFINE_SORT_HANDLER(unit_sorters, layer_noblelist, "/Appoint", nobles)
-{
-    auto list2 = getLayerList(nobles, 1);
-
-    sort_null_first(parameters);
-    PARSE_SPEC("units", parameters);
-
-    stl::vector<df::unit*> units;
-    for (size_t i = 0; i < nobles->candidates.size(); i++)
-        units.push_back(nobles->candidates[i]->unit);
-
-    if (compute_order(*pout, L, top, &order, units))
-    {
-        reorder_cursor(&list2->cursor, order);
-        reorder_vector(&nobles->candidates, order);
-    }
-}
-
 /*
  * Sort animal units in the Animal page of the 'z' status screen.
  */
@@ -408,6 +390,7 @@ DEFINE_SORT_HANDLER(item_sorters, tradegoods, "/Items/Trader", trade)
     }
 }
 
+/*
 DEFINE_SORT_HANDLER(item_sorters, layer_assigntrade, "/Items", bring)
 {
     auto list1 = getLayerList(bring, 0);
@@ -428,6 +411,7 @@ DEFINE_SORT_HANDLER(item_sorters, layer_assigntrade, "/Items", bring)
         reorder_vector(&vec, order);
     }
 }
+*/
 
 DEFINE_SORT_HANDLER(item_sorters, stores, "/Items", stocks)
 {

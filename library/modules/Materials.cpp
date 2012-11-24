@@ -45,10 +45,10 @@ using namespace std;
 #include "df/ui.h"
 #include "df/item.h"
 #include "df/creature_raw.h"
-#include "df/matgloss_stone.h"
-#include "df/matgloss_plant.h"
 #include "df/matgloss_wood.h"
-#include "df/matgloss_metal.h"
+#include "df/matgloss_stone.h"
+#include "df/matgloss_gem.h"
+#include "df/matgloss_plant.h"
 #include "df/body_part_raw.h"
 #include "df/historical_figure.h"
 
@@ -88,8 +88,8 @@ bool MaterialInfo::decode(df::material_type type, int16_t subtype)
 
     wood = NULL;
     stone = NULL;
+    gem = NULL;
     plant = NULL;
-    metal = NULL;
     creature = NULL;
 
     df::world_raws &raws = world->raws;
@@ -112,21 +112,21 @@ bool MaterialInfo::decode(df::material_type type, int16_t subtype)
         }
     }
 
+    if (ENUM_ATTR(material_type,is_gem,type))
+    {
+        if (subtype >= 0 && subtype < raws.matgloss.gem.size())
+        {
+            mode = Gem;
+            gem = raws.matgloss.gem[subtype];
+        }
+    }
+
     if (ENUM_ATTR(material_type,is_plant,type))
     {
         if (subtype >= 0 && subtype < raws.matgloss.plant.size())
         {
             mode = Plant;
             plant = raws.matgloss.plant[subtype];
-        }
-    }
-
-    if (ENUM_ATTR(material_type,is_metal,type))
-    {
-        if (subtype >= 0 && subtype < raws.matgloss.metal.size())
-        {
-            mode = Metal;
-            metal = raws.matgloss.metal[subtype];
         }
     }
 
@@ -170,10 +170,10 @@ bool MaterialInfo::find(const std::vector<std::string> &items)
             return findWood(i, items[1]);
         if (ENUM_ATTR(material_type,is_stone,i))
             return findStone(i, items[1]);
+        if (ENUM_ATTR(material_type,is_gem,i))
+            return findGem(i, items[1]);
         if (ENUM_ATTR(material_type,is_plant,i))
             return findPlant(i, items[1]);
-        if (ENUM_ATTR(material_type,is_metal,i))
-            return findMetal(i, items[1]);
         if (ENUM_ATTR(material_type,is_creature,i))
             return findCreature(i, items[1]);
     }
@@ -191,7 +191,7 @@ bool MaterialInfo::findBuiltin(df::material_type type, const std::string &subtyp
         else if (subtype == "CHARCOAL")
             return decode(type, 1);
     }
-    if (type == material_type::BLOOD_NONSPECIFIC)
+    if (type == material_type::BLOOD)
     {
         // TODO: parse blood subtypes
     }
@@ -222,24 +222,24 @@ bool MaterialInfo::findStone(df::material_type type, const std::string &subtype)
     return decode(type, -1);
 }
 
-bool MaterialInfo::findPlant(df::material_type type, const std::string &subtype)
+bool MaterialInfo::findGem(df::material_type type, const std::string &subtype)
 {
     df::world_raws &raws = world->raws;
-    for (size_t i = 0; i < raws.matgloss.plant.size(); i++)
+    for (size_t i = 0; i < raws.matgloss.gem.size(); i++)
     {
-        auto p = raws.matgloss.plant[i];
+        auto p = raws.matgloss.gem[i];
         if (p->id == subtype)
             return decode(type, i);
     }
     return decode(type, -1);
 }
 
-bool MaterialInfo::findMetal(df::material_type type, const std::string &subtype)
+bool MaterialInfo::findPlant(df::material_type type, const std::string &subtype)
 {
     df::world_raws &raws = world->raws;
-    for (size_t i = 0; i < raws.matgloss.metal.size(); i++)
+    for (size_t i = 0; i < raws.matgloss.plant.size(); i++)
     {
-        auto p = raws.matgloss.metal[i];
+        auto p = raws.matgloss.plant[i];
         if (p->id == subtype)
             return decode(type, i);
     }
@@ -286,11 +286,11 @@ std::string MaterialInfo::getToken()
     case Stone:
         out += stone->id;
         break;
+    case Gem:
+        out += gem->id;
+        break;
     case Plant:
         out += plant->id;
-        break;
-    case Metal:
-        out += metal->id;
         break;
     case Creature:
         out += creature->creature_id;
@@ -335,24 +335,9 @@ t_matgloss::t_matgloss()
 
     value        = 0;
     wall_tile    = 0;
-    boulder_tile = 0;
 }
 
-bool t_matglossStone::isOre()
-{
-    if (!ore_chances.empty())
-        return true;
-    if (!strand_chances.empty())
-        return true;
-    return false;
-}
-
-bool t_matglossStone::isGem()
-{
-    return is_gem;
-}
-
-bool Materials::CopyInorganicMaterials (std::vector<t_matglossStone> & stone)
+bool Materials::CopyInorganicMaterials (std::vector<t_matgloss> & stone)
 {
     size_t size = world->raws.matgloss.stone.size();
     stone.clear();
@@ -360,20 +345,19 @@ bool Materials::CopyInorganicMaterials (std::vector<t_matglossStone> & stone)
     for (size_t i = 0; i < size;i++)
     {
         df::matgloss_stone *orig = world->raws.matgloss.stone[i];
-        t_matglossStone mat;
+        t_matgloss mat;
         mat.id = orig->id;
-        mat.name = orig->stone_name;
+        mat.name = orig->name;
 
-        mat.ore_types = orig->metal_ore.metal;
-        mat.ore_chances = orig->metal_ore.probability;
-        mat.strand_types = orig->thread_metal.metal;
-        mat.strand_chances = orig->thread_metal.probability;
-        mat.value = orig->value;
+        mat.value = 1;
+        if (orig->flags.is_set(matgloss_stone_flags::LIGHT) || orig->flags.is_set(matgloss_stone_flags::DARK))
+          mat.value = 2;
+        if (orig->flags.is_set(matgloss_stone_flags::SHARP))
+          mat.value = 3;
         mat.wall_tile = orig->tile;
-        mat.boulder_tile = orig->item_symbol;
-        mat.fore = orig->basic_color[0];
-        mat.bright = orig->basic_color[1];
-        mat.is_gem = orig->flags.is_set(matgloss_stone_flags::GEM);
+        mat.fore = orig->color[0];
+        mat.back = orig->color[1];
+        mat.bright = orig->color[2];
         stone.push_back(mat);
     }
     return true;
@@ -482,17 +466,59 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
         else
             out = "wood";
         break;
-    case material_type::STONE:
+    case material_type::STONE_GRAY:
         if (matgloss >= 0 && matgloss < raws.matgloss.stone.size())
             out = raws.matgloss.stone[matgloss]->name;
         else
             out = "rock";
         break;
-    case material_type::METAL:
-        if (matgloss >= 0 && matgloss < raws.matgloss.metal.size())
-            out = raws.matgloss.metal[matgloss]->name;
+    case material_type::STONE_LIGHT:
+        if (matgloss >= 0 && matgloss < raws.matgloss.stone.size())
+            out = raws.matgloss.stone[matgloss]->name;
         else
-            out = "metal";
+            out = "light stone";
+        break;
+    case material_type::STONE_DARK:
+        if (matgloss >= 0 && matgloss < raws.matgloss.stone.size())
+            out = raws.matgloss.stone[matgloss]->name;
+        else
+            out = "dark stone";
+        break;
+    case material_type::GOLD:
+        out = "gold";
+        break;
+    case material_type::IRON:
+        out = "iron";
+        break;
+    case material_type::SILVER:
+        out = "silver";
+        break;
+    case material_type::COPPER:
+        out = "copper";
+        break;
+    case material_type::GEM_ORNAMENTAL:
+        if (matgloss >= 0 && matgloss < raws.matgloss.gem.size())
+            out = raws.matgloss.gem[matgloss]->name[0];
+        else
+            out = "ornamental gem";
+        break;
+    case material_type::GEM_SEMI:
+        if (matgloss >= 0 && matgloss < raws.matgloss.gem.size())
+            out = raws.matgloss.gem[matgloss]->name[0];
+        else
+            out = "semi-precious gem";
+        break;
+    case material_type::GEM_PRECIOUS:
+        if (matgloss >= 0 && matgloss < raws.matgloss.gem.size())
+            out = raws.matgloss.gem[matgloss]->name[0];
+        else
+            out = "precious gem";
+        break;
+    case material_type::GEM_RARE:
+        if (matgloss >= 0 && matgloss < raws.matgloss.gem.size())
+            out = raws.matgloss.gem[matgloss]->name[0];
+        else
+            out = "rare gem";
         break;
     case material_type::BONE:
         if (matgloss >= 0 && matgloss < raws.creatures.size())
@@ -503,6 +529,9 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
         if (matgloss >= 0 && matgloss < raws.creatures.size())
             out = raws.creatures[matgloss]->name[0] + " ";
         out += "ivory";
+        break;
+    case material_type::JADE:
+        out = "jade";
         break;
     case material_type::HORN:
         if (matgloss >= 0 && matgloss < raws.creatures.size())
@@ -530,6 +559,9 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
             out = raws.creatures[matgloss]->name[0] + " ";
         out += "leather";
         break;
+    case material_type::ADAMANTINE:
+        out = "adamantine";
+        break;
     case material_type::SILK:
         if (matgloss >= 0 && matgloss < raws.creatures.size())
             out = raws.creatures[matgloss]->name[0] + " ";
@@ -556,6 +588,12 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
     case material_type::WATER:
         out = "water";
         break;
+    case material_type::ZINC:
+        out = "zinc";
+        break;
+    case material_type::TIN:
+        out = "tin";
+        break;
     case material_type::COAL:
         if (matgloss == 0)
             out = "charcoal";
@@ -563,6 +601,24 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
             out = "coke";
         else
             out = "coal";
+        break;
+    case material_type::BRONZE:
+        out = "bronze";
+        break;
+    case material_type::BRASS:
+        out = "brass";
+        break;
+    case material_type::STEEL:
+        out = "steel";
+        break;
+    case material_type::PIGIRON:
+        out = "pig iron";
+        break;
+    case material_type::PLATINUM:
+        out = "platinum";
+        break;
+    case material_type::ELECTRUM:
+        out = "electrum";
         break;
     case material_type::POTASH:
         out = "potash";
@@ -597,64 +653,11 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
     case material_type::VOMIT:
         out = "vomit";
         break;
-    case material_type::BLOOD_NONSPECIFIC:
+    case material_type::BLOOD:
         out = "blood";    // TODO - matgloss supposedly indicates color, so we can get "ichor", "pus", "goo", etc.
         break;
     case material_type::SLIME:
         out = "slime";
-        break;
-    case material_type::SALT:
-        out = "salt";
-        break;
-    case material_type::BLOOD_SPECIFIC:
-        if (matgloss >= 0 && matgloss < raws.creatures.size())
-        {
-            out = raws.creatures[matgloss]->name[0];
-            switch (raws.creatures[matgloss]->bloodtype)
-            {
-            case 2:
-                out += " pus";
-                break;
-            case 5:
-                out += " ichor";
-                break;
-            case 6:
-                out += " goo";
-                break;
-            case 7:
-                out += " vomit";
-                break;
-            case 8:
-                out += " slime";
-                break;
-            default:
-                out += " blood";
-                break;
-            }
-        }
-        else
-            out = "blood";
-        break;
-    case material_type::PLANT_ALCOHOL:
-        if (matgloss >= 0 && matgloss < raws.matgloss.plant.size())
-            out = raws.matgloss.plant[matgloss]->drink_name;
-        else
-            out = "plant alcohol";
-        break;
-    case material_type::FILTH_B:
-        out = "filth";
-        break;
-    case material_type::FILTH_Y:
-        out = "filth";
-        break;
-    case material_type::UNKNOWN_SUBSTANCE:
-        out = "unknown substance";
-        break;
-    case material_type::GRIME:
-        out = "grime";
-        break;
-    case -1:
-        out = "any";
         break;
     default:
         out = "unknown material";

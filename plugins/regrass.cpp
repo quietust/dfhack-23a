@@ -10,7 +10,7 @@
 #include "df/world.h"
 #include "df/world_raws.h"
 
-#include "df/map_block.h"
+#include "modules/Maps.h"
 #include "TileTypes.h"
 
 using std::string;
@@ -57,20 +57,22 @@ command_result df_regrass (color_ostream &out, vector <string> & parameters)
         {
             for (int x = 0; x < 16; x++)
             {
-                if (   tileShape(cur->tiletype[x][y]) != tiletype_shape::FLOOR
+                df::tiletype tt = Maps::getTileType(cur->map_pos + df::coord(x,y,0));
+                if (   tileShape(tt) != tiletype_shape::FLOOR
                     || cur->designation[x][y].bits.subterranean
                     || cur->occupancy[x][y].bits.building)
                     continue;
 
-                // don't touch furrowed tiles (dirt roads made on soil)
-                if(tileSpecial(cur->tiletype[x][y]) == tiletype_special::FURROWED)
+                // don't touch dirt roads
+                if(tileSpecial(tt) == tiletype_special::TRAMPLED)
                     continue;
 
-                int mat = tileMaterial(cur->tiletype[x][y]);
-                if (   mat != tiletype_material::SOIL)
+                int mat = tileMaterial(tt);
+                if (   mat != tiletype_material::DIRT)
                     continue;
 
-                cur->tiletype[x][y] = findRandomVariant((rand() & 1) ? tiletype::GrassLightFloor1 : tiletype::GrassDarkFloor1);
+                tt = findRandomVariant((rand() & 1) ? tiletype::GrassLightFloor1 : tiletype::GrassDarkFloor1);
+                convertTile(tt, cur->chr[x][y], cur->color[x][y]);
                 count++;
             }
         }
