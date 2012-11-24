@@ -443,10 +443,10 @@ void viewscreen_unitlaborsst::calcSize()
     int col_maxwidth[DISP_COLUMN_MAX];
     col_minwidth[DISP_COLUMN_HAPPINESS] = 4;
     col_maxwidth[DISP_COLUMN_HAPPINESS] = 4;
-    col_minwidth[DISP_COLUMN_NAME] = 0;
-    col_maxwidth[DISP_COLUMN_NAME] = 0;
-    col_minwidth[DISP_COLUMN_PROFESSION] = 0;
-    col_maxwidth[DISP_COLUMN_PROFESSION] = 0;
+    col_minwidth[DISP_COLUMN_NAME] = 15;
+    col_maxwidth[DISP_COLUMN_NAME] = 15;        // adjusted in the loop below
+    col_minwidth[DISP_COLUMN_PROFESSION] = 15;
+    col_maxwidth[DISP_COLUMN_PROFESSION] = 15;  // adjusted in the loop below
     col_minwidth[DISP_COLUMN_LABORS] = num_columns*3/5;     // 60%
     col_maxwidth[DISP_COLUMN_LABORS] = NUM_COLUMNS;
 
@@ -818,7 +818,7 @@ void viewscreen_unitlaborsst::feed(std::set<df::interface_key> *events)
     {
         df::unit *unit = cur->unit;
         const SkillColumn &col = columns[input_column];
-        bool newstatus = !unit->status.labors[col.labor];
+        bool newstatus = (col.labor == unit_labor::NONE) ? true : !unit->status.labors[col.labor];
         for (int i = 0; i < NUM_COLUMNS; i++)
         {
             if (columns[i].group != col.group)
@@ -1037,7 +1037,7 @@ void viewscreen_unitlaborsst::render()
                 }
             }
             else
-                bg = 4;
+                bg = 3;
             Screen::paintTile(Screen::Pen(c, fg, bg), col_offsets[DISP_COLUMN_LABORS] + col, 4 + row);
         }
     }
