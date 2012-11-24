@@ -20,18 +20,6 @@ using namespace df::enums;
 
 using df::global::world;
 
-/*
- * Anything that might reveal HFS is unsafe.
- */
-bool isSafe(df::coord c)
-{
-    // avoid revealing glowing pits
-    if (tileMaterial(Maps::getTileType(c)) == tiletype_material::HFS)
-        return false;
-
-    return true;
-}
-
 struct hideblock
 {
     df::coord c;
@@ -46,9 +34,7 @@ bool nopause_state = false;
 enum revealstate
 {
     NOT_REVEALED,
-    REVEALED,
-    SAFE_REVEALED,
-    DEMON_REVEALED
+    REVEALED
 };
 
 revealstate revealed = NOT_REVEALED;
@@ -64,7 +50,7 @@ DFHACK_PLUGIN("reveal");
 
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
-    commands.push_back(PluginCommand("reveal","Reveal the map. 'reveal hell' will also reveal hell. 'reveal demon' won't pause.",reveal));
+    commands.push_back(PluginCommand("reveal","Reveal the map.",reveal));
     commands.push_back(PluginCommand("unreveal","Revert the map to its previous state.",unreveal));
     commands.push_back(PluginCommand("revtoggle","Reveal/unreveal depending on state.",revtoggle));
     commands.push_back(PluginCommand("revflood","Hide all, reveal all tiles reachable from cursor position.",revflood));
@@ -120,9 +106,6 @@ void revealAdventure(color_ostream &out)
     for (size_t i = 0; i < world->map.map_blocks.size(); i++)
     {
         df::map_block *block = world->map.map_blocks[i];
-        // in 'no-hell'/'safe' mode, don't reveal blocks with hell and adamantine
-        if (!isSafe(block->map_pos))
-            continue;
         designations40d & designations = block->designation;
         // for each tile in block
         for (uint32_t x = 0; x < 16; x++) for (uint32_t y = 0; y < 16; y++)
@@ -138,30 +121,14 @@ void revealAdventure(color_ostream &out)
 
 command_result reveal(color_ostream &out, vector<string> & params)
 {
-    bool no_hell = true;
     bool pause = true;
     for(size_t i = 0; i < params.size();i++)
     {
-        if(params[i]=="hell")
-            no_hell = false;
-        else if(params[i] == "help" || params[i] == "?")
+        if(params[i] == "help" || params[i] == "?")
         {
-            out.print("Reveals the map, by default ignoring hell.\n"
-                         "Options:\n"
-                         "hell     - also reveal hell, while forcing the game to pause.\n"
-                         "demon    - reveal hell, do not pause.\n"
-            );
+            out.print("Reveals the map.\n");
             return CR_OK;
         }
-    }
-    if(params.size() && params[0] == "hell")
-    {
-        no_hell = false;
-    }
-    if(params.size() && params[0] == "demon")
-    {
-        no_hell = false;
-        pause = false;
     }
     auto & con = out;
     if(revealed != NOT_REVEALED)
@@ -195,9 +162,6 @@ command_result reveal(color_ostream &out, vector<string> & params)
     for (size_t i = 0; i < world->map.map_blocks.size(); i++)
     {
         df::map_block *block = world->map.map_blocks[i];
-        // in 'no-hell'/'safe' mode, don't reveal blocks with hell and adamantine
-        if (no_hell && !isSafe(block->map_pos))
-            continue;
         hideblock hb;
         hb.c = block->map_pos;
         designations40d & designations = block->designation;
@@ -211,23 +175,8 @@ command_result reveal(color_ostream &out, vector<string> & params)
         }
         hidesaved.push_back(hb);
     }
-    if(no_hell)
-    {
-        revealed = SAFE_REVEALED;
-    }
-    else
-    {
-        if(pause)
-        {
-            revealed = REVEALED;
-            World::SetPauseState(true);
-        }
-        else
-            revealed = DEMON_REVEALED;
-    }
+    revealed = REVEALED;
     con.print("Map revealed.\n");
-    if(!no_hell)
-        con.print("Unpausing can unleash the forces of hell, so it has been temporarily disabled.\n");
     con.print("Run 'unreveal' to revert to previous state.\n");
     return CR_OK;
 }
