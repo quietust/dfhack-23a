@@ -954,6 +954,18 @@ bool Core::Init()
     }
     cerr << "Version: " << vinfo->getVersion() << endl;
 
+    int *sbh_threshold = NULL;
+    if (!vinfo->getAddress("malloc_sbh_threshold", sbh_threshold))
+    {
+        fatal ("Could not confirm presence of malloc patch!\n", false);
+        return false;
+    }
+    if (*sbh_threshold != 0)
+    {
+        fatal ("Malloc patch has not been applied!\n", false);
+        return false;
+    }
+
     // Init global object pointers
     df::global::InitGlobals();
 
