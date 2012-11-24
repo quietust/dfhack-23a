@@ -429,10 +429,10 @@ void viewscreen_unitlaborsst::calcSize()
     int col_maxwidth[DISP_COLUMN_MAX];
     col_minwidth[DISP_COLUMN_HAPPINESS] = 4;
     col_maxwidth[DISP_COLUMN_HAPPINESS] = 4;
-    col_minwidth[DISP_COLUMN_NAME] = 0;
-    col_maxwidth[DISP_COLUMN_NAME] = 0;
-    col_minwidth[DISP_COLUMN_PROFESSION] = 0;
-    col_maxwidth[DISP_COLUMN_PROFESSION] = 0;
+    col_minwidth[DISP_COLUMN_NAME] = 16;
+    col_maxwidth[DISP_COLUMN_NAME] = 16;        // adjusted in the loop below
+    col_minwidth[DISP_COLUMN_PROFESSION] = 10;
+    col_maxwidth[DISP_COLUMN_PROFESSION] = 10;  // adjusted in the loop below
     col_minwidth[DISP_COLUMN_LABORS] = num_columns*3/5;     // 60%
     col_maxwidth[DISP_COLUMN_LABORS] = NUM_COLUMNS;
 
@@ -767,26 +767,81 @@ void viewscreen_unitlaborsst::feed(std::set<df::interface_key> *events)
     }
 
     UnitInfo *cur = units[input_row];
-    if (events->count(interface_key::SELECT) && (cur->allowEdit) && (columns[input_column].labor != unit_labor::NONE))
+    if (events->count(interface_key::SELECT))
     {
         df::unit *unit = cur->unit;
         const SkillColumn &col = columns[input_column];
-        bool newstatus = !unit->status.labors[col.labor];
-/* TODO - handle the special columns
-        if (col.special)
+        switch (col.type)
         {
-            if (newstatus)
+        case SKILL_NORMAL:
+            if (col.labor == unit_labor::NONE)
+                break;
+            if (!cur->allowEdit)
+                break;
+            unit->status.labors[col.labor] = unit->status.labors[col.labor] ? 0 : 1;
+            break;
+
+        case SKILL_SPECIAL:
+            if (col.labor == unit_labor::NONE)
+                break;
+            if (!cur->allowEdit)
+                break;
+            if (unit->status.labors[col.labor] == 0)
             {
                 for (int i = 0; i < NUM_COLUMNS; i++)
                 {
-                    if ((columns[i].labor != unit_labor::NONE) && columns[i].special)
-                        unit->status.labors[columns[i].labor] = false;
+                    if ((columns[i].labor != unit_labor::NONE) && (columns[i].type == SKILL_SPECIAL))
+                        unit->status.labors[columns[i].labor] = 0;
                 }
             }
-            unit->military.pickup_flags.bits.update = true;
+            unit->status.labors[col.labor] = unit->status.labors[col.labor] ? 0 : 1;
+            for (int i = 0; i < NUM_COLUMNS; i++)
+            {
+                if (columns[i].type != SKILL_COMBAT)
+                    continue;
+                if (columns[i].labor == unit_labor::NONE)
+                    continue;
+                unit->status.labors[columns[i].labor] = (columns[i].labor == col.extdata) ? 1 : 0;
+            }
+            break;
+
+        case SKILL_COMBAT:
+            if (!cur->allowEdit)
+                break;
+            for (int i = 0; i < NUM_COLUMNS; i++)
+            {
+                if (columns[i].labor == unit_labor::NONE)
+                    continue;
+                if ((columns[i].type == SKILL_SPECIAL) && (columns[i].extdata != col.labor))
+                    unit->status.labors[columns[i].labor] = 0;
+                if (columns[i].type == SKILL_COMBAT)
+                    unit->status.labors[columns[i].labor] = (columns[i].labor == col.labor) ? 1 : 0;
+            }
+            break;
+
+        case SKILL_ARMOR:
+            if (!cur->allowEdit)
+                break;
+            unit->status.labors[col.labor]++;
+            unit->status.labors[col.labor] %= 4;
+            break;
+
+        case SKILL_SHIELD:
+            if (!cur->allowEdit)
+                break;
+            unit->status.labors[col.labor]++;
+            unit->status.labors[col.labor] %= 3;
+            break;
+
+        case SKILL_NUMWEAPON:
+            if (!cur->allowEdit)
+                break;
+            if (unit->status.labors[col.labor] == 1)
+                unit->status.labors[col.labor] = 2;
+            else
+                unit->status.labors[col.labor] = 1;
+            break;
         }
-*/
-        unit->status.labors[col.labor] = newstatus;
     }
 
     if (events->count(interface_key::SECONDSCROLL_UP) || events->count(interface_key::SECONDSCROLL_DOWN))
@@ -985,7 +1040,63 @@ void viewscreen_unitlaborsst::render()
                 }
             }
             else
-                bg = 4;
+                bg = 3;
+            switch (columns[col_offset].type)
+            {
+            case SKILL_COMBAT:
+                if (columns[col_offset].labor == unit_labor::NONE)
+                {
+                    bg = 7;
+                    for (int i = 0; i < NUM_COLUMNS; i++)
+                    {
+                        if (columns[i].type != SKILL_COMBAT)
+                            continue;
+                        if (columns[i].labor == unit_labor::NONE)
+                            continue;
+                        if (unit->status.labors[columns[i].labor])
+                        {
+                            bg = 0;
+                            break;
+                        }
+                    }
+                }
+                break;
+            case SKILL_ARMOR:
+                switch (unit->status.labors[columns[col_offset].labor])
+                {
+                case 0:
+                    bg = 0;
+                    break;
+                case 1:
+                    bg = 1;
+                    break;
+                case 2:
+                    bg = 2;
+                    break;
+                case 3:
+                    bg = 4;
+                    break;
+                }
+                break;
+            case SKILL_SHIELD:
+                switch (unit->status.labors[columns[col_offset].labor])
+                {
+                case 0:
+                    bg = 0;
+                    break;
+                case 1:
+                    bg = 2;
+                    break;
+                case 2:
+                    bg = 4;
+                    break;
+                }
+                break;
+            case SKILL_NUMWEAPON:
+                bg = 0;
+                c = '0' + unit->status.labors[columns[col_offset].labor];
+                break;
+            }
             Screen::paintTile(Screen::Pen(c, fg, bg), col_offsets[DISP_COLUMN_LABORS] + col, 4 + row);
         }
     }
@@ -1014,7 +1125,14 @@ void viewscreen_unitlaborsst::render()
         x += 2;
 
         string str;
-        if (columns[sel_column].skill == job_skill::NONE)
+        if (columns[sel_column].type == SKILL_NUMWEAPON)
+        {
+            if (unit->status.labors[columns[sel_column].labor] == 2)
+                str = "Wielding 2 Weapons";
+            else
+                str = "Wielding 1 Weapon";
+        }
+        else if (columns[sel_column].skill == job_skill::NONE)
         {
             str = ENUM_ATTR_STR(unit_labor, caption, columns[sel_column].labor);
             if (unit->status.labors[columns[sel_column].labor])
@@ -1036,6 +1154,16 @@ void viewscreen_unitlaborsst::render()
             }
             else
                 str = stl_sprintf("Not %s (0/500)", ENUM_ATTR_STR(job_skill, caption_noun, columns[sel_column].skill));
+        }
+        if (columns[sel_column].type == SKILL_ARMOR)
+        {
+            str += ", wearing ";
+            str += armor_names[unit->status.labors[columns[sel_column].labor]];
+        }
+        if (columns[sel_column].type == SKILL_SHIELD)
+        {
+            str += ", holding ";
+            str += shield_names[unit->status.labors[columns[sel_column].labor]];
         }
         Screen::paintString(Screen::Pen(' ', 9, 0), x, 3 + num_rows + 2, str);
 
