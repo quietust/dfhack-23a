@@ -430,11 +430,13 @@ void viewscreen_unitlaborsst::refreshNames()
 
 void viewscreen_unitlaborsst::calcSize()
 {
-    num_rows = init->display.grid_y - 10;
+    auto dim = Screen::getWindowSize();
+
+    num_rows = dim.y - 10;
     if (num_rows > units.size())
         num_rows = units.size();
 
-    int num_columns = init->display.grid_x - DISP_COLUMN_MAX - 1;
+    int num_columns = dim.x - DISP_COLUMN_MAX - 1;
 
     // min/max width of columns
     int col_minwidth[DISP_COLUMN_MAX];
@@ -919,9 +921,10 @@ void viewscreen_unitlaborsst::render()
     if (Screen::isDismissed(this))
         return;
 
+    auto dim = Screen::getWindowSize();
+
     Screen::clear();
     Screen::drawBorder("  Dwarf Manipulator - Manage Labors  ");
-
 
     Screen::paintString(Screen::Pen(' ', 7, 0), col_offsets[DISP_COLUMN_HAPPINESS], 2, "Hap.");
     Screen::paintString(Screen::Pen(' ', 7, 0), col_offsets[DISP_COLUMN_NAME], 2, "Name");
@@ -1091,8 +1094,7 @@ void viewscreen_unitlaborsst::render()
         canToggle = (cur->allowEdit) && (columns[sel_column].labor != unit_labor::NONE);
     }
 
-    int x = 2;
-    int y = init->display.grid_y - 3;
+    int x = 2, y = dim.y - 3;
     OutputString(10, x, y, Screen::getKeyDisplay(interface_key::SELECT));
     OutputString(canToggle ? 15 : 8, x, y, ": Toggle labor, ");
 
@@ -1105,8 +1107,7 @@ void viewscreen_unitlaborsst::render()
     OutputString(10, x, y, Screen::getKeyDisplay(interface_key::UNITJOB_ZOOM_CRE));
     OutputString(15, x, y, ": Zoom-Cre");
 
-    x = 2;
-    y++;
+    x = 2; y = dim.y - 2;
     OutputString(10, x, y, Screen::getKeyDisplay(interface_key::LEAVESCREEN));
     OutputString(15, x, y, ": Done, ");
 
@@ -1165,7 +1166,6 @@ struct unitjobs_hook : df::viewscreen_unitjobsst
         }
         INTERPOSE_NEXT(view)();
     }
-
 };
 
 IMPLEMENT_VMETHOD_INTERPOSE(unitjobs_hook, view);

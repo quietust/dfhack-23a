@@ -212,15 +212,31 @@ struct stable_cursor_hook : df::viewscreen_dwarfmodest
 {
     typedef df::viewscreen_dwarfmodest interpose_base;
 
+    bool check_default()
+    {
+        switch (ui->main.mode) {
+            case ui_sidebar_mode::Default:
+                return true;
+
+            case ui_sidebar_mode::Build:
+                return ui_build_selector &&
+                       (ui_build_selector->building_type < 0 ||
+                        ui_build_selector->stage < 1);
+
+            default:
+                return false;
+        }
+    }
+
     DEFINE_VMETHOD_INTERPOSE(void, feed, (set<df::interface_key> *input))
     {
-        bool was_default = (ui->main.mode == df::ui_sidebar_mode::Default);
+        bool was_default = check_default();
         df::coord view = Gui::getViewportPos();
         df::coord cursor = Gui::getCursorPos();
 
         INTERPOSE_NEXT(feed)(input);
 
-        bool is_default = (ui->main.mode == df::ui_sidebar_mode::Default);
+        bool is_default = check_default();
         df::coord cur_cursor = Gui::getCursorPos();
 
         if (is_default && !was_default)
@@ -241,7 +257,7 @@ struct stable_cursor_hook : df::viewscreen_dwarfmodest
             tmp.insert(interface_key::CURSOR_UP_Z);
             INTERPOSE_NEXT(feed)(&tmp);
         }
-        else if (cur_cursor.isValid())
+        else if (!is_default && cur_cursor.isValid())
         {
             last_cursor = df::coord();
         }
@@ -683,6 +699,55 @@ static bool can_spar(df::unit *unit) {
            (!unit->job.current_job || unit->job.current_job != job_type::Rest);
 }
 
+static bool has_spar_inventory(df::unit *unit, df::job_skill skill)
+{
+    using namespace df::enums::job_skill;
+
+    auto type = ENUM_ATTR(job_skill, type, skill);
+
+    if (type == job_skill_class::MilitaryWeapon)
+    {
+        for (size_t i = 0; i < unit->inventory.size(); i++)
+        {
+            auto item = unit->inventory[i];
+            if (item->mode == df::unit_inventory_item::Weapon &&
+                item->item->getMeleeSkill() == skill)
+                return true;
+        }
+
+        return false;
+    }
+
+    switch (skill) {
+        case THROW:
+        case RANGED_COMBAT:
+            return false;
+
+        case SHIELD:
+            for (size_t i = 0; i < unit->inventory.size(); i++)
+            {
+                auto item = unit->inventory[i];
+                if (item->mode == df::unit_inventory_item::Weapon &&
+                    item->item->getType() == item_type::SHIELD)
+                    return true;
+            }
+            return false;
+
+        case ARMOR:
+            for (size_t i = 0; i < unit->inventory.size(); i++)
+            {
+                auto item = unit->inventory[i];
+                if (item->mode == df::unit_inventory_item::Worn &&
+                    item->item->isArmorNotClothing())
+                    return true;
+            }
+            return false;
+
+        default:
+            return true;
+    }
+}
+
 struct military_training_ct_hook : df::activity_event_combat_trainingst {
     typedef df::activity_event_combat_trainingst interpose_base;
 
@@ -713,7 +778,7 @@ struct military_training_ct_hook : df::activity_event_combat_trainingst {
                 {
                     // Sparring has a problem in that all of its participants decrement
                     // the countdown variable. Fix this by multiplying it by the member count.
-                    sp->countdown = sp->countdown * sp->participants.hist_figure_ids.size();
+                    sp->countdown = sp->countdown * sp->participants.units.size();
                 }
                 else if (auto sd = strict_virtual_cast<df::activity_event_skill_demonstrationst>(event))
                 {
@@ -722,7 +787,7 @@ struct military_training_ct_hook : df::activity_event_combat_trainingst {
                     sd->wait_countdown = adjust_unit_divisor(sd->wait_countdown);
 
                     // Check if the game selected the most skilled unit as the teacher
-                    auto &units = sd->participants.participant_ids;
+                    auto &units = sd->participants.units;
                     int maxv = -1, cur_xp = -1, minv = 0;
                     int best = -1;
                     size_t spar = 0;
@@ -740,7 +805,7 @@ struct military_training_ct_hook : df::activity_event_combat_trainingst {
                             maxv = xp;
                             best = j;
                         }
-                        if (can_spar(unit))
+                        if (can_spar(unit) && has_spar_inventory(unit, sd->skill))
                             spar++;
                     }
 
@@ -748,9 +813,10 @@ struct military_training_ct_hook : df::activity_event_combat_trainingst {
 
                     // If the xp gap is low, sometimes replace with sparring
                     if ((maxv - minv) < 64*15 && spar == units.size() &&
-                        random_int(20) >= 5 + (maxv-minv)/64)
+                        random_int(45) >= 30 + (maxv-minv)/64)
                     {
-                        out.print("Replacing demonstration with sparring.\n");
+                        out.print("Replacing %s demonstration (xp %d-%d, gap %d) with sparring.\n",
+                                  ENUM_KEY_STR(job_skill, sd->skill).c_str(), minv, maxv, maxv-minv);
 
                         if (auto spar = df::allocate<df::activity_event_sparringst>())
                         {
@@ -772,11 +838,18 @@ struct military_training_ct_hook : df::activity_event_combat_trainingst {
                     // If the teacher has less xp than somebody else, switch
                     if (best >= 0 && maxv > cur_xp)
                     {
-                        out.print("Replacing teacher %d (%d xp) with %d (%d xp)\n",
-                                  sd->unit_id, cur_xp, units[best], maxv);
+                        out.print("Replacing %s teacher %d (%d xp) with %d (%d xp); xp gap %d.\n",
+                                  ENUM_KEY_STR(job_skill, sd->skill).c_str(),
+                                  sd->unit_id, cur_xp, units[best], maxv, maxv-minv);
 
-                        sd->hist_figure_id = sd->participants.hist_figure_ids[best];
+                        sd->hist_figure_id = sd->participants.histfigs[best];
                         sd->unit_id = units[best];
+                    }
+                    else
+                    {
+                        out.print("Not changing %s demonstration (xp %d-%d, gap %d).\n",
+                                  ENUM_KEY_STR(job_skill, sd->skill).c_str(),
+                                  minv, maxv, maxv-minv);
                     }
                 }
             }
@@ -806,10 +879,11 @@ struct military_training_sd_hook : df::activity_event_skill_demonstrationst {
 
 IMPLEMENT_VMETHOD_INTERPOSE(military_training_sd_hook, process);
 
-static bool is_done(df::activity_event *event, df::unit *unit)
+template<class T>
+bool is_done(T *event, df::unit *unit)
 {
     return event->flags.bits.dismissed ||
-           binsearch_index(event->participants.participant_ids, unit->id) < 0;
+           binsearch_index(event->participants.units, unit->id) < 0;
 }
 
 struct military_training_sp_hook : df::activity_event_sparringst {

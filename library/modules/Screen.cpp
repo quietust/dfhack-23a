@@ -130,8 +130,8 @@ bool Screen::paintTile(const Pen &pen, int x, int y)
 {
     if (!gps || !pen.valid()) return false;
 
-    int dimx = init->display.grid_x, dimy = init->display.grid_y;
-    if (x < 0 || x >= dimx || y < 0 || y >= dimy) return false;
+    auto dim = getWindowSize();
+    if (x < 0 || x >= dim.x || y < 0 || y >= dim.y) return false;
 
     doSetTile(pen, x, y);
     return true;
@@ -141,8 +141,8 @@ Pen Screen::readTile(int x, int y)
 {
     if (!gps) return Pen(0,0,0,-1);
 
-    int dimx = init->display.grid_x, dimy = init->display.grid_y;
-    if (x < 0 || x >= dimx || y < 0 || y >= dimy)
+    auto dim = getWindowSize();
+    if (x < 0 || x >= dim.x || y < 0 || y >= dim.y)
         return Pen(0,0,0,-1);
 
     auto screen = gps->screen[x][y];
@@ -173,14 +173,15 @@ Pen Screen::readTile(int x, int y)
 
 bool Screen::paintString(const Pen &pen, int x, int y, const std::string &text)
 {
-    if (!gps || y < 0 || y >= init->display.grid_y) return false;
+    auto dim = getWindowSize();
+    if (!gps || y < 0 || y >= dim.y) return false;
 
     Pen tmp(pen);
     bool ok = false;
 
     for (size_t i = -std::min(0,x); i < text.size(); i++)
     {
-        if (x + i >= size_t(init->display.grid_x))
+        if (x + i >= size_t(dim.x))
             break;
 
         tmp.ch = text[i];
@@ -194,12 +195,13 @@ bool Screen::paintString(const Pen &pen, int x, int y, const std::string &text)
 
 bool Screen::fillRect(const Pen &pen, int x1, int y1, int x2, int y2)
 {
+    auto dim = getWindowSize();
     if (!gps || !pen.valid()) return false;
 
     if (x1 < 0) x1 = 0;
     if (y1 < 0) y1 = 0;
-    if (x2 >= init->display.grid_x) x2 = init->display.grid_x-1;
-    if (y2 >= init->display.grid_y) y2 = init->display.grid_y-1;
+    if (x2 >= dim.x) x2 = dim.x-1;
+    if (y2 >= dim.y) y2 = dim.y-1;
     if (x1 > x2 || y1 > y2) return false;
 
     for (int x = x1; x <= x2; x++)
@@ -215,32 +217,33 @@ bool Screen::drawBorder(const std::string &title)
 {
     if (!gps) return false;
 
-    int dimx = init->display.grid_x, dimy = init->display.grid_y;
+    auto dim = getWindowSize();
     Pen border('\xDB', 8);
     Pen text(0, 0, 7);
     Pen signature(0, 0, 8);
 
-    for (int x = 0; x < dimx; x++)
+    for (int x = 0; x < dim.x; x++)
     {
         doSetTile(border, x, 0);
-        doSetTile(border, x, dimy - 1);
+        doSetTile(border, x, dim.y - 1);
     }
-    for (int y = 0; y < dimy; y++)
+    for (int y = 0; y < dim.y; y++)
     {
         doSetTile(border, 0, y);
-        doSetTile(border, dimx - 1, y);
+        doSetTile(border, dim.x - 1, y);
     }
 
-    paintString(signature, dimx-8, dimy-1, "DFHack");
+    paintString(signature, dim.x-8, dim.y-1, "DFHack");
 
-    return paintString(text, (dimx - title.length()) / 2, 0, title);
+    return paintString(text, (dim.x - title.length()) / 2, 0, title);
 }
 
 bool Screen::clear()
 {
     if (!gps) return false;
 
-    return fillRect(Pen(' ',0,0,false), 0, 0, init->display.grid_x-1, init->display.grid_y-1);
+    auto dim = getWindowSize();
+    return fillRect(Pen(' ',0,0,false), 0, 0, dim.x-1, dim.y-1);
 }
 
 bool Screen::invalidate()
@@ -249,6 +252,21 @@ bool Screen::invalidate()
 
     enabler->flag.bits.render = true;
     return true;
+}
+
+const Pen Screen::Painter::default_pen(0,COLOR_GREY,0);
+const Pen Screen::Painter::default_key_pen(0,COLOR_LIGHTGREEN,0);
+
+void Screen::Painter::do_paint_string(const std::string &str, const Pen &pen)
+{
+    if (gcursor.y < clip.first.y || gcursor.y > clip.second.y)
+        return;
+
+    int dx = std::max(0, int(clip.first.x - gcursor.x));
+    int len = std::min((int)str.size(), int(clip.second.x - gcursor.x + 1));
+
+    if (len > dx)
+        paintString(pen, gcursor.x + dx, gcursor.y, str.substr(dx, len-dx));
 }
 
 bool Screen::findGraphicsTile(const std::string &pagename, int x, int y, int *ptile, int *pgs)
