@@ -718,3 +718,4 @@ namespace DFHack {
 // A couple of headers that have to be included at once
 #include "df/coord2d.h"
 #include "df/coord.h"
+#include "df/coord32.h"

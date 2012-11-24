@@ -766,10 +766,9 @@ df::proj_itemst *Items::makeProjectile(MapExtras::MapCache &mc, df::item *item)
     proj->link = new df::proj_list_link();
     proj->link->item = proj;
     proj->id = (*proj_next_id)++;
-    df::coord32 _pos; _pos.x = pos.x; _pos.y = pos.y; _pos.z = pos.z;
 
-    proj->origin_pos = proj->target_pos = _pos;
-    proj->cur_pos = proj->prev_pos = _pos;
+    proj->origin_pos = proj->target_pos = pos;
+    proj->cur_pos = proj->prev_pos = pos;
     proj->item = item;
 
     ref->projectile_id = proj->id;
