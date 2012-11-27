@@ -132,14 +132,8 @@ static const dwarf_state dwarf_states[] = {
     BUSY /* DetailWall */,
     BUSY /* DetailFloor */,
     BUSY /* Dig */,
-    BUSY /* CarveUpwardStaircase */,
-    BUSY /* CarveDownwardStaircase */,
-    BUSY /* CarveUpDownStaircase */,
-    BUSY /* CarveRamp */,
-    BUSY /* DigChannel */,
     BUSY /* FellTree */,
     BUSY /* GatherPlants */,
-    BUSY /* RemoveConstruction */,
     BUSY /* CollectWebs */,
     BUSY /* BringItemToDepot */,
     BUSY /* BringItemToShop */,
@@ -218,8 +212,7 @@ static const dwarf_state dwarf_states[] = {
     BUSY /* EncrustWithGems */,
     BUSY /* EncrustWithGlass */,
     BUSY /* DestroyBuilding */,
-    BUSY /* SmeltOre */,
-    BUSY /* CustomReaction */,
+    BUSY /* MakeBars */,
     BUSY /* MeltMetalObject */,
     BUSY /* ExtractMetalStrands */,
     BUSY /* TanAHide */,
@@ -250,6 +243,8 @@ static const dwarf_state dwarf_states[] = {
     BUSY /* MakeGloves */,
     BUSY /* MakeShoes */,
     BUSY /* MakeShield */,
+    BUSY /* MakeShirt */,
+    BUSY /* MakeCloak */,
     BUSY /* MakeCage */,
     BUSY /* MakeChain */,
     BUSY /* MakeFlask */,
@@ -300,14 +295,15 @@ static const dwarf_state dwarf_states[] = {
     BUSY /* RecoverWounded */,
     BUSY /* DrainAquarium */,
     BUSY /* FillAquarium */,
+    BUSY /* DrainPond */,
     BUSY /* FillPond */,
     BUSY /* GiveWater */,
     BUSY /* GiveFood */,
     BUSY /* GiveWater2 */,
     BUSY /* GiveFood2 */,
     BUSY /* RecoverPet */,
-    BUSY /* PitLargeAnimal */,
-    BUSY /* PitSmallAnimal */,
+    BUSY /* UnpondSmallAnimal */,
+    BUSY /* PondSmallAnimal */,
     BUSY /* SlaughterAnimal */,
     BUSY /* MakeCharcoal */,
     BUSY /* MakeAsh */,
@@ -320,17 +316,7 @@ static const dwarf_state dwarf_states[] = {
     BUSY /* MakePotashFromAsh */,
     BUSY /* DyeThread */,
     BUSY /* DyeCloth */,
-    BUSY /* SewImage */,
-    BUSY /* MakePipeSection */,
-    BUSY /* OperatePump */,
-    OTHER /* ManageWorkOrders */,
-    OTHER /* UpdateStockpileRecords */,
-    OTHER /* TradeAtDepot */,
-    BUSY /* ConstructHatchCover */,
-    BUSY /* ConstructGrate */,
-    BUSY /* RemoveStairs */,
-    BUSY /* ConstructQuern */,
-    BUSY /* ConstructMillstone */
+    BUSY /* SewImage */
 };
 
 struct labor_info
@@ -477,9 +463,7 @@ struct dwarf_info_t
     int assigned_jobs;
     dwarf_state state;
     bool has_exclusive_labor;
-    int noble_penalty; // penalty for assignment due to noble status
     bool medical; // this dwarf has medical responsibility
-    bool trader;  // this dwarf has trade responsibility
     bool diplomacy; // this dwarf meets with diplomats
     int single_labor; // this dwarf will be exclusively assigned to one labor (-1/NONE for none)
 };
@@ -705,7 +689,6 @@ struct values_sorter
 static void assign_labor(unit_labor::unit_labor labor,
     int n_dwarfs,
     std::vector<dwarf_info_t>& dwarf_info,
-    bool trader_requested,
     std::vector<df::unit *>& dwarfs,
     bool has_butchers,
     bool has_fishery,
@@ -732,8 +715,6 @@ static void assign_labor(unit_labor::unit_labor labor,
             if (dwarf_info[dwarf].state == CHILD)
                 continue;
             if (dwarf_info[dwarf].state == MILITARY)
-                continue;
-            if (dwarf_info[dwarf].trader && trader_requested)
                 continue;
             if (dwarf_info[dwarf].diplomacy)
                 continue;
@@ -842,8 +823,6 @@ static void assign_labor(unit_labor::unit_labor labor,
                 preferred_dwarf = true;
             if (previously_enabled[dwarf] && labor_infos[labor].is_exclusive)
                 preferred_dwarf = true;
-            if (dwarf_info[dwarf].trader && trader_requested)
-                continue;
             if (dwarf_info[dwarf].diplomacy)
                 continue;
 
@@ -862,7 +841,7 @@ static void assign_labor(unit_labor::unit_labor labor,
             }
 
             if (print_debug)
-                out.print("Dwarf %i \"%s\" assigned %s: value %i %s %s\n", dwarf, dwarfs[dwarf]->name.first_name.c_str(), ENUM_KEY_STR(unit_labor, labor).c_str(), values[dwarf], dwarf_info[dwarf].trader ? "(trader)" : "", dwarf_info[dwarf].diplomacy ? "(diplomacy)" : "");
+                out.print("Dwarf %i \"%s\" assigned %s: value %i %s\n", dwarf, dwarfs[dwarf]->name.first_name.c_str(), ENUM_KEY_STR(unit_labor, labor).c_str(), values[dwarf], dwarf_info[dwarf].diplomacy ? "(diplomacy)" : "");
 
             if (dwarf_info[dwarf].state == IDLE || dwarf_info[dwarf].state == BUSY)
                 labor_infos[labor].active_dwarfs++;
@@ -911,7 +890,6 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
 
     bool has_butchers = false;
     bool has_fishery = false;
-    bool trader_requested = false;
 
     for (int i = 0; i < world->buildings.all.size(); ++i)
     {
@@ -924,18 +902,6 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
                 has_butchers = true;
             if (workshop_type::Fishery == subType)
                 has_fishery = true;
-        }
-        else if (building_type::TradeDepot == type)
-        {
-            df::building_tradedepotst* depot = (df::building_tradedepotst*) build;
-            trader_requested = trader_requested || depot->trade_flags.bits.trader_requested;
-            if (print_debug)
-            {
-                if (trader_requested)
-                    out.print("Trade depot found and trader requested, trader will be excluded from all labors.\n");
-                else
-                    out.print("Trade depot found but trader is not requested.\n");
-            }
         }
     }
 
@@ -958,34 +924,6 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
     for (int dwarf = 0; dwarf < n_dwarfs; dwarf++)
     {
         dwarf_info[dwarf].single_labor = -1;
-
-        // compute noble penalty
-
-        int noble_penalty = 0;
-
-        df::historical_figure* hf = df::historical_figure::find(dwarfs[dwarf]->hist_figure_id);
-        for (int i = 0; i < hf->entity_links.size(); i++)
-        {
-            df::histfig_entity_link* hfelink = hf->entity_links.at(i);
-            switch (hfelink->type)
-            {
-            case histfig_entity_link_type::BROKER:
-                noble_penalty = 3000;
-                dwarf_info[dwarf].trader = true;
-                break;
-            case histfig_entity_link_type::MANAGER:
-                noble_penalty = 1000;
-                break;
-            case histfig_entity_link_type::BOOKKEEPER:
-                noble_penalty = 1000;
-                break;
-            case histfig_entity_link_type::MAYOR:
-                noble_penalty = 3000;
-                break;
-            }
-        }
-
-        dwarf_info[dwarf].noble_penalty = noble_penalty;
 
         // identify dwarfs who are needed for meetings and mark them for exclusion
 
@@ -1031,7 +969,6 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
     {
         dwarf_info[dwarf].mastery_penalty -= 40 * dwarf_info[dwarf].highest_skill;
         dwarf_info[dwarf].mastery_penalty -= 10 * dwarf_info[dwarf].total_skill;
-        dwarf_info[dwarf].mastery_penalty -= dwarf_info[dwarf].noble_penalty;
 
         FOR_ENUM_ITEMS(unit_labor, labor)
         {
@@ -1118,8 +1055,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
 
         for (int dwarf = 0; dwarf < n_dwarfs; dwarf++)
         {
-            if ((dwarf_info[dwarf].trader && trader_requested) ||
-                dwarf_info[dwarf].diplomacy)
+            if (dwarf_info[dwarf].diplomacy)
             {
                 dwarfs[dwarf]->status.labors[labor] = false;
             }
@@ -1140,7 +1076,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
     {
         auto labor = *lp;
 
-        assign_labor(labor, n_dwarfs, dwarf_info, trader_requested, dwarfs, has_butchers, has_fishery, out);
+        assign_labor(labor, n_dwarfs, dwarf_info, dwarfs, has_butchers, has_fishery, out);
     }
 
     // Set about 1/3 of the dwarfs as haulers. The haulers have all HAULER labors enabled. Having a lot of haulers helps
@@ -1154,8 +1090,7 @@ DFhackCExport command_result plugin_onupdate ( color_ostream &out )
     std::vector<int> hauler_ids;
     for (int dwarf = 0; dwarf < n_dwarfs; dwarf++)
     {
-        if ((dwarf_info[dwarf].trader && trader_requested) ||
-            dwarf_info[dwarf].diplomacy)
+        if (dwarf_info[dwarf].diplomacy)
         {
             FOR_ENUM_ITEMS(unit_labor, labor)
             {
