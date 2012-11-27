@@ -263,7 +263,6 @@ ELSE()
 ENDIF()
 
 ADD_EXECUTABLE(dfhack-loader dfhack-loader.cpp)
-SET_TARGET_PROPERTIES(dfhack-loader PROPERTIES COMPILE_FLAGS "/DDFHACK_23a" )
 SET_TARGET_PROPERTIES(dfhack-loader PROPERTIES OUTPUT_NAME "dfhack" )
 
 #effectively disables debug builds...

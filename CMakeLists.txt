@@ -125,6 +125,8 @@ elseif(WIN32)
     add_definitions(-DWIN32)
 endif()
 
+add_definitions(-DDFHACK_23a)
+
 #### expose depends ####
 
 # find and make available libz
