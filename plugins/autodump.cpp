@@ -159,7 +159,6 @@ static command_result autodump_main(color_ostream &out, vector <string> & parame
 //          || !itm->flags.bits.on_ground
             ||  itm->flags.bits.construction
             ||  itm->flags.bits.in_building
-            ||  itm->flags.bits.in_chest
 //          ||  itm->flags.bits.in_inventory
             ||  itm->flags.bits.artifact
         )
