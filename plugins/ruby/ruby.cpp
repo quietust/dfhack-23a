@@ -656,12 +656,12 @@ static VALUE rb_dfmemory_patch(VALUE self, VALUE addr, VALUE raw)
 // stl::string
 static VALUE rb_dfmemory_stlstring_new(VALUE self)
 {
-    std::string *ptr = new std::string;
+    stl::string *ptr = new stl::string;
     return rb_uint2inum((uint32_t)ptr);
 }
 static VALUE rb_dfmemory_stlstring_delete(VALUE self, VALUE addr)
 {
-    std::string *ptr = (std::string*)rb_num2ulong(addr);
+    stl::string *ptr = (stl::string*)rb_num2ulong(addr);
     if (ptr)
         delete ptr;
     return Qtrue;
@@ -669,18 +669,18 @@ static VALUE rb_dfmemory_stlstring_delete(VALUE self, VALUE addr)
 static VALUE rb_dfmemory_stlstring_init(VALUE self, VALUE addr)
 {
     // XXX THIS IS TERRIBLE
-    std::string *ptr = new std::string;
+    stl::string *ptr = new stl::string;
     memcpy((void*)rb_num2ulong(addr), (void*)ptr, sizeof(*ptr));
     return Qtrue;
 }
 static VALUE rb_dfmemory_read_stlstring(VALUE self, VALUE addr)
 {
-    std::string *s = (std::string*)rb_num2ulong(addr);
+    stl::string *s = (stl::string*)rb_num2ulong(addr);
     return rb_str_new(s->c_str(), s->length());
 }
 static VALUE rb_dfmemory_write_stlstring(VALUE self, VALUE addr, VALUE val)
 {
-    std::string *s = (std::string*)rb_num2ulong(addr);
+    stl::string *s = (stl::string*)rb_num2ulong(addr);
     int strlen = FIX2INT(rb_funcall(val, rb_intern("length"), 0));
     s->assign(rb_string_value_ptr(&val), strlen);
     return Qtrue;
@@ -690,42 +690,42 @@ static VALUE rb_dfmemory_write_stlstring(VALUE self, VALUE addr, VALUE val)
 // vector access
 static VALUE rb_dfmemory_vec_new(VALUE self)
 {
-    std::vector<uint8_t> *ptr = new std::vector<uint8_t>;
+    stl::vector<uint8_t> *ptr = new stl::vector<uint8_t>;
     return rb_uint2inum((uint32_t)ptr);
 }
 static VALUE rb_dfmemory_vec_delete(VALUE self, VALUE addr)
 {
-    std::vector<uint8_t> *ptr = (std::vector<uint8_t>*)rb_num2ulong(addr);
+    stl::vector<uint8_t> *ptr = (stl::vector<uint8_t>*)rb_num2ulong(addr);
     if (ptr)
         delete ptr;
     return Qtrue;
 }
 static VALUE rb_dfmemory_vec_init(VALUE self, VALUE addr)
 {
-    std::vector<uint8_t> *ptr = new std::vector<uint8_t>;
+    stl::vector<uint8_t> *ptr = new stl::vector<uint8_t>;
     memcpy((void*)rb_num2ulong(addr), (void*)ptr, sizeof(*ptr));
     return Qtrue;
 }
 // vector<uint8>
 static VALUE rb_dfmemory_vec8_length(VALUE self, VALUE addr)
 {
-    std::vector<uint8_t> *v = (std::vector<uint8_t>*)rb_num2ulong(addr);
+    stl::vector<uint8_t> *v = (stl::vector<uint8_t>*)rb_num2ulong(addr);
     return rb_uint2inum(v->size());
 }
 static VALUE rb_dfmemory_vec8_ptrat(VALUE self, VALUE addr, VALUE idx)
 {
-    std::vector<uint8_t> *v = (std::vector<uint8_t>*)rb_num2ulong(addr);
+    stl::vector<uint8_t> *v = (stl::vector<uint8_t>*)rb_num2ulong(addr);
     return rb_uint2inum((uint32_t)&v->at(FIX2INT(idx)));
 }
 static VALUE rb_dfmemory_vec8_insertat(VALUE self, VALUE addr, VALUE idx, VALUE val)
 {
-    std::vector<uint8_t> *v = (std::vector<uint8_t>*)rb_num2ulong(addr);
+    stl::vector<uint8_t> *v = (stl::vector<uint8_t>*)rb_num2ulong(addr);
     v->insert(v->begin()+FIX2INT(idx), rb_num2ulong(val));
     return Qtrue;
 }
 static VALUE rb_dfmemory_vec8_deleteat(VALUE self, VALUE addr, VALUE idx)
 {
-    std::vector<uint8_t> *v = (std::vector<uint8_t>*)rb_num2ulong(addr);
+    stl::vector<uint8_t> *v = (stl::vector<uint8_t>*)rb_num2ulong(addr);
     v->erase(v->begin()+FIX2INT(idx));
     return Qtrue;
 }
@@ -733,23 +733,23 @@ static VALUE rb_dfmemory_vec8_deleteat(VALUE self, VALUE addr, VALUE idx)
 // vector<uint16>
 static VALUE rb_dfmemory_vec16_length(VALUE self, VALUE addr)
 {
-    std::vector<uint16_t> *v = (std::vector<uint16_t>*)rb_num2ulong(addr);
+    stl::vector<uint16_t> *v = (stl::vector<uint16_t>*)rb_num2ulong(addr);
     return rb_uint2inum(v->size());
 }
 static VALUE rb_dfmemory_vec16_ptrat(VALUE self, VALUE addr, VALUE idx)
 {
-    std::vector<uint16_t> *v = (std::vector<uint16_t>*)rb_num2ulong(addr);
+    stl::vector<uint16_t> *v = (stl::vector<uint16_t>*)rb_num2ulong(addr);
     return rb_uint2inum((uint32_t)&v->at(FIX2INT(idx)));
 }
 static VALUE rb_dfmemory_vec16_insertat(VALUE self, VALUE addr, VALUE idx, VALUE val)
 {
-    std::vector<uint16_t> *v = (std::vector<uint16_t>*)rb_num2ulong(addr);
+    stl::vector<uint16_t> *v = (stl::vector<uint16_t>*)rb_num2ulong(addr);
     v->insert(v->begin()+FIX2INT(idx), rb_num2ulong(val));
     return Qtrue;
 }
 static VALUE rb_dfmemory_vec16_deleteat(VALUE self, VALUE addr, VALUE idx)
 {
-    std::vector<uint16_t> *v = (std::vector<uint16_t>*)rb_num2ulong(addr);
+    stl::vector<uint16_t> *v = (stl::vector<uint16_t>*)rb_num2ulong(addr);
     v->erase(v->begin()+FIX2INT(idx));
     return Qtrue;
 }
@@ -757,23 +757,23 @@ static VALUE rb_dfmemory_vec16_deleteat(VALUE self, VALUE addr, VALUE idx)
 // vector<uint32>
 static VALUE rb_dfmemory_vec32_length(VALUE self, VALUE addr)
 {
-    std::vector<uint32_t> *v = (std::vector<uint32_t>*)rb_num2ulong(addr);
+    stl::vector<uint32_t> *v = (stl::vector<uint32_t>*)rb_num2ulong(addr);
     return rb_uint2inum(v->size());
 }
 static VALUE rb_dfmemory_vec32_ptrat(VALUE self, VALUE addr, VALUE idx)
 {
-    std::vector<uint32_t> *v = (std::vector<uint32_t>*)rb_num2ulong(addr);
+    stl::vector<uint32_t> *v = (stl::vector<uint32_t>*)rb_num2ulong(addr);
     return rb_uint2inum((uint32_t)&v->at(FIX2INT(idx)));
 }
 static VALUE rb_dfmemory_vec32_insertat(VALUE self, VALUE addr, VALUE idx, VALUE val)
 {
-    std::vector<uint32_t> *v = (std::vector<uint32_t>*)rb_num2ulong(addr);
+    stl::vector<uint32_t> *v = (stl::vector<uint32_t>*)rb_num2ulong(addr);
     v->insert(v->begin()+FIX2INT(idx), rb_num2ulong(val));
     return Qtrue;
 }
 static VALUE rb_dfmemory_vec32_deleteat(VALUE self, VALUE addr, VALUE idx)
 {
-    std::vector<uint32_t> *v = (std::vector<uint32_t>*)rb_num2ulong(addr);
+    stl::vector<uint32_t> *v = (stl::vector<uint32_t>*)rb_num2ulong(addr);
     v->erase(v->begin()+FIX2INT(idx));
     return Qtrue;
 }
@@ -781,47 +781,47 @@ static VALUE rb_dfmemory_vec32_deleteat(VALUE self, VALUE addr, VALUE idx)
 // vector<bool>
 static VALUE rb_dfmemory_vecbool_new(VALUE self)
 {
-    std::vector<bool> *ptr = new std::vector<bool>;
+    stl::vector<bool> *ptr = new stl::vector<bool>;
     return rb_uint2inum((uint32_t)ptr);
 }
 static VALUE rb_dfmemory_vecbool_delete(VALUE self, VALUE addr)
 {
-    std::vector<bool> *ptr = (std::vector<bool>*)rb_num2ulong(addr);
+    stl::vector<bool> *ptr = (stl::vector<bool>*)rb_num2ulong(addr);
     if (ptr)
         delete ptr;
     return Qtrue;
 }
 static VALUE rb_dfmemory_vecbool_init(VALUE self, VALUE addr)
 {
-    std::vector<bool> *ptr = new std::vector<bool>;
+    stl::vector<bool> *ptr = new stl::vector<bool>;
     memcpy((void*)rb_num2ulong(addr), (void*)ptr, sizeof(*ptr));
     return Qtrue;
 }
 static VALUE rb_dfmemory_vecbool_length(VALUE self, VALUE addr)
 {
-    std::vector<bool> *v = (std::vector<bool>*)rb_num2ulong(addr);
+    stl::vector<bool> *v = (stl::vector<bool>*)rb_num2ulong(addr);
     return rb_uint2inum(v->size());
 }
 static VALUE rb_dfmemory_vecbool_at(VALUE self, VALUE addr, VALUE idx)
 {
-    std::vector<bool> *v = (std::vector<bool>*)rb_num2ulong(addr);
+    stl::vector<bool> *v = (stl::vector<bool>*)rb_num2ulong(addr);
     return v->at(FIX2INT(idx)) ? Qtrue : Qfalse;
 }
 static VALUE rb_dfmemory_vecbool_setat(VALUE self, VALUE addr, VALUE idx, VALUE val)
 {
-    std::vector<bool> *v = (std::vector<bool>*)rb_num2ulong(addr);
+    stl::vector<bool> *v = (stl::vector<bool>*)rb_num2ulong(addr);
     v->at(FIX2INT(idx)) = (BOOL_ISFALSE(val) ? 0 : 1);
     return Qtrue;
 }
 static VALUE rb_dfmemory_vecbool_insertat(VALUE self, VALUE addr, VALUE idx, VALUE val)
 {
-    std::vector<bool> *v = (std::vector<bool>*)rb_num2ulong(addr);
+    stl::vector<bool> *v = (stl::vector<bool>*)rb_num2ulong(addr);
     v->insert(v->begin()+FIX2INT(idx), (BOOL_ISFALSE(val) ? 0 : 1));
     return Qtrue;
 }
 static VALUE rb_dfmemory_vecbool_deleteat(VALUE self, VALUE addr, VALUE idx)
 {
-    std::vector<bool> *v = (std::vector<bool>*)rb_num2ulong(addr);
+    stl::vector<bool> *v = (stl::vector<bool>*)rb_num2ulong(addr);
     v->erase(v->begin()+FIX2INT(idx));
     return Qtrue;
 }
