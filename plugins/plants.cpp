@@ -114,7 +114,7 @@ static command_result immolations (color_ostream &out, do_what what, bool shrubs
             if(shrubs && is_shrub || trees && !is_shrub)
             {
                 if (what == do_immolate)
-                    p->is_burning = true;
+                    p->damage_flags.bits.is_burning = true;
                 p->hitpoints = 0;
                 destroyed ++;
             }
@@ -137,7 +137,7 @@ static command_result immolations (color_ostream &out, do_what what, bool shrubs
                     if(tree->pos.x == x && tree->pos.y == y && tree->pos.z == z)
                     {
                         if(what == do_immolate)
-                            tree->is_burning = true;
+                            tree->damage_flags.bits.is_burning = true;
                         tree->hitpoints = 0;
                         didit = true;
                         break;
