@@ -114,11 +114,14 @@ static command_result fastdwarf (color_ostream &out, vector <string> & parameter
     {
         if (parameters.size() == 2)
         {
+/*
             if (parameters[1] == "0")
                 enable_teledwarf = false;
             else if (parameters[1] == "1")
                 enable_teledwarf = true;
             else
+*/
+                out.printerr("Teleport mode is not available in this version.\n");
                 return CR_WRONG_USAGE;
         }
         else
@@ -162,18 +165,20 @@ static command_result fastdwarf (color_ostream &out, vector <string> & parameter
 DFhackCExport command_result plugin_init ( color_ostream &out, std::vector <PluginCommand> &commands)
 {
     commands.push_back(PluginCommand("fastdwarf",
-        "enable/disable fastdwarf and teledwarf (parameters=0/1)",
+        "enable/disable fastdwarf (parameter=0/1/2)",
         fastdwarf, false,
         "fastdwarf: make dwarves faster.\n"
         "Usage:\n"
-        "  fastdwarf <speed> (tele)\n"
+        "  fastdwarf <speed>\n"
         "Valid values for speed:\n"
         " * 0 - Make dwarves move and work at standard speed.\n"
         " * 1 - Make dwarves move and work at maximum speed.\n"
         " * 2 - Make ALL creatures move and work at maximum speed.\n"
+/*
         "Valid values for (tele):\n"
         " * 0 - Disable dwarf teleportation (default)\n"
         " * 1 - Make dwarves teleport to their destinations instantly.\n"
+*/
         ));
     
     return CR_OK;
