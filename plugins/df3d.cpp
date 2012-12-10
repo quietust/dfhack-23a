@@ -306,6 +306,9 @@ command_result df_addzlevel (color_ostream &out, vector <string> & parameters)
                 _x -= 3;
                 for (int j = 0; j < 3; j++)
                 {
+                    // prevent slanted light/dark stone clusters from sticking out of the cliff face
+                    if (_x + x < ui->min_dig_depth + 1)
+                        continue;
                     if (!random(2))
                     {
                         setTileChr(_x + x, _y + y, z, tile_chr::Wall);
@@ -597,9 +600,7 @@ command_result df_addzlevel (color_ostream &out, vector <string> & parameters)
                     if (_x < ui->min_dig_depth)
                         continue;
                     // open space above rivers and chasms
-                    if ((base->chr[tx][ty] == tile_chr::River) ||
-                        (base->chr[tx][ty] == tile_chr::Waterfall) ||
-                       ((base->chr[tx][ty] == tile_chr::Chasm) && (base->color[tx][ty].bits.color == 8)))
+                    if ((base->chr[tx][ty] == tile_chr::River) || (base->chr[tx][ty] == tile_chr::Waterfall) || ((base->chr[tx][ty] == tile_chr::Chasm) && ((base->color[tx][ty].bits.color == 4) || (base->color[tx][ty].bits.color == 8))))
                     {
                         cur->chr[tx][ty] = tile_chr::OpenSpace;
                         cur->color[tx][ty].bits.color = 0;
