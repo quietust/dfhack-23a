@@ -58,8 +58,7 @@ void setTileColor (int x, int y, int z, int color)
     if (tmp)
         tmp->bits.color = color;
 }
-
-static vector<df::coord2d> generateLine (int x0, int y0, int x1, int y1)
+vector<df::coord2d> generateLine (int x0, int y0, int x1, int y1)
 {
     vector<df::coord2d> result;
 
@@ -90,36 +89,11 @@ static vector<df::coord2d> generateLine (int x0, int y0, int x1, int y1)
     return result;
 }
 
-command_result df_addzlevel (color_ostream &out, vector <string> & parameters)
+
+
+command_result addzlevel (color_ostream &out, vector <string> & parameters)
 {
-    CoreSuspender suspend;
-
-    if (!Maps::IsValid())
-    {
-        out.printerr("Map is not available!\n");
-        return CR_FAILURE;
-    }
-    if (world->surface_z != 0)
-    {
-        out.printerr("Can only be used on player fortresses!\n");
-        return CR_FAILURE;
-    }
-
     size_t z = world->map.z_count;
-
-    // add Z-level
-    world->map.z_count_block++;
-    world->map.z_count++;
-
-    // rebuild block lookup
-    for (size_t x = 0; x < world->map.x_count_block; x++)
-    {
-        for (size_t y = 0; y < world->map.y_count_block; y++)
-        {
-            delete[] world->map.block_index[x][y];
-            world->map.block_index[x][y] = new df::map_block *[world->map.z_count_block];
-        }
-    }
 
     // create new map blocks
     for (size_t x = 0; x < world->map.x_count; x += 16)
@@ -135,14 +109,27 @@ command_result df_addzlevel (color_ostream &out, vector <string> & parameters)
         }
     }
 
-    // repopulate block lookup
+    // increment Z-level counts
+    world->map.z_count_block++;
+    world->map.z_count++;
+
+    // rebuild and repopulate block lookup
+    // DFHack Maps module relies on this, and we're going to use it below
+    for (size_t x = 0; x < world->map.x_count_block; x++)
+    {
+        for (size_t y = 0; y < world->map.y_count_block; y++)
+        {
+            delete[] world->map.block_index[x][y];
+            world->map.block_index[x][y] = new df::map_block *[world->map.z_count_block];
+        }
+    }
     for (size_t i = 0; i < world->map.map_blocks.size(); i++)
     {
         df::map_block *blk = world->map.map_blocks[i];
         world->map.block_index[blk->map_pos.x >> 4][blk->map_pos.y >> 4][blk->map_pos.z] = blk;
     }
 
-    // initialize map data
+    // initialize map data - open space outside, unmined stone inside
     for (size_t x = 0; x < world->map.x_count_block; x++)
     {
         for (size_t y = 0; y < world->map.y_count_block; y++)
@@ -176,8 +163,8 @@ command_result df_addzlevel (color_ostream &out, vector <string> & parameters)
         }
     }
 
+    // initialize stone layers
     int slope = random(41) - 20;
-    // initialize geology
     {
         int layer_bounds[480];
         bool skip_adjust = true;
@@ -235,7 +222,7 @@ command_result df_addzlevel (color_ostream &out, vector <string> & parameters)
         }
     }
 
-    // insert stone clusters
+    // insert light/dark stone clusters
     {
         vector<int16_t> stone_dark;
         vector<int16_t> stone_light;
@@ -339,7 +326,7 @@ command_result df_addzlevel (color_ostream &out, vector <string> & parameters)
         }
     }
 
-    // insert ore veins
+    // insert ore/coal veins
     {
         for (int i = 0; i < 100; i++)
         {
@@ -455,32 +442,24 @@ command_result df_addzlevel (color_ostream &out, vector <string> & parameters)
         for (int i = 0; i < world->raws.matgloss.gem.size(); i++)
         {
             auto gem = world->raws.matgloss.gem[i];
-            int color = -1;
+            int color = 0;
             switch (gem->color)
             {
-            case 2:
-                color = 0;
-                break;
-            case 4:
-                color = 1;
-                break;
-            case 7:
-                color = 2;
-                break;
-            case 1:
-                color = 3;
-                break;
+            case 1: // blue = 3
+                color++;
+            case 7: // white = 2
+                color++;
+            case 4: // red = 1
+                color++;
+            case 2: // green = 0
+                if (gem->flags.is_set(matgloss_gem_flags::ORNAMENTAL))
+                    gem_ornamental[color].push_back(i);
+                if (gem->flags.is_set(matgloss_gem_flags::SEMI))
+                    gem_semi[color].push_back(i);
+                if (gem->flags.is_set(matgloss_gem_flags::PRECIOUS))
+                    gem_precious[color].push_back(i);
             }
-            if (color < 0)
-                continue;
-            if (gem->flags.is_set(matgloss_gem_flags::ORNAMENTAL))
-                gem_ornamental[color].push_back(i);
-            if (gem->flags.is_set(matgloss_gem_flags::SEMI))
-                gem_semi[color].push_back(i);
-            if (gem->flags.is_set(matgloss_gem_flags::PRECIOUS))
-                gem_precious[color].push_back(i);
         }
-
         for (int i = 0; i < 680; i++)
         {
             int x = random(10) + (i / 2) + ui->min_dig_depth + 1;
@@ -584,7 +563,7 @@ command_result df_addzlevel (color_ostream &out, vector <string> & parameters)
         }
     }
 
-    // add gaps for map features and merge in adamantine
+    // adjust finished map to accomodate features
     for (size_t x = 0; x < world->map.x_count_block; x++)
     {
         for (size_t y = 0; y < world->map.y_count_block; y++)
@@ -599,23 +578,17 @@ command_result df_addzlevel (color_ostream &out, vector <string> & parameters)
                     size_t _x = (x << 4 | tx);
                     if (_x < ui->min_dig_depth)
                         continue;
-                    // open space above rivers and chasms
+                    // open space above cave river, chasm, magma flow
                     if ((base->chr[tx][ty] == tile_chr::River) || (base->chr[tx][ty] == tile_chr::Waterfall) || ((base->chr[tx][ty] == tile_chr::Chasm) && ((base->color[tx][ty].bits.color == 4) || (base->color[tx][ty].bits.color == 8))))
                     {
                         cur->chr[tx][ty] = tile_chr::OpenSpace;
                         cur->color[tx][ty].bits.color = 0;
                     }
-                    // clone eerie glowing pits upward so they still trigger HFS
-                    if ((base->chr[tx][ty] == tile_chr::Chasm) && (base->color[tx][ty].bits.color == 12))
+                    // clone eerie glowing pits upward (so they hopefully still trigger HFS upon discovery) along with raw adamantine
+                    if (((base->chr[tx][ty] == tile_chr::Chasm) && (base->color[tx][ty].bits.color == 12)) || ((base->chr[tx][ty] == tile_chr::Ore) && (base->color[tx][ty].bits.color == 11)))
                     {
-                        cur->chr[tx][ty] = tile_chr::Chasm;
-                        cur->color[tx][ty].bits.color = 12;
-                    }
-                    // extend any unmined adamantine upwards
-                    if (base->chr[tx][ty] == tile_chr::Ore && base->color[tx][ty].bits.color == 11)
-                    {
-                        cur->chr[tx][ty] = tile_chr::Ore;
-                        cur->color[tx][ty].bits.color = 11;
+                        cur->chr[tx][ty] = base->chr[tx][ty];
+                        cur->color[tx][ty].bits.color = base->color[tx][ty].bits.color;
                     }
                 }
             }
@@ -627,32 +600,19 @@ command_result df_addzlevel (color_ostream &out, vector <string> & parameters)
     return CR_OK;
 }
 
-command_result df_addstair (color_ostream &out, vector <string> & parameters)
+command_result addstair (color_ostream &out, vector <string> & parameters)
 {
-    CoreSuspender suspend;
-
-    if (!Maps::IsValid())
-    {
-        out.printerr("Map is not available!\n");
-        return CR_FAILURE;
-    }
-    if (world->surface_z != 0)
-    {
-        out.printerr("Can only be used on player fortresses!\n");
-        return CR_FAILURE;
-    }
+    uint32_t x_max,y_max,z_max;
+    Maps::getSize(x_max, y_max, z_max);
 
     int32_t cx, cy, cz;
-    uint32_t x_max,y_max,z_max;
-    Maps::getSize(x_max,y_max,z_max);
+    Gui::getCursorCoords(cx, cy, cz);
 
-    Gui::getCursorCoords(cx,cy,cz);
     if (cx < 0)
     {
         out.printerr("Cursor is not active. Point the cursor where you want to place the staircase.\n");
         return CR_FAILURE;
     }
-
     if (cz == z_max - 1)
     {
         out.printerr("Cannot place stairs at the topmost Z-level!\n");
@@ -663,71 +623,69 @@ command_result df_addstair (color_ostream &out, vector <string> & parameters)
         out.printerr("Cannot place stairs at edge of the map!\n");
         return CR_FAILURE;
     }
-    df::tiletype_shape shape = tileShape(Maps::getTileType(cx, cy, cz));
-    if (shape != tiletype_shape::FLOOR && shape != tiletype_shape::STAIR_DOWN)
-    {
-        out.printerr("Stairs can only be placed on floors or downward stairs!\n");
-        return CR_FAILURE;
-    }
     if (Maps::getTileOccupancy(cx, cy, cz)->bits.building)
     {
         out.printerr("There is a building in the way!\n");
         return CR_FAILURE;
     }
 
-    // add upward stair on current Z-level
+    df::tiletype_shape shape1 = tileShape(Maps::getTileType(cx, cy, cz));
+    df::tiletype_material mat1 = tileMaterial(Maps::getTileType(cx, cy, cz));
+    df::tiletype_material mat2 = tileMaterial(Maps::getTileType(cx, cy, cz + 1));
+
+    if (shape1 != tiletype_shape::FLOOR && shape1 != tiletype_shape::STAIR_DOWN)
+    {
+        out.printerr("Stairs can only be placed on floors or downward stairs!\n");
+        return CR_FAILURE;
+    }
+
+    // add upward stair on lower Z-level
     if (getTileChr(cx, cy, cz) == tile_chr::StairD)
         setTileChr(cx, cy, cz, tile_chr::StairUD);
     else
         setTileChr(cx, cy, cz, tile_chr::StairU);
 
-    // add downward stair on Z-level above
-    df::tiletype_material mat = tileMaterial(Maps::getTileType(cx, cy, cz + 1));
-    setTileChr(cx, cy, cz + 1, tile_chr::StairD);
-    // force down-stair material to be gray stone if the old tile was non-stone (e.g. ore/gem)
-    if (mat != tiletype_material::STONE && mat != tiletype_material::STONE_LIGHT && mat != tiletype_material::STONE_DARK)
+    // ensure that the up-stair is made of a valid material (it may have been mud/dirt)
+    if (mat1 != tiletype_material::STONE && mat1 != tiletype_material::STONE_LIGHT && mat1 != tiletype_material::STONE_DARK)
+        setTileColor(cx, cy, cz, 7);
+
+    // add downward stair on upper Z-level
+    if (getTileChr(cx, cy, cz + 1) == tile_chr::StairU)
+        setTileChr(cx, cy, cz + 1, tile_chr::StairUD);
+    else
+        setTileChr(cx, cy, cz + 1, tile_chr::StairD);
+
+    // ensure that the down-stair is made of a valid material (it may have been ore/gem)
+    if (mat2 != tiletype_material::STONE && mat2 != tiletype_material::STONE_LIGHT && mat2 != tiletype_material::STONE_DARK)
         setTileColor(cx, cy, cz + 1, 7);
 
     // reveal it
     Maps::getTileDesignation(cx, cy, cz + 1)->bits.hidden = 0;
 
     // and reveal the surrounding tiles
-    Maps::getTileDesignation(cx-1, cy, cz + 1)->bits.hidden = 0;
-    Maps::getTileDesignation(cx+1, cy, cz + 1)->bits.hidden = 0;
-    Maps::getTileDesignation(cx, cy-1, cz + 1)->bits.hidden = 0;
-    Maps::getTileDesignation(cx, cy+1, cz + 1)->bits.hidden = 0;
+    Maps::getTileDesignation(cx - 1, cy, cz + 1)->bits.hidden = 0;
+    Maps::getTileDesignation(cx + 1, cy, cz + 1)->bits.hidden = 0;
+    Maps::getTileDesignation(cx, cy - 1, cz + 1)->bits.hidden = 0;
+    Maps::getTileDesignation(cx, cy + 1, cz + 1)->bits.hidden = 0;
 
     world->reindex_pathfinding = true;
     out.print("Successfully added upward stairs.\n");
     return CR_OK;
 }
 
-command_result df_addramp (color_ostream &out, vector <string> & parameters)
+command_result addramp (color_ostream &out, vector <string> & parameters)
 {
-    CoreSuspender suspend;
-
-    if (!Maps::IsValid())
-    {
-        out.printerr("Map is not available!\n");
-        return CR_FAILURE;
-    }
-    if (world->surface_z != 0)
-    {
-        out.printerr("Can only be used on player fortresses!\n");
-        return CR_FAILURE;
-    }
+    uint32_t x_max,y_max,z_max;
+    Maps::getSize(x_max, y_max, z_max);
 
     int32_t cx, cy, cz;
-    uint32_t x_max,y_max,z_max;
-    Maps::getSize(x_max,y_max,z_max);
+    Gui::getCursorCoords(cx, cy, cz);
 
-    Gui::getCursorCoords(cx,cy,cz);
     if (cx < 0)
     {
         out.printerr("Cursor is not active. Point the cursor where you want to place the ramp.\n");
         return CR_FAILURE;
     }
-
     if (cz == z_max - 1)
     {
         out.printerr("Cannot place ramp at the topmost Z-level!\n");
@@ -738,26 +696,29 @@ command_result df_addramp (color_ostream &out, vector <string> & parameters)
         out.printerr("Cannot place ramp at edge of the map!\n");
         return CR_FAILURE;
     }
-    df::tiletype_shape shape = tileShape(Maps::getTileType(cx, cy, cz));
-    df::tiletype_material mat = tileMaterial(Maps::getTileType(cx, cy, cz));
-    if (shape != tiletype_shape::FLOOR)
-    {
-        out.printerr("Ramps can only be placed on floors!\n");
-        return CR_FAILURE;
-    }
     if (Maps::getTileOccupancy(cx, cy, cz)->bits.building)
     {
         out.printerr("There is a building in the way!\n");
         return CR_FAILURE;
     }
 
+    df::tiletype_shape shape1 = tileShape(Maps::getTileType(cx, cy, cz));
+    df::tiletype_material mat1 = tileMaterial(Maps::getTileType(cx, cy, cz));
+
+    if (shape1 != tiletype_shape::FLOOR)
+    {
+        out.printerr("Ramps can only be placed on floors!\n");
+        return CR_FAILURE;
+    }
+
     // add upward ramp on current Z-level
     setTileChr(cx, cy, cz, tile_chr::Ramp);
-    // force ramp material to be gray stone if the old tile was something else (e.g. mud/dirt)
-    if (mat != tiletype_material::STONE && mat != tiletype_material::STONE_LIGHT && mat != tiletype_material::STONE_DARK)
+
+    // ensure that the up-ramp is made of a valid material (it may have been mud/dirt)
+    if (mat1 != tiletype_material::STONE && mat1 != tiletype_material::STONE_LIGHT && mat1 != tiletype_material::STONE_DARK)
         setTileColor(cx, cy, cz, 7);
 
-    // add downward ramp on Z-level above
+    // add downward ramp on Z-level above, using same color
     setTileChr(cx, cy, cz + 1, tile_chr::RampTop);
     setTileColor(cx, cy, cz + 1, getTileColor(cx, cy, cz));
 
@@ -765,19 +726,78 @@ command_result df_addramp (color_ostream &out, vector <string> & parameters)
     Maps::getTileDesignation(cx, cy, cz + 1)->bits.hidden = 0;
 
     // and reveal the surrounding tiles
-    Maps::getTileDesignation(cx-1, cy, cz + 1)->bits.hidden = 0;
-    Maps::getTileDesignation(cx+1, cy, cz + 1)->bits.hidden = 0;
-    Maps::getTileDesignation(cx, cy-1, cz + 1)->bits.hidden = 0;
-    Maps::getTileDesignation(cx, cy+1, cz + 1)->bits.hidden = 0;
+    Maps::getTileDesignation(cx - 1, cy, cz + 1)->bits.hidden = 0;
+    Maps::getTileDesignation(cx + 1, cy, cz + 1)->bits.hidden = 0;
+    Maps::getTileDesignation(cx, cy - 1, cz + 1)->bits.hidden = 0;
+    Maps::getTileDesignation(cx, cy + 1, cz + 1)->bits.hidden = 0;
 
     world->reindex_pathfinding = true;
     out.print("Successfully added ramp.\n");
     return CR_OK;
 }
 
-command_result df_remramp (color_ostream &out, vector <string> & parameters)
+command_result remstair (color_ostream &out, vector <string> & parameters)
+{
+    uint32_t x_max,y_max,z_max;
+    Maps::getSize(x_max, y_max, z_max);
+
+    int32_t cx, cy, cz;
+    Gui::getCursorCoords(cx, cy, cz);
+
+    if (cx < 0)
+    {
+        out.printerr("Cursor is not active. Point the cursor where you want to remove stairs/ramps.\n");
+        return CR_FAILURE;
+    }
+
+    const df::tile_chr floors[4] = { tile_chr::Floor1, tile_chr::Floor2, tile_chr::Floor3, tile_chr::Floor4 };
+    if (getTileChr(cx, cy, cz) == tile_chr::Ramp)
+    {
+        // change upward ramp to random rough floor
+        setTileChr(cx, cy, cz, floors[random(4)]);
+
+        // and change downward ramp to open space
+        if (getTileChr(cx, cy, cz + 1) == tile_chr::RampTop)
+        {
+            setTileChr(cx, cy, cz + 1, tile_chr::OpenSpace);
+            setTileColor(cx, cy, cz + 1, 0);
+        }
+
+        world->reindex_pathfinding = true;
+        out.print("Successfully removed ramp.\n");
+        return CR_OK;
+    }
+
+    if (getTileChr(cx, cy, cz) == tile_chr::StairU || getTileChr(cx, cy, cz) == tile_chr::StairUD)
+    {
+        df::tile_chr chr = getTileChr(cx, cy, cz);
+        if (chr == tile_chr::StairUD)
+            setTileChr(cx, cy, cz, tile_chr::StairD);
+        else if (chr == tile_chr::StairU)
+            setTileChr(cx, cy, cz, floors[random(4)]);
+
+        chr = getTileChr(cx, cy, cz + 1);
+        if (chr == tile_chr::StairUD)
+            setTileChr(cx, cy, cz, tile_chr::StairU);
+        else if (chr == tile_chr::StairD)
+            setTileChr(cx, cy, cz, floors[random(4)]);
+
+
+        world->reindex_pathfinding = true;
+        out.print("Successfully removed upward stairs.\n");
+        return CR_OK;
+    }
+
+    out.printerr("Invalid tile selected!\n");
+    return CR_FAILURE;
+}
+
+command_result df_3d (color_ostream &out, vector <string> & parameters)
 {
     CoreSuspender suspend;
+
+    if (parameters.empty())
+        return CR_WRONG_USAGE;
 
     if (!Maps::IsValid())
     {
@@ -790,35 +810,18 @@ command_result df_remramp (color_ostream &out, vector <string> & parameters)
         return CR_FAILURE;
     }
 
-    int32_t cx, cy, cz;
-    uint32_t x_max,y_max,z_max;
-    Maps::getSize(x_max,y_max,z_max);
+    string cmd = parameters[0];
 
-    Gui::getCursorCoords(cx,cy,cz);
-    if (cx < 0)
-    {
-        out.printerr("Cursor is not active. Point the cursor where you want to place the ramp.\n");
-        return CR_FAILURE;
-    }
+    if (cmd == "addz")
+        return addzlevel(out, parameters);
+    if (cmd == "addstair")
+        return addstair(out, parameters);
+    if (cmd == "addramp")
+        return addramp(out, parameters);
+    if (cmd == "remstair")
+        return remstair(out, parameters);
 
-    df::tiletype_shape shape = tileShape(Maps::getTileType(cx, cy, cz));
-    if (shape != tiletype_shape::RAMP)
-    {
-        out.printerr("There is no ramp here!\n");
-        return CR_FAILURE;
-    }
-
-    // change upward ramp to floor
-    const df::tile_chr floors[4] = { tile_chr::Floor1, tile_chr::Floor2, tile_chr::Floor3, tile_chr::Floor4 };
-    setTileChr(cx, cy, cz, floors[random(4)]);
-
-    // and change downward ramp to open space
-    setTileChr(cx, cy, cz + 1, tile_chr::OpenSpace);
-    setTileColor(cx, cy, cz + 1, 0);
-
-    world->reindex_pathfinding = true;
-    out.print("Successfully removed ramp.\n");
-    return CR_OK;
+    return CR_WRONG_USAGE;
 }
 
 DFHACK_PLUGIN("df3d");
@@ -826,24 +829,22 @@ DFHACK_PLUGIN("df3d");
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
     commands.push_back(PluginCommand(
-        "addzlevel", "Add a new Z-level to the fortress",
-        df_addzlevel, false,
-        "  Adds a new Z-level to your fortress. Best used immediately after embark.\n"
-    ));
-    commands.push_back(PluginCommand(
-        "addstair", "Insert upward stairs",
-        df_addstair, false,
-        "  Adds a staircase up to the Z-level above you.\n"
-    ));
-    commands.push_back(PluginCommand(
-        "addramp", "Insert ramp",
-        df_addramp, false,
-        "  Adds a ramp up to the Z-level above you.\n"
-    ));
-    commands.push_back(PluginCommand(
-        "remramp", "Remove ramp",
-        df_remramp, false,
-        "  Removes the ramp beneath the cursor.\n"
+        "df3d", "Make the 2D version of Dwarf Fortress more 3-dimensional.", df_3d, false,
+        "  df3d addz\n"
+        "    Adds a new Z-level to your fortress map.\n"
+        "  df3d addstair\n"
+        "    Inserts an upward staircase at the cursor and places a downward staircase\n"
+        "    in the tile immediately above it, revealing any tiles around it.\n"
+        "    Can only be used on floor tiles made of stone (gray/light/dark).\n"
+        "  df3d addramp\n"
+        "    Inserts an upward ramp at the cursor and places a downward ramp in the\n"
+        "    tile immediately above it, revealing any tiles around it.\n"
+        "    Can only be used on floor tiles made of stone (gray/light/dark).\n"
+        "    Note that dwarves can NOT dig out tiles immediately adjacent to ramps, so\n"
+        "    you will need to dig stairs to the area first.\n"
+        "    Also, adjacent walls are NOT needed to traverse ramps in either direction.\n"
+        "  df3d remstair\n"
+        "    Deletes upward stairs/ramps from the tile under the cursor.\n"
     ));
     return CR_OK;
 }
