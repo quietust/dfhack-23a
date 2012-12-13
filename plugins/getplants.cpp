@@ -12,8 +12,8 @@
 #include "df/tile_dig_designation.h"
 #include "df/matgloss_plant.h"
 #include "df/matgloss_wood.h"
+#include "df/plant.h"
 
-#include "modules/Vegetation.h"
 #include <set>
 
 using std::string;

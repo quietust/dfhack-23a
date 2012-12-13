@@ -967,12 +967,12 @@ int Units::computeMovementSpeed(df::unit *unit)
 
     // Stance
 
-    if (!unit->flags1.bits.on_ground && unit->status2.able_stand > 2)
+    if (!unit->flags1.bits.on_ground && unit->status2.limbs_stand_max > 2)
     {
         // WTF
-        int as = unit->status2.able_stand;
+        int as = unit->status2.limbs_stand_max;
         int x = (as-1) - (as>>1);
-        int y = as - unit->status2.able_stand_impair;
+        int y = as - unit->status2.limbs_stand_count;
         y = y * 500 / x;
         if (y > 0) speed += y;
     }

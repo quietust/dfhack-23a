@@ -53,6 +53,7 @@ using namespace std;
 #include "df/region_map_entry.h"
 #include "df/flow_info.h"
 #include "df/matgloss_stone.h"
+#include "df/plant.h"
 
 using namespace DFHack;
 using namespace df::enums;

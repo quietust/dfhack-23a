@@ -35,6 +35,7 @@ using namespace std;
 #include "df/matgloss_stone.h"
 #include "df/matgloss_plant.h"
 #include "df/matgloss_wood.h"
+#include "df/plant.h"
 
 using namespace DFHack;
 using namespace df::enums;
