@@ -9,16 +9,18 @@
 #include "Console.h"
 #include "Export.h"
 #include "PluginManager.h"
-#include "modules/Vegetation.h"
 #include "modules/Maps.h"
 #include "modules/Gui.h"
 #include "TileTypes.h"
 #include "modules/MapCache.h"
+#include "df/plant.h"
 
 using std::vector;
 using std::string;
 using namespace DFHack;
 using df::global::world;
+
+const uint32_t sapling_to_tree_threshold = 120 * 28 * 12 * 3; // 3 years
 
 command_result df_grow (color_ostream &out, vector <string> & parameters);
 command_result df_immolate (color_ostream &out, vector <string> & parameters);
@@ -220,7 +222,7 @@ command_result df_grow (color_ostream &out, vector <string> & parameters)
                     if(tileShape(map.tiletypeAt(DFCoord(x,y,z))) == tiletype_shape::SAPLING &&
                         tileSpecial(map.tiletypeAt(DFCoord(x,y,z))) != tiletype_special::DEAD)
                     {
-                        tree->grow_counter = Vegetation::sapling_to_tree_threshold;
+                        tree->grow_counter = sapling_to_tree_threshold;
                     }
                     break;
                 }
@@ -237,7 +239,7 @@ command_result df_grow (color_ostream &out, vector <string> & parameters)
             bool is_shrub = p->flags >= plant_flags::shrub_forest;
             if(!is_shrub && tileShape(ttype) == tiletype_shape::SAPLING && tileSpecial(ttype) != tiletype_special::DEAD)
             {
-                p->grow_counter = Vegetation::sapling_to_tree_threshold;
+                p->grow_counter = sapling_to_tree_threshold;
             }
         }
     }

@@ -199,7 +199,7 @@ skip:
 	jmp	eax
 } }
 
-#define	FUNC_LEN	256
+#define	FUNC_LEN	512
 #define	DF_PROC_NAME	"Dwarf Fortress"
 
 HANDLE h_process;

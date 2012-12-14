@@ -118,7 +118,6 @@ include/modules/MapCache.h
 include/modules/Materials.h
 include/modules/Screen.h
 include/modules/Translation.h
-include/modules/Vegetation.h
 include/modules/Vermin.h
 include/modules/World.h
 include/modules/Graphic.h
@@ -136,7 +135,6 @@ modules/Maps.cpp
 modules/Materials.cpp
 modules/Screen.cpp
 modules/Translation.cpp
-modules/Vegetation.cpp
 modules/Vermin.cpp
 modules/World.cpp
 modules/Graphic.cpp

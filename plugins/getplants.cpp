@@ -12,8 +12,8 @@
 #include "df/map_block.h"
 #include "df/matgloss_plant.h"
 #include "df/matgloss_wood.h"
+#include "df/plant.h"
 
-#include "modules/Vegetation.h"
 #include <set>
 
 using std::string;

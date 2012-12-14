@@ -51,6 +51,7 @@ using namespace std;
 #include "df/matgloss_stone.h"
 #include "df/matgloss_gem.h"
 #include "df/mineral_cluster.h"
+#include "df/plant.h"
 
 using namespace DFHack;
 using namespace df::enums;

@@ -60,7 +60,6 @@ distribution.
 #include "modules/Translation.h"
 #include "modules/World.h"
 #include "modules/Items.h"
-#include "modules/Vegetation.h"
 #include "modules/Maps.h"
 #include "modules/Gui.h"
 
