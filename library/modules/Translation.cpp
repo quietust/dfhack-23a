@@ -135,7 +135,7 @@ void Translation::setNickname(df::language_name *name, std::string nick)
     {
         bool has_words = false;
         for (int i = 0; i < 7; i++)
-            if (name->words[i] >= 0)
+            if (name->parts[i].word >= 0)
                 has_words = true;
 
         if (!has_words)
