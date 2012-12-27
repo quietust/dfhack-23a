@@ -1550,6 +1550,10 @@ void DFHack::Lua::Notification::bind(lua_State *state, const char *name)
 
 void OpenDFHackApi(lua_State *state);
 
+namespace DFHack { namespace Lua { namespace Core {
+    static void InitCoreContext();
+}}}
+
 lua_State *DFHack::Lua::Open(color_ostream &out, lua_State *state)
 {
     if (!state)
@@ -1652,6 +1656,10 @@ lua_State *DFHack::Lua::Open(color_ostream &out, lua_State *state)
     lua_setglobal(state, "_G");
     lua_dup(state);
     lua_rawseti(state, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS);
+
+    // Init core-context specific stuff before loading dfhack.lua
+    if (IsCoreContext(state))
+        Lua::Core::InitCoreContext();
 
     // load dfhack.lua
     Require(out, state, "dfhack");
@@ -1828,8 +1836,12 @@ void DFHack::Lua::Core::Init(color_ostream &out)
 
     State = luaL_newstate();
 
+    // Calls InitCoreContext after checking IsCoreContext
     Lua::Open(out, State);
+}
 
+static void Lua::Core::InitCoreContext()
+{
     lua_newtable(State);
     lua_rawsetp(State, LUA_REGISTRYINDEX, &DFHACK_TIMEOUTS_TOKEN);
 
