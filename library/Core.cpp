@@ -997,15 +997,16 @@ bool Core::Init()
     }
     cerr << "Version: " << vinfo->getVersion() << endl;
 
-    int *sbh_threshold = NULL;
-    if (!vinfo->getAddress("malloc_sbh_threshold", sbh_threshold))
-    {
-        fatal ("Could not confirm presence of malloc patch!\n", false);
-        return false;
-    }
+    uint32_t *sbh_threshold = (uint32_t *)0x7a3b04;
     if (*sbh_threshold != 0)
     {
         fatal ("Malloc patch has not been applied!\n", false);
+        return false;
+    }
+    uint8_t *heap_serial = (uint8_t *)0x71e74f;
+    if (*heap_serial != 0x95)
+    {
+        fatal ("Serialized heap access patch has not been applied!\n", false);
         return false;
     }
 
