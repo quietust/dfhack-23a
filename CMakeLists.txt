@@ -59,7 +59,6 @@ endif()
 
 # set up versioning.
 set(DF_VERSION "0.23.130.23a")
-
 SET(DFHACK_RELEASE "r1" CACHE STRING "Current release revision.")
 
 set(DFHACK_VERSION "${DF_VERSION}-${DFHACK_RELEASE}")

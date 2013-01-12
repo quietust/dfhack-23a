@@ -2411,6 +2411,40 @@ the intended user. In order to aid in the choice, it shows the number
 of currently assigned racks for every valid squad.
 
 
+gui/advfort
+=============
+
+This script allows to perform jobs in adventure mode. For more complete help
+press '?' while script is running. It's most confortable to use this as a 
+keybinding. (e.g. keybinding set Ctrl-T gui/advfort). Possible arguments:
+
+* -a or --nodfassign - uses different method to assign items.
+
+* -i or --inventory - checks inventory for possible items to use in the job.
+
+* -c or --cheat - relaxes item requirements for buildings (e.g. walls from bones).
+  implies -a
+  
+* job - selects that job (e.g. Dig or FellTree)
+
+
+gui/gm-editor
+=============
+
+There are three ways to open this editor:
+
+* using gui/gm-editor command/keybinding - opens editor on what is selected
+  or viewed (e.g. unit/item description screen)
+
+* using gui/gm-editor <lua command> - executes lua command and opens editor on
+  it's results (e.g. gui/gm-editor "df.global.world.items.all" shows all items)
+  
+* using gui/gm-edito dialog - shows an in game dialog to input lua command. Works
+  the same as version above.
+  
+This editor allows to change and modify almost anything in df. Press '?' for an 
+in-game help.
+
 =============
 Behavior Mods
 =============
@@ -2604,3 +2638,4 @@ be bought from caravans. :)
 
 To be really useful this needs patches from bug 808, ``tweak fix-dimensions``
 and ``tweak advmode-contained``.
+

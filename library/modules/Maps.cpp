@@ -30,10 +30,12 @@ distribution.
 #include <map>
 #include <set>
 #include <cstdlib>
+#include <iostream>
 using namespace std;
 
 #include "modules/Maps.h"
 #include "modules/MapCache.h"
+#include "ColorText.h"
 #include "Error.h"
 #include "VersionInfo.h"
 #include "MemAccess.h"
@@ -52,6 +54,7 @@ using namespace std;
 #include "df/matgloss_gem.h"
 #include "df/mineral_cluster.h"
 #include "df/plant.h"
+#include "df/building_type.h"
 
 using namespace DFHack;
 using namespace df::enums;
@@ -223,6 +226,73 @@ bool Maps::canWalkBetween(df::coord pos1, df::coord pos2)
     auto tile2 = index_tile<uint16_t>(block2->walkable, pos2);
 
     return tile1 && tile1 == tile2;
+}
+
+bool Maps::canStepBetween(df::coord pos1, df::coord pos2)
+{
+    color_ostream& out = Core::getInstance().getConsole();
+    int32_t dx = pos2.x-pos1.x;
+    int32_t dy = pos2.y-pos1.y;
+    int32_t dz = pos2.z-pos1.z;
+
+    if ( dx*dx > 1 || dy*dy > 1 || dz*dz > 1 )
+        return false;
+
+    // cannot move diagonally
+    if ( dx*dx + dy*dy > 1)
+        return false;
+
+    if ( pos2.z < pos1.z ) {
+        df::coord temp = pos1;
+        pos1 = pos2;
+        pos2 = temp;
+    }
+
+    df::map_block* block1 = getTileBlock(pos1);
+    df::map_block* block2 = getTileBlock(pos2);
+
+    if ( !block1 || !block2 )
+        return false;
+
+    if ( !index_tile<uint16_t>(block1->walkable,pos1) || !index_tile<uint16_t>(block2->walkable,pos2) ) {
+        return false;
+    }
+
+    if ( dz == 0 )
+        return true;
+
+    df::tiletype type1 = Maps::getTileType(pos1);
+    df::tiletype type2 = Maps::getTileType(pos2);
+
+    df::tiletype_shape shape1 = ENUM_ATTR(tiletype,shape,type1);
+    df::tiletype_shape shape2 = ENUM_ATTR(tiletype,shape,type2);
+
+    if ( dx == 0 && dy == 0 ) {
+        //check for forbidden hatches and floors and such
+        df::enums::tile_building_occ::tile_building_occ upOcc = index_tile<df::tile_occupancy>(block2->occupancy,pos2).bits.building;
+        if ( upOcc == df::enums::tile_building_occ::Impassable)
+            return false;
+
+        if ( shape1 == tiletype_shape::STAIR_UPDOWN && shape2 == shape1 )
+            return true;
+        if ( shape1 == tiletype_shape::STAIR_UPDOWN && shape2 == tiletype_shape::STAIR_DOWN )
+            return true;
+        if ( shape1 == tiletype_shape::STAIR_UP && shape2 == tiletype_shape::STAIR_UPDOWN )
+            return true;
+        if ( shape1 == tiletype_shape::STAIR_UP && shape2 == tiletype_shape::STAIR_DOWN )
+            return true;
+        // ramps in 23a are simple - they don't need walls next to them
+        if ( shape1 == tiletype_shape::RAMP && shape2 == tiletype_shape::RAMP_TOP )
+            return true;
+        return false;
+    }
+    
+    //diagonal up: has to be a ramp
+    if ( shape1 == tiletype_shape::RAMP /*&& shape2 == tiletype_shape::RAMP*/ ) {
+        return true;
+    }
+
+    return false;
 }
 
 #define COPY(a,b) memcpy(&a,&b,sizeof(a))

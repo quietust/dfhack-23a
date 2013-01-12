@@ -177,6 +177,7 @@ DFHACK_EXPORT void enableBlockUpdates(df::map_block *blk, bool flow = false, boo
 DFHACK_EXPORT df::flow_info *spawnFlow(df::coord pos, df::flow_type type, int mat_type = 0, int mat_index = -1, int density = 100);
 
 DFHACK_EXPORT bool canWalkBetween(df::coord pos1, df::coord pos2);
+DFHACK_EXPORT bool canStepBetween(df::coord pos1, df::coord pos2);
 }
 }
 #endif

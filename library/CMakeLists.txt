@@ -109,6 +109,7 @@ SET(MODULE_HEADERS
 include/modules/Buildings.h
 include/modules/Units.h
 include/modules/Engravings.h
+include/modules/EventManager.h
 include/modules/Gui.h
 include/modules/Items.h
 include/modules/Job.h
@@ -127,6 +128,7 @@ SET( MODULE_SOURCES
 modules/Buildings.cpp
 modules/Units.cpp
 modules/Engravings.cpp
+modules/EventManager.cpp
 modules/Gui.cpp
 modules/Items.cpp
 modules/Job.cpp
