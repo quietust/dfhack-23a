@@ -44,6 +44,7 @@ using namespace std;
 #include "VersionInfo.h"
 #include "PluginManager.h"
 #include "ModuleFactory.h"
+#include "modules/EventManager.h"
 #include "modules/Gui.h"
 #include "modules/World.h"
 #include "modules/Graphic.h"
@@ -1057,6 +1058,7 @@ bool Core::Init()
     cerr << "Initializing Plugins.\n";
     // create plugin manager
     plug_mgr = new PluginManager(this);
+    plug_mgr->init(this);
     IODATA *temp = new IODATA;
     temp->core = this;
     temp->plug_mgr = plug_mgr;
@@ -1388,6 +1390,8 @@ static int buildings_timer = 0;
 
 void Core::onUpdate(color_ostream &out)
 {
+    EventManager::manageEvents(out);
+
     // convert building reagents
     if (buildings_do_onupdate && (++buildings_timer & 1))
         buildings_onUpdate(out);
@@ -1401,6 +1405,8 @@ void Core::onUpdate(color_ostream &out)
 
 void Core::onStateChange(color_ostream &out, state_change_event event)
 {
+    EventManager::onStateChange(out, event);
+
     buildings_onStateChange(out, event);
 
     plug_mgr->OnStateChange(out, event);
