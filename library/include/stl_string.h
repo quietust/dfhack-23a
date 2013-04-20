@@ -24,6 +24,7 @@ protected:
 			memcpy(newdata + 1, _getptr(), oldlen);
 		_tidy(true);
 		_data = newdata + 1;
+		_data[-1] = 0;
 		_alloc = newlen;
 		_setlen(oldlen);
 	}
@@ -32,9 +33,30 @@ protected:
 		_getptr()[len] = 0;
 		_size = len;
 	}
+	void _freeze()
+	{
+		if (_data && _data[-1] && _data[-1] != 255)
+			_grow(_size);
+		if (_data)
+			_data[-1] = 255;
+	}
 	bool _grow (size_t len, bool trim = false)
 	{
 		// throw if too long
+		if (_data && _data[-1] && _data[-1] != 255) // check for non-zero reference count
+		{
+			if (len == 0)
+			{
+				_data[-1]--;
+				_tidy();
+				return false;
+			}
+			else
+			{
+				_copy(len, size());
+				return true;
+			}
+		}
 		if (len > _alloc)
 			_copy(len, size());
 		else if (trim && len == 0)
@@ -53,14 +75,28 @@ protected:
 			return false;
 		return true;
 	}
+	void _split()
+	{
+		if (_data && _data[-1] && _data[-1] != 255)
+		{
+			E *tmp = _data;
+			_tidy(true);
+			assign(tmp);
+		}
+	}
 	void _tidy(bool built = false)
 	{
 		if (!built)
 			;
 		else if (_data)
 		{
-			E *ptr = _data - 1;
-			_allocator.deallocate(ptr, _alloc + 2);
+			if (_data[-1] && _data[-1] != 255)
+				_data[-1]--;
+			else
+			{
+				E *ptr = _data - 1;
+				_allocator.deallocate(ptr, _alloc + 2);
+			}
 		}
 		_data = 0;
 		_size = 0;
@@ -328,6 +364,7 @@ public:
 	basic_string<E,A>& erase (size_t pos = 0, size_t n = -1)
 	{
 		// throw if out of range
+		_split();
 		if (n > size() - pos)
 			n = size() - pos;
 		if (n > 0)
@@ -356,6 +393,7 @@ public:
 
 	iterator begin()
 	{
+		_freeze();
 		return _getptr();
 	}
 	const_iterator begin() const
@@ -364,6 +402,7 @@ public:
 	}
 	iterator end()
 	{
+		_freeze();
 		return _getptr() + size();
 	}
 	const_iterator end() const
@@ -376,6 +415,7 @@ public:
 	E& at (size_t pos)
 	{
 		// throw if out of range
+		_freeze();
 		return _getptr()[pos];
 	}
 	const E& at (size_t pos) const
@@ -383,11 +423,12 @@ public:
 		// throw if out of range
 		return _getptr()[pos];
 	}
-	const E& operator[] (size_t pos) const
+	E& operator[] (size_t pos)
 	{
+		_freeze();
 		return _getptr()[pos];
 	}
-	E& operator[] (size_t pos)
+	const E& operator[] (size_t pos) const
 	{
 		return _getptr()[pos];
 	}
