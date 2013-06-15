@@ -35,15 +35,15 @@ protected:
 	}
 	void _freeze()
 	{
-		if (_data && _data[-1] && _data[-1] != 255)
+		if (_data && _data[-1] && _data[-1] != (E)255)
 			_grow(_size);
 		if (_data)
-			_data[-1] = 255;
+			_data[-1] = (E)255;
 	}
 	bool _grow (size_t len, bool trim = false)
 	{
 		// throw if too long
-		if (_data && _data[-1] && _data[-1] != 255) // check for non-zero reference count
+		if (_data && _data[-1] && _data[-1] != (E)255) // check for non-zero reference count
 		{
 			if (len == 0)
 			{
@@ -77,7 +77,7 @@ protected:
 	}
 	void _split()
 	{
-		if (_data && _data[-1] && _data[-1] != 255)
+		if (_data && _data[-1] && _data[-1] != (E)255)
 		{
 			E *tmp = _data;
 			_tidy(true);
@@ -90,7 +90,7 @@ protected:
 			;
 		else if (_data)
 		{
-			if (_data[-1] && _data[-1] != 255)
+			if (_data[-1] && _data[-1] != (E)255)
 				_data[-1]--;
 			else
 			{
