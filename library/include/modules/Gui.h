@@ -1,4 +1,4 @@
-/*
+﻿/*
 https://github.com/peterix/dfhack
 Copyright (c) 2009-2012 Petr Mrázek (peterix@gmail.com)
 
@@ -97,6 +97,7 @@ namespace DFHack
         DFHACK_EXPORT df::building *getSelectedBuilding(color_ostream &out, bool quiet = false);
 
         // Show a plain announcement, or a titan-style popup message
+        DFHACK_EXPORT void showZoomAnnouncement(df::coord pos, std::string message, int color = 7, bool bright = true);
         DFHACK_EXPORT void showAnnouncement(std::string message, int color = 7, bool bright = true);
         DFHACK_EXPORT void showPopupAnnouncement(std::string message, int color = 7, bool bright = true);
 

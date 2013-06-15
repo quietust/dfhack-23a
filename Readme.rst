@@ -16,12 +16,12 @@ access DF memory and allow for easier development of new tools.
 ==============
 Getting DFHack
 ==============
-The project is currently hosted on github_, for both source and
-binaries at  http://github.com/peterix/dfhack
+The project is currently hosted on github_
+at http://github.com/peterix/dfhack
 
 .. _github: http://www.github.com/
 
-Releases can be downloaded from here: https://github.com/peterix/dfhack/downloads
+Releases can be downloaded from here: http://dethware.org/dfhack/download
 
 All new releases are announced in the bay12 thread: http://tinyurl.com/dfhack-ng
 
@@ -448,6 +448,26 @@ Allows listing all the vermin colonies on the map and optionally turning them in
 Options:
 
  :bees: turn colonies into honey bee colonies
+
+createitem
+----------
+Allows creating new items of arbitrary types and made of arbitrary materials.
+Any items created are spawned at the feet of the selected unit.
+
+Specify the item and material information as you would indicate them in custom reaction raws, with the following differences:
+* Separate the item and material with a space rather than a colon
+* If the item has no subtype, omit the :NONE
+* If the item is REMAINS, FISH, FISH_RAW, VERMIN, PET, or EGG, specify a CREATURE:CASTE pair instead of a material token.
+
+Corpses, body parts, and prepared meals cannot be created using this tool.
+
+Examples:
+ ``createitem GLOVES:ITEM_GLOVES_GAUNTLETS INORGANIC:STEEL 2``
+   Create 2 pairs of steel gauntlets.
+ ``createitem WOOD PLANT_MAT:TOWER_CAP:WOOD``
+   Create tower-cap logs.
+ ``createitem FISH FISH_SHAD:MALE 5``
+   Create a stack of 5 cleaned shad, ready to eat.
 
 deramp (by zilpin)
 ------------------
@@ -926,6 +946,14 @@ Traffic Type Codes:
 Example:
 
  'alltraffic N' - Set traffic to 'normal' for all tiles.
+
+restrictliquid
+--------------
+Restrict traffic on all visible tiles with liquid.
+
+restrictice
+-----------
+Restrict traffic on all tiles on top of visible ice.
 
 getplants
 ---------
@@ -1693,6 +1721,8 @@ also tries to have dwarves specialize in specific skills.
 
     Warning: autolabor will override any manual changes you make to labors
     while it is enabled.
+    
+    To prevent particular dwarves from being managed by autolabor, put them in any burrow.
 
 For detailed usage information, see 'help autolabor'.
 
@@ -1773,6 +1803,12 @@ Scripts in this subdirectory fix various bugs and issues, some of them obscure.
   Diagnoses and fixes issues with nonexistant 'items occupying site', usually
   caused by autodump bugs or other hacking mishaps.
 
+* fix/cloth-stockpile
+
+  Fixes erratic behavior of cloth stockpiles by scanning material objects
+  in memory and patching up some invalid reference fields. Needs to be run
+  every time a save game is loaded; putting ``fix/cloth-stockpile enable``
+  in ``dfhack.init`` makes it run automatically.
 
 gui/*
 =====
@@ -1821,7 +1857,7 @@ use in your farming plots.
 With a seed type, the script will grow 100 of these seeds, ready to be
 harvested. You can change the number with a 2nd argument.
 
-For exemple, to grow 40 plump helmet spawn:
+For example, to grow 40 plump helmet spawn:
 :: 
 
     growcrops plump 40
@@ -1846,8 +1882,8 @@ Internals: the thoughts are set to be very old, so that the game remove them
 quickly after you unpause.
 
 
-slayrace
-========
+exterminate
+===========
 Kills any unit of a given race.
 
 With no argument, lists the available races and count eligible targets.
@@ -1864,42 +1900,58 @@ such as vampires, it also sets animal.vanish_countdown to 2.
 An alternate mode is selected by adding a 2nd argument to the command,
 ``magma``. In this case, a column of 7/7 magma is generated on top of the
 targets until they die (Warning: do not call on magma-safe creatures. Also,
-using this mode for birds is not recommanded.)
+using this mode on birds is not recommanded.)
 
-Will target any unit on a revealed tile of the map, including ambushers.
+Will target any unit on a revealed tile of the map, including ambushers,
+but ignore caged/chained creatures.
 
 Ex::
 
-    slayrace gob
+    exterminate gob
 
 To kill a single creature, select the unit with the 'v' cursor and::
 
-    slayrace him
+    exterminate him
 
 To purify all elves on the map with fire (may have side-effects)::
 
-    slayrace elve magma
+    exterminate elve magma
 
 
-magmasource
-===========
-Create an infinite magma source on a tile.
+source
+======
+Create an infinite magma or water source or drain on a tile.
 
-This script registers a map tile as a magma source, and every 12 game ticks
-that tile receives 1 new unit of flowing magma.
+This script registers a map tile as a liquid source, and every 12 game ticks
+that tile receives or remove 1 new unit of flow based on the configuration.
 
 Place the game cursor where you want to create the source (must be a
 flow-passable tile, and not too high in the sky) and call::
 
-    magmasource here
+    source add [magma|water] [0-7]
 
-To add more than 1 unit everytime, call the command again.
+The number argument is the target liquid level (0 = drain, 7 = source).
 
-To delete one source, place the cursor over its tile and use ``delete-here``.
-To remove all placed sources, call ``magmasource stop``.
+To add more than 1 unit everytime, call the command again on the same spot.
 
-With no argument, this command shows an help message and list existing sources.
+To delete one source, place the cursor over its tile and use ``delete``.
+To remove all existing sources, call ``source clear``.
 
+The ``list`` argument shows all existing sources.
+
+Ex::
+
+    source add water     - water source
+    source add magma 7   - magma source
+    source add water 0   - water drain
+
+masspit
+=======
+Designate all creatures in cages on top of a pit/pond activity zone for pitting.
+Works best with an animal stockpile on top of the zone.
+
+Works with a zone number as argument (eg ``Activity Zone #6`` -> ``masspit 6``)
+or with the game cursor on top of the area.
 
 digfort
 =======
@@ -2023,7 +2075,7 @@ Note that the script does not enforce anything, and will let you create
 boulders of toad blood and stuff like that.
 However the ``list`` mode will only show 'normal' materials.
 
-Exemples::
+Examples::
 
     create-items boulders COAL_BITUMINOUS 12
     create-items plant tail_pig
@@ -2031,6 +2083,40 @@ Exemples::
     create-items web CREATURE:SPIDER_CAVE_GIANT:SILK
     create-items bar CREATURE:CAT:SOAP
     create-items bar adamantine
+
+locate-ore
+==========
+Scan the map for metal ores.
+
+Finds and designate for digging one tile of a specific metal ore.
+Only works for native metal ores, does not handle reaction stuff (eg STEEL).
+
+When invoked with the ``list`` argument, lists metal ores available on the map.
+
+Examples::
+    locate-ore list
+    locate-ore hematite
+    locate-ore iron
+
+soundsense-season
+=================
+
+It is a well known issue that Soundsense cannot detect the correct
+current season when a savegame is loaded and has to play random
+season music until a season switch occurs.
+
+This script registers a hook that prints the appropriate string
+to gamelog.txt on every map load to fix this. For best results
+call the script from ``dfhack.init``.
+
+multicmd
+========
+Run multiple dfhack commands. The argument is split around the
+character ; and all parts are run sequencially as independent
+dfhack commands. Useful for hotkeys.
+
+Example::
+    multicmd locate-ore iron ; digv
 
 =======================
 In-game interface tools
@@ -2105,7 +2191,9 @@ directly to the main dwarf mode screen.
 Search
 ======
 
-The search plugin adds search to the Stocks, Trading, Stockpile and Unit List screens.
+The search plugin adds search to the Stocks, Animals, Trading, Stockpile,
+Noble (assignment candidates), Military (position candidates), Burrows
+(unit list), Rooms, Announcements, Job List and Unit List screens.
 
 .. image:: images/search.png
 
@@ -2125,8 +2213,9 @@ Leaving any screen automatically clears the filter.
 
 In the Trade screen, the actual trade will always only act on items that
 are actually visible in the list; the same effect applies to the Trade
-Value numbers displayed by the screen. Because of this, pressing the 't'
-key while search is active clears the search instead of executing the trade.
+Value numbers displayed by the screen. Because of this, the 't' key is
+blocked while search is active, so you have to reset the filters first.
+Pressing Alt-C will clear both search strings.
 
 In the stockpile screen the option only appears if the cursor is in the
 rightmost list:
@@ -2182,8 +2271,25 @@ To use, bind to a key (the example config uses Alt-L) and activate in the 'k' mo
 
 .. image:: images/liquids.png
 
-While active, use the suggested keys to switch the usual liquids parameters, and Enter
-to select the target area and apply changes.
+This script is a gui front-end to the liquids plugin and works similar to it,
+allowing you to add or remove water & magma, and create obsidian walls & floors.
+Note that there is **no undo support**, and that bugs in this plugin have been
+known to create pathfinding problems and heat traps.
+
+The ``b`` key changes how the affected area is selected. The default *Rectangle*
+mode works by selecting two corners like any ordinary designation. The ``p``
+key chooses between adding water, magma, obsidian walls & floors, or just
+tweaking flags.
+
+When painting liquids, it is possible to select the desired level with ``+-``,
+and choose between setting it exactly, only increasing or only decreasing
+with ``s``.
+
+In addition, ``f`` allows disabling or enabling the flowing water computations
+for an area, and ``r`` operates on the "permanent flow" property that makes
+rivers power water wheels even when full and technically not flowing.
+
+After setting up the desired operations using the described keys, use ``Enter`` to apply them.
 
 
 gui/mechanisms
@@ -2427,6 +2533,21 @@ keybinding. (e.g. keybinding set Ctrl-T gui/advfort). Possible arguments:
   
 * job - selects that job (e.g. Dig or FellTree)
 
+gui/companion-order
+=======================
+
+A script to issue orders for companions. Select companions with lower case chars, issue orders with upper 
+case. Must be in look or talk mode to issue command on tile.
+
+* move - orders selected companions to move to location. If companions are following they will move no more than 3 tiles from you.
+* equip - try to equip items on the ground.
+* pick-up - try to take items into hand (also wield)
+* unequip - remove and drop equipment
+* unwield - drop held items
+* wait - temporarely remove from party
+* follow - rejoin the party after "wait"
+* leave - remove from party (can be rejoined by talking)
+
 
 gui/gm-editor
 =============
@@ -2439,7 +2560,7 @@ There are three ways to open this editor:
 * using gui/gm-editor <lua command> - executes lua command and opens editor on
   it's results (e.g. gui/gm-editor "df.global.world.items.all" shows all items)
   
-* using gui/gm-edito dialog - shows an in game dialog to input lua command. Works
+* using gui/gm-editor dialog - shows an in game dialog to input lua command. Works
   the same as version above.
   
 This editor allows to change and modify almost anything in df. Press '?' for an 
