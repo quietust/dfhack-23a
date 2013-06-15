@@ -1,4 +1,4 @@
-/*
+﻿/*
 https://github.com/peterix/dfhack
 Copyright (c) 2009-2012 Petr Mrázek (peterix@gmail.com)
 
@@ -837,6 +837,12 @@ df::building *Gui::getSelectedBuilding(color_ostream &out, bool quiet)
 }
 
 //
+void Gui::showZoomAnnouncement(df::coord pos, std::string message, int color, bool bright)
+{
+    showAnnouncement(message, color, bright);
+    resetDwarfmodeView(true);
+    revealInDwarfmodeMap(pos, true);
+}
 
 void Gui::showAnnouncement(std::string message, int color, bool bright)
 {

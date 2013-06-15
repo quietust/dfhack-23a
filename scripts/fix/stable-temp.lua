@@ -17,13 +17,6 @@ local function update_temp(item,btemp)
     if apply then
         item.temperature.whole = btemp
         item.temperature.fraction = 0
-
-        if item.contaminants then
-            for _,c in ipairs(item.contaminants) do
-                c.temperature.whole = btemp
-                c.temperature.fraction = 0
-            end
-        end
     end
 
     for _,sub in ipairs(dfhack.items.getContainedItems(item)) do

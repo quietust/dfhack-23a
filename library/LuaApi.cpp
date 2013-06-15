@@ -1,4 +1,4 @@
-/*
+﻿/*
 https://github.com/peterix/dfhack
 Copyright (c) 2009-2012 Petr Mrázek (peterix@gmail.com)
 
@@ -1042,6 +1042,7 @@ static const LuaWrapper::FunctionReg dfhack_gui_module[] = {
     WRAPM(Gui, getSelectedItem),
     WRAPM(Gui, getSelectedBuilding),
     WRAPM(Gui, showAnnouncement),
+    WRAPM(Gui, showZoomAnnouncement),
     { NULL, NULL }
 };
 
