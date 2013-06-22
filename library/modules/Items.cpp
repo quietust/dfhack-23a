@@ -789,7 +789,7 @@ void Items::item_categorize(df::item *item, bool in_play)
     {
         movzx eax, in_play
         push eax
-        mov edi, item
+        mov ecx, item
         mov eax, func_ptr
         call eax
     }
@@ -802,12 +802,8 @@ void Items::item_uncategorize(df::item *item)
 
     __asm
     {
-        push ebx
-
-        mov eax, item
-        mov ebx, func_ptr
-        call ebx
-
-        pop ebx
+        mov ecx, item
+        mov eax, func_ptr
+        call eax
     }
 }
