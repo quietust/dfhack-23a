@@ -1199,6 +1199,12 @@ int Core::TileUpdate()
 {
     if(!started)
         return false;
+
+    color_ostream_proxy out(con);
+
+    // notify all the plugins that the screen is about to be rendered
+    plug_mgr->OnRender(out);
+
     return true;
 }
 

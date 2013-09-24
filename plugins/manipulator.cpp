@@ -1223,6 +1223,8 @@ df::unit *viewscreen_unitlaborsst::getSelectedUnit()
     return units[sel_row]->unit;
 }
 
+bool inRenderHook;
+
 struct unitjobs_hook : df::viewscreen_unitjobsst
 {
     typedef df::viewscreen_unitjobsst interpose_base;
@@ -1237,9 +1239,24 @@ struct unitjobs_hook : df::viewscreen_unitjobsst
                 return;
             }
         }
+        if (units.size())
+            inRenderHook = true;
         INTERPOSE_NEXT(view)();
     }
 };
+
+DFhackCExport command_result plugin_onrender ( color_ostream &out)
+{
+    if (inRenderHook)
+    {
+        auto dim = Screen::getWindowSize();
+        int x = 2, y = dim.y - 2;
+        OutputString(12, x, y, Screen::getKeyDisplay(interface_key::UNITVIEW_PRF_PROF));
+        OutputString(15, x, y, ": Manage labors (DFHack)");
+        inRenderHook = false;
+    }
+    return CR_OK;
+}
 
 IMPLEMENT_VMETHOD_INTERPOSE(unitjobs_hook, view);
 

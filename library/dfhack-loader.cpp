@@ -391,6 +391,7 @@ bool	inject (void)
 	strcpy(hookData.dll_name, "dfhack.dll");
 	strcpy(hookData.init_name, "dfhackInit");
 	strcpy(hookData.update_name, "dfhackUpdate");
+	strcpy(hookData.render_name, "dfhackRender");
 	strcpy(hookData.unload_name, "dfhackUnload");
 
 	if (!WriteDFMemory((LPVOID)data, &hookData, sizeof(hooksData)))
