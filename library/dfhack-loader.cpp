@@ -33,6 +33,7 @@ struct hooksData
 0x74F074 == LoadLibraryA
 0x74F0C8 == GetProcAddress
 Update hook: inject call at 0x4B7E61, wrap around routine 0x514340 (no parameters)
+Render hook: inject call at 0x57E425, wrap around routine 0x57DF00 (__thiscall with 0 parameters)
 Unload hook: inject call at 0x4B7F34, wrap around routine 0x4BB0B0 (__thiscall with 1 parameter)
 hooksData pointer: 0x7A43FC
 */
@@ -59,6 +60,7 @@ hooksData pointer: 0x7A43FC
 0x96E0A0 == LoadLibraryA
 0x96E170 == GetProcAddress
 Update hook: inject call at 0x518F46, wrap around routine 0x6B8A50 (no parameters)
+Render hook: inject jump at 0x659027, return to 0x65902F when finished
 Unload hook: inject call at 0x51905C, wrap around routine 0x51C6B0 (single parameter in esi)
 hooksData pointer: 0x9FCB0C
 */
@@ -169,6 +171,7 @@ skip:
 
 __declspec(naked) void renderFunc() {
 __asm {
+	push	ecx
 	push	ebx
 	mov	ebx, ds:ADDR_HooksData
 	mov	eax, [HOOKSDATA_RENDER_FUNC]
@@ -177,6 +180,7 @@ __asm {
 	call	eax
 skip:
 	pop	ebx
+	pop	ecx
 	mov	eax, ADDR_RenderOriginalAddr
 #ifdef DFHACK_40d
 	xor	ebx, ebx
@@ -187,6 +191,7 @@ skip:
 
 __declspec(naked) void unloadFunc() {
 __asm {
+	push	ecx
 	push	ebx
 	mov	ebx, ds:ADDR_HooksData
 	mov	eax, [HOOKSDATA_UNLOAD_FUNC]
@@ -195,6 +200,7 @@ __asm {
 	call	eax
 skip:
 	pop	ebx
+	pop	ecx
 	mov	eax, ADDR_UnloadOriginalAddr
 	jmp	eax
 } }
