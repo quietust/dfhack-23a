@@ -466,7 +466,7 @@ static const char *const primitive_types[] = {
     NULL
 };
 static type_identity *const primitive_identities[] = {
-    df::identity_traits<std::string>::get(),
+    df::identity_traits<stl::string>::get(),
     df::identity_traits<int8_t>::get(), df::identity_traits<uint8_t>::get(),
     df::identity_traits<int16_t>::get(), df::identity_traits<uint16_t>::get(),
     df::identity_traits<int32_t>::get(), df::identity_traits<uint32_t>::get(),

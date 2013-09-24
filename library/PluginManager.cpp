@@ -428,7 +428,7 @@ command_result Plugin::on_render(color_ostream &out)
     if(state == PS_LOADED && plugin_onrender)
     {
         cr = plugin_onrender(out);
-        Lua::Core::Reset(out, "plugin_onrender");
+//      Lua::Core::Reset(out, "plugin_onrender");
     }
     access->lock_sub();
     return cr;
