@@ -170,6 +170,7 @@ Plugin::Plugin(Core * core, const std::string & filepath, const std::string & _f
     plugin_shutdown = 0;
     plugin_status = 0;
     plugin_onupdate = 0;
+    plugin_onrender = 0;
     plugin_onstatechange = 0;
     plugin_rpcconnect = 0;
     state = PS_UNLOADED;
@@ -242,6 +243,7 @@ bool Plugin::load(color_ostream &con)
     }
     plugin_status = (command_result (*)(color_ostream &, std::string &)) LookupPlugin(plug, "plugin_status");
     plugin_onupdate = (command_result (*)(color_ostream &)) LookupPlugin(plug, "plugin_onupdate");
+    plugin_onrender = (command_result (*)(color_ostream &)) LookupPlugin(plug, "plugin_onrender");
     plugin_shutdown = (command_result (*)(color_ostream &)) LookupPlugin(plug, "plugin_shutdown");
     plugin_onstatechange = (command_result (*)(color_ostream &, state_change_event)) LookupPlugin(plug, "plugin_onstatechange");
     plugin_rpcconnect = (RPCService* (*)(color_ostream &)) LookupPlugin(plug, "plugin_rpcconnect");
@@ -414,6 +416,19 @@ command_result Plugin::on_update(color_ostream &out)
     {
         cr = plugin_onupdate(out);
         Lua::Core::Reset(out, "plugin_onupdate");
+    }
+    access->lock_sub();
+    return cr;
+}
+
+command_result Plugin::on_render(color_ostream &out)
+{
+    command_result cr = CR_NOT_IMPLEMENTED;
+    access->lock_add();
+    if(state == PS_LOADED && plugin_onrender)
+    {
+        cr = plugin_onrender(out);
+        Lua::Core::Reset(out, "plugin_onrender");
     }
     access->lock_sub();
     return cr;
@@ -678,6 +693,14 @@ void PluginManager::OnUpdate(color_ostream &out)
     for(size_t i = 0; i < all_plugins.size(); i++)
     {
         all_plugins[i]->on_update(out);
+    }
+}
+
+void PluginManager::OnRender(color_ostream &out)
+{
+    for(size_t i = 0; i < all_plugins.size(); i++)
+    {
+        all_plugins[i]->on_render(out);
     }
 }
 

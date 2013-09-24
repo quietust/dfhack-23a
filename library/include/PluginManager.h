@@ -137,6 +137,7 @@ namespace DFHack
         Plugin(DFHack::Core* core, const std::string& filepath, const std::string& filename, PluginManager * pm);
         ~Plugin();
         command_result on_update(color_ostream &out);
+        command_result on_render(color_ostream &out);
         command_result on_state_change(color_ostream &out, state_change_event event);
         void detach_connection(RPCService *svc);
     public:
@@ -194,6 +195,7 @@ namespace DFHack
         command_result (*plugin_status)(color_ostream &, std::string &);
         command_result (*plugin_shutdown)(color_ostream &);
         command_result (*plugin_onupdate)(color_ostream &);
+        command_result (*plugin_onrender)(color_ostream &);
         command_result (*plugin_onstatechange)(color_ostream &, state_change_event);
         RPCService* (*plugin_rpcconnect)(color_ostream &);
         command_result (*plugin_eval_ruby)(color_ostream &, const char*);
@@ -207,6 +209,7 @@ namespace DFHack
         ~PluginManager();
         void init(Core* core);
         void OnUpdate(color_ostream &out);
+        void OnRender(color_ostream &out);
         void OnStateChange(color_ostream &out, state_change_event event);
         void registerCommands( Plugin * p );
         void unregisterCommands( Plugin * p );
