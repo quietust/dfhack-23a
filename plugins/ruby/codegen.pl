@@ -712,7 +712,7 @@ sub sizeof {
         if ($subtype eq 'stl-string') { if ($os eq 'linux') {
                 return 4;
             } elsif ($os eq 'windows') {
-                return 28;
+                return 16;
             } else {
                 print "sizeof stl-string on $os\n";
             }
