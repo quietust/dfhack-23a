@@ -138,6 +138,9 @@ namespace DFHack
         return a.type != b.type || a.subtype != b.subtype;
     }
 
+    DFHACK_EXPORT bool isSoilInorganic(int material);
+    DFHACK_EXPORT bool isStoneInorganic(int material);
+
     typedef int16_t t_materialType, t_materialSubtype, t_itemType, t_itemSubtype;
 
     /**

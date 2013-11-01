@@ -308,6 +308,20 @@ std::string MaterialInfo::toString(uint16_t temp)
     return getMaterialDescription(type, subtype);
 }
 
+bool DFHack::isSoilInorganic(int material)
+{
+    auto raw = df::matgloss_stone::find(material);
+
+    return raw && raw->flags.is_set(matgloss_stone_flags::SOIL_ANY);
+}
+
+bool DFHack::isStoneInorganic(int material)
+{
+    auto raw = df::matgloss_stone::find(material);
+
+    return raw && !raw->flags.is_set(matgloss_stone_flags::SOIL_ANY);
+}
+
 Module* DFHack::createMaterials()
 {
     return new Materials();

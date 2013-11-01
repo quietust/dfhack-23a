@@ -34,6 +34,7 @@ distribution.
 #include "modules/Windows.h"
 
 using namespace DFHack;
+using df::global::init;
 using df::global::gps;
 
 Windows::df_screentile *Windows::getScreenBuffer()
@@ -81,7 +82,7 @@ bool Windows::df_window::unlock (painter * painter)
     return false;
 }
 
-Windows::top_level_window::top_level_window() : df_window(0,0,gps ? gps->dimx : 80,gps ? gps->dimy : 25)
+Windows::top_level_window::top_level_window() : df_window(0,0,init ? init->display.grid_x : 80,init ? init->display.grid_y : 25)
 {
     buffer = 0;
 }
@@ -112,7 +113,7 @@ Windows::df_tilebuf Windows::top_level_window::getBuffer()
 {
     df_tilebuf buf;
     buf.data = getScreenBuffer();
-    buf.height = df::global::gps->dimy;
-    buf.width = df::global::gps->dimx;
+    buf.height = df::global::init->display.grid_x;
+    buf.width = df::global::init->display.grid_y;
     return buf;
 }

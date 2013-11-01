@@ -72,14 +72,27 @@ DFHACK_PLUGIN("reveal");
 
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
-    commands.push_back(PluginCommand("reveal","Reveal the map. 'reveal hell' will also reveal hell. 'reveal demon' won't pause.",reveal));
-    commands.push_back(PluginCommand("unreveal","Revert the map to its previous state.",unreveal));
-    commands.push_back(PluginCommand("revtoggle","Reveal/unreveal depending on state.",revtoggle));
-    commands.push_back(PluginCommand("revflood","Hide all, reveal all tiles reachable from cursor position.",revflood));
-    commands.push_back(PluginCommand("revforget", "Forget the current reveal data, allowing to use reveal again.",revforget));
-    commands.push_back(PluginCommand("nopause","Disable pausing (doesn't affect pause forced by reveal).",nopause));
+    commands.push_back(PluginCommand("reveal","Reveal the map. 'reveal hell' will also reveal hell. 'reveal demon' won't pause.",reveal,false,
+        "Reveals the map, by default ignoring hell.\n"
+        "Options:\n"
+        "hell     - also reveal hell, while forcing the game to pause.\n"
+        "demon    - reveal hell, do not pause.\n"));
+    commands.push_back(PluginCommand("unreveal","Revert the map to its previous state.",unreveal,false,
+        "Reverts the previous reveal operation, hiding the map again.\n"));
+    commands.push_back(PluginCommand("revtoggle","Reveal/unreveal depending on state.",revtoggle,false,
+        "Toggles between reveal and unreveal.\n"));
+    commands.push_back(PluginCommand("revflood","Hide all, reveal all tiles reachable from cursor position.",revflood,false,
+        "This command hides the whole map. Then, starting from the cursor,\n"
+        "reveals all accessible tiles. Allows repairing parma-revealed maps.\n"));
+    commands.push_back(PluginCommand("revforget", "Forget the current reveal data, allowing to use reveal again.",revforget,false,
+        "Forget the current reveal data, allowing to use reveal again.\n"));
+    commands.push_back(PluginCommand("nopause","Disable pausing (doesn't affect pause forced by reveal).",nopause,false,
+        "Disable pausing (doesn't affect pause forced by reveal).\n"
+        "Activate with 'nopause 1', deactivate with 'nopause 0'.\n"));
     return CR_OK;
 }
+
+DFHACK_PLUGIN_IS_ENABLED(is_active);
 
 DFhackCExport command_result plugin_onupdate ( color_ostream &out )
 {
@@ -113,6 +126,7 @@ command_result nopause (color_ostream &out, vector <string> & parameters)
             nopause_state = 0;
         else
             nopause_state = 1;
+        is_active = nopause_state || (revealed == REVEALED);
         out.print("nopause %sactivated.\n", (nopause_state ? "" : "de"));
     }
     else
@@ -153,14 +167,7 @@ command_result reveal(color_ostream &out, vector<string> & params)
         if(params[i]=="hell")
             no_hell = false;
         else if(params[i] == "help" || params[i] == "?")
-        {
-            out.print("Reveals the map, by default ignoring hell.\n"
-                         "Options:\n"
-                         "hell     - also reveal hell, while forcing the game to pause.\n"
-                         "demon    - reveal hell, do not pause.\n"
-            );
-            return CR_OK;
-        }
+            return CR_WRONG_USAGE;
     }
     if(params.size() && params[0] == "hell")
     {
@@ -233,6 +240,7 @@ command_result reveal(color_ostream &out, vector<string> & params)
         else
             revealed = DEMON_REVEALED;
     }
+    is_active = nopause_state || (revealed == REVEALED);
     con.print("Map revealed.\n");
     if(!no_hell)
         con.print("Unpausing can unleash the forces of hell, so it has been temporarily disabled.\n");
@@ -246,10 +254,7 @@ command_result unreveal(color_ostream &out, vector<string> & params)
     for(size_t i = 0; i < params.size();i++)
     {
         if(params[i] == "help" || params[i] == "?")
-        {
-            out.print("Reverts the previous reveal operation, hiding the map again.\n");
-            return CR_OK;
-        }
+            return CR_WRONG_USAGE;
     }
     if(!revealed)
     {
@@ -292,6 +297,7 @@ command_result unreveal(color_ostream &out, vector<string> & params)
     // give back memory.
     hidesaved.clear();
     revealed = NOT_REVEALED;
+    is_active = nopause_state || (revealed == REVEALED);
     con.print("Map hidden!\n");
     return CR_OK;
 }
@@ -321,12 +327,7 @@ command_result revflood(color_ostream &out, vector<string> & params)
     for(size_t i = 0; i < params.size();i++)
     {
         if(params[i] == "help" || params[i] == "?")
-        {
-            out.print("This command hides the whole map. Then, starting from the cursor,\n"
-                         "reveals all accessible tiles. Allows repairing parma-revealed maps.\n"
-            );
-            return CR_OK;
-        }
+            return CR_WRONG_USAGE;
     }
     CoreSuspender suspend;
     uint32_t x_max,y_max,z_max;
@@ -473,10 +474,7 @@ command_result revforget(color_ostream &out, vector<string> & params)
     for(size_t i = 0; i < params.size();i++)
     {
         if(params[i] == "help" || params[i] == "?")
-        {
-            out.print("Forget the current reveal data, allowing to use reveal again.\n");
-            return CR_OK;
-        }
+            return CR_WRONG_USAGE;
     }
     if(!revealed)
     {
@@ -486,6 +484,7 @@ command_result revforget(color_ostream &out, vector<string> & params)
     // give back memory.
     hidesaved.clear();
     revealed = NOT_REVEALED;
+    is_active = nopause_state || (revealed == REVEALED);
     con.print("Reveal data forgotten!\n");
     return CR_OK;
 }

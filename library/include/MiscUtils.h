@@ -33,7 +33,9 @@ distribution.
 #include <cstdio>
 #include "stl_vector.h"
 
-using namespace std;
+using std::ostream;
+using std::stringstream;
+using std::endl;
 
 template <typename T>
 void print_bits ( T val, ostream& out )
