@@ -85,18 +85,19 @@ public:
      * All coordinates are taken mod 16.
      */
 
-    //Arbitrary tag field for flood fills etc.
+    // Arbitrary tag field for flood fills etc.
     int16_t &tag(df::coord2d p) {
         if (!tags) init_tags();
         return index_tile<int16_t&>(tags, p);
     }
 
-    // Base layer
+    /// Base layer tile type
     df::tiletype baseTiletypeAt(df::coord2d p)
     {
         if (!tiles) init_tiles();
         return index_tile<df::tiletype>(tiles->base_tiles,p);
     }
+    /// Base layer material
     t_matpair baseMaterialAt(df::coord2d p)
     {
         if (!basemats) init_tiles(true);
@@ -105,12 +106,14 @@ public:
             index_tile<int16_t>(basemats->mat_subtype,p)
         );
     }
+    /// Check if the base layer tile is a vein
     bool isVeinAt(df::coord2d p)
     {
         using namespace df::enums::tiletype_material;
         auto tm = tileMaterial(baseTiletypeAt(p));
         return tm == ORE || tm == GEM || tm == STONE_LIGHT || tm == STONE_DARK;
     }
+    /// Check if the base layer tile is layer stone or soil
     bool isLayerAt(df::coord2d p)
     {
         using namespace df::enums::tiletype_material;

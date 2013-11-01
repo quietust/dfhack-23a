@@ -1262,10 +1262,26 @@ IMPLEMENT_VMETHOD_INTERPOSE(unitjobs_hook, view);
 
 DFHACK_PLUGIN("manipulator");
 
+DFHACK_PLUGIN_IS_ENABLED(is_enabled);
+
+DFhackCExport command_result plugin_enable(color_ostream &out, bool enable)
+{
+    if (!gps)
+        return CR_FAILURE;
+
+    if (enable != is_enabled)
+    {
+        if (!INTERPOSE_HOOK(unitjobs_hook, view).apply(enable))
+            return CR_FAILURE;
+
+        is_enabled = enable;
+    }
+
+    return CR_OK;
+}
+
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
-    if (!gps || !INTERPOSE_HOOK(unitjobs_hook, view).apply())
-        out.printerr("Could not insert Dwarf Manipulator hooks!\n");
     return CR_OK;
 }
 

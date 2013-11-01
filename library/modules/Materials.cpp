@@ -308,6 +308,16 @@ std::string MaterialInfo::toString(uint16_t temp)
     return getMaterialDescription(type, subtype);
 }
 
+bool DFHack::isSoilInorganic(int material)
+{
+    return false;
+}
+
+bool DFHack::isStoneInorganic(int material)
+{
+    return true;
+}
+
 Module* DFHack::createMaterials()
 {
     return new Materials();

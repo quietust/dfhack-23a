@@ -121,10 +121,10 @@ namespace DFHack
         inline char * getStr() const
         {
             static char str[16];
-            //type punning trick
-            *( (uint64_t *)str ) = *( (uint64_t *)"--------" );
+
             str[8]=0;
     #define DIRECTION(x,i,c) \
+            str[i] = str[i+1] = '-'; \
             if(x){ \
                 str[i]=c; \
                 if(1==x) ; \
@@ -195,6 +195,54 @@ namespace DFHack
     {
         return TileDirection(ENUM_ATTR(tiletype, direction, tiletype));
     }
+
+    // Air
+    inline bool isAirMaterial(df::tiletype_material mat) { return mat == tiletype_material::AIR; }
+    inline bool isAirMaterial(df::tiletype tt) { return isAirMaterial(tileMaterial(tt)); }
+
+    // Soil
+    inline bool isSoilMaterial(df::tiletype_material mat) { return mat == tiletype_material::DIRT; }
+    inline bool isSoilMaterial(df::tiletype tt) { return isSoilMaterial(tileMaterial(tt)); }
+
+    // Stone materials - their tiles are completely interchangable
+    inline bool isStoneMaterial(df::tiletype_material mat)
+    {
+        using namespace df::enums::tiletype_material;
+        switch (mat) {
+            case STONE: case STONE_LIGHT: case STONE_DARK: case ORE: case GEM:
+                return true;
+            default:
+                return false;
+        }
+    }
+    inline bool isStoneMaterial(df::tiletype tt) { return isStoneMaterial(tileMaterial(tt)); }
+
+    // Regular ground materials = stone + soil
+    inline bool isGroundMaterial(df::tiletype_material mat)
+    {
+        using namespace df::enums::tiletype_material;
+        switch (mat) {
+            case DIRT:
+            case STONE: case STONE_LIGHT: case STONE_DARK:
+                return true;
+            default:
+                return false;
+        }
+    }
+    inline bool isGroundMaterial(df::tiletype tt) { return isGroundMaterial(tileMaterial(tt)); }
+
+    // Core materials - their tile sets are sufficiently close to stone
+    inline bool isCoreMaterial(df::tiletype_material mat)
+    {
+        using namespace df::enums::tiletype_material;
+        switch (mat) {
+            case STONE: case STONE_DARK: case STONE_LIGHT:
+                return true;
+            default:
+                return false;
+        }
+    }
+    inline bool isCoreMaterial(df::tiletype tt) { return isCoreMaterial(tileMaterial(tt)); }
 
     // tile is missing a floor
     inline
@@ -317,5 +365,10 @@ namespace DFHack
      * Converts a 23a-style chr+color pair into a modern tile ID
      */
     DFHACK_EXPORT void convertTile(const df::tiletype tile, df::tile_chr &chr, df::tile_color &color);
+    /**
+     * Map a tile type to a different core material (see above for the list).
+     * Returns Void (0) in case of failure.
+     */
+    DFHACK_EXPORT df::tiletype matchTileMaterial(df::tiletype source, df::tiletype_material tmat);
 }
 

@@ -45,6 +45,7 @@ DFhackCExport command_result plugin_onstatechange(color_ostream &out, state_chan
 static command_result rename(color_ostream &out, vector <string> & parameters);
 
 DFHACK_PLUGIN("rename");
+DFHACK_PLUGIN_IS_ENABLED(is_enabled);
 
 DFhackCExport command_result plugin_init (color_ostream &out, std::vector <PluginCommand> &commands)
 {
