@@ -113,7 +113,7 @@ Windows::df_tilebuf Windows::top_level_window::getBuffer()
 {
     df_tilebuf buf;
     buf.data = getScreenBuffer();
-    buf.height = df::global::init->display.grid_x;
-    buf.width = df::global::init->display.grid_y;
+    buf.height = df::global::init->display.grid_y;
+    buf.width = df::global::init->display.grid_x;
     return buf;
 }
