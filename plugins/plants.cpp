@@ -263,6 +263,7 @@ command_result df_createplant (color_ostream &out, vector <string> & parameters)
             plant_id = i;
             break;
         }
+        plant_raw = NULL;
     }
     for (size_t i = 0; i < world->raws.matgloss.wood.size(); i++)
     {
@@ -272,6 +273,7 @@ command_result df_createplant (color_ostream &out, vector <string> & parameters)
             wood_id = i;
             break;
         }
+        wood_raw = NULL;
     }
     if (plant_id != -1 && wood_id != -1)
     {
