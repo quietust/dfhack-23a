@@ -288,7 +288,7 @@ command_result df_createplant (color_ostream &out, vector <string> & parameters)
         return CR_FAILURE;
     }
 
-    df::plant *plant = new df::plant;
+    df::plant *plant = df::allocate<df::plant>();
     if (wood_raw)
     {
         plant->hitpoints = 400000;
