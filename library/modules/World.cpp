@@ -42,11 +42,14 @@ using namespace std;
 
 #include "MiscUtils.h"
 
+#include "VTableInterpose.h"
+
 #include "DataDefs.h"
 #include "df/world.h"
 #include "df/historical_figure.h"
 #include "df/map_block.h"
 #include "df/block_square_event_world_constructionst.h"
+#include "df/viewscreen_legendsst.h"
 
 using namespace DFHack;
 using namespace df::enums;
