@@ -344,22 +344,30 @@ bool Screen::isDismissed(df::viewscreen *screen)
 string Screen::getKeyDisplay(df::interface_key key)
 {
     auto binding = gview->keybinds[key];
-    // TODO - this is populated on demand
+    stl::string *cur = NULL, prefix = "";
+
+    if (binding.is_ctrl)
+        prefix += "Ctrl+";
+    if (binding.is_alt)
+        prefix += "Alt+";
+    if (binding.is_shift)
+        prefix += "Shft+";
+
     if (binding.is_alt)
     {
         if (binding.is_ctrl)
         {
             if (binding.is_shift)
-                return gview->keyNames[binding.key].alt_ctrl_shift;
+                cur = &gview->keyNames[binding.key].alt_ctrl_shift;
             else
-                return gview->keyNames[binding.key].alt_ctrl;
+                cur = &gview->keyNames[binding.key].alt_ctrl;
         }
         else
         {
             if (binding.is_shift)
-                return gview->keyNames[binding.key].alt_shift;
+                cur = &gview->keyNames[binding.key].alt_shift;
             else
-                return gview->keyNames[binding.key].alt;
+                cur = &gview->keyNames[binding.key].alt;
         }
     }
     else
@@ -367,9 +375,9 @@ string Screen::getKeyDisplay(df::interface_key key)
         if (binding.is_ctrl)
         {
             if (binding.is_shift)
-                return gview->keyNames[binding.key].ctrl_shift;
+                cur = &gview->keyNames[binding.key].ctrl_shift;
             else
-                return gview->keyNames[binding.key].ctrl;
+                cur = &gview->keyNames[binding.key].ctrl;
         }
         else
         {
@@ -379,8 +387,9 @@ string Screen::getKeyDisplay(df::interface_key key)
                 return gview->keyNames[binding.key].normal;
         }
     }
-
-    return "?";
+    if (cur->length() == 0)
+        *cur = prefix + gview->keyNames[binding.key].normal;
+    return *cur;
 }
 
 /*
