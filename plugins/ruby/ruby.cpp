@@ -596,7 +596,7 @@ static VALUE rb_dfhack_run(VALUE self, VALUE cmd)
 
 static VALUE rb_dfmalloc(VALUE self, VALUE len)
 {
-    char *ptr = (char*)malloc(FIX2INT(len));
+    char *ptr = (char*)df_malloc(FIX2INT(len));
     if (!ptr)
         return Qnil;
     memset(ptr, 0, FIX2INT(len));
@@ -605,7 +605,7 @@ static VALUE rb_dfmalloc(VALUE self, VALUE len)
 
 static VALUE rb_dffree(VALUE self, VALUE ptr)
 {
-    free((void*)rb_num2ulong(ptr));
+    df_free((void*)rb_num2ulong(ptr));
     return Qtrue;
 }
 
