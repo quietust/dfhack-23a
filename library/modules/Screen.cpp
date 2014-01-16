@@ -1,4 +1,4 @@
-﻿/*
+/*
 https://github.com/peterix/dfhack
 Copyright (c) 2009-2012 Petr Mrázek (peterix@gmail.com)
 
@@ -336,13 +336,11 @@ bool Screen::isDismissed(df::viewscreen *screen)
 string Screen::getKeyDisplay(df::interface_key key)
 {
     auto binding = gview->keybinds[key];
-    // TODO - this is populated on demand
+
     if (binding.is_shift)
         return gview->keyNames[binding.key].shift;
     else
         return gview->keyNames[binding.key].normal;
-
-    return "?";
 }
 
 /*
