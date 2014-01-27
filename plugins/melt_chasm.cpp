@@ -353,11 +353,29 @@ IMPLEMENT_VMETHOD_INTERPOSE(dwarfmode_hook, view);
 IMPLEMENT_VMETHOD_INTERPOSE(item_hook, view);
 
 DFHACK_PLUGIN("melt_chasm");
+DFHACK_PLUGIN_IS_ENABLED(is_enabled);
+
+DFhackCExport command_result plugin_enable(color_ostream &out, bool enable)
+{
+    if (!gps)
+        return CR_FAILURE;
+
+    if (enable != is_enabled)
+    {
+        if (!INTERPOSE_HOOK(dwarfmode_hook, view).apply(enable))
+            return CR_FAILURE;
+        if (!INTERPOSE_HOOK(item_hook, view).apply(enable))
+            return CR_FAILURE;
+
+        is_enabled = enable;
+    }
+
+    return CR_OK;
+}
+
 
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
-    if (!gps || !INTERPOSE_HOOK(dwarfmode_hook, view).apply() || !INTERPOSE_HOOK(item_hook, view).apply())
-        out.printerr("Could not insert Melt/Chasm hooks!\n");
     return CR_OK;
 }
 
