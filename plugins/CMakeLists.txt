@@ -163,6 +163,7 @@ if (BUILD_SUPPORTED)
 #   DFHACK_PLUGIN(treefarm treefarm.cpp)
 #   DFHACK_PLUGIN(cleanconst cleanconst.cpp)
     DFHACK_PLUGIN(melt_chasm melt_chasm.cpp)
+    DFHACK_PLUGIN(tile_status tile_status.cpp)
 #   DFHACK_PLUGIN(3dveins 3dveins.cpp)
 endif()
 
