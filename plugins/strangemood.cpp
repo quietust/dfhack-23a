@@ -853,7 +853,7 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
         case job_skill::LEATHERWORK:
             unit->job.mood_item_type.push_back(item_type::SKIN_TANNED);
             unit->job.mood_item_subtype.push_back(-1);
-            unit->job.mood_material.push_back(material_type::NONE);
+            unit->job.mood_material.push_back(material_type::LEATHER);
             unit->job.mood_matgloss.push_back(-1);
             break;
 
