@@ -901,6 +901,15 @@ bool Core::loadScriptFile(color_ostream &out, string fname, bool silent)
     }
 }
 
+// Load dfhack.init in a dedicated thread (non-interactive console mode)
+void fInitthread(void * iodata)
+{
+    IODATA * iod = ((IODATA*) iodata);
+    Core * core = iod->core;
+    color_ostream_proxy out(core->getConsole());
+    core->loadScriptFile(out, "dfhack.init", true);
+}
+
 // A thread function... for the interactive console.
 void fIOthread(void * iodata)
 {
@@ -912,7 +921,7 @@ void fIOthread(void * iodata)
     main_history.load("dfhack.history");
 
     Console & con = core->getConsole();
-    if(plug_mgr == 0 || core == 0)
+    if (plug_mgr == 0)
     {
         con.printerr("Something horrible happened in Core's constructor...\n");
         return;
@@ -1100,16 +1109,24 @@ bool Core::Init()
     IODATA *temp = new IODATA;
     temp->core = this;
     temp->plug_mgr = plug_mgr;
-//  if (!is_text_mode)
+
+    HotkeyMutex = new mutex();
+    HotkeyCond = new condition_variable();
+
+    if (1 /* !is_text_mode */)
     {
         cerr << "Starting IO thread.\n";
         // create IO thread
         thread * IO = new thread(fIOthread, (void *) temp);
     }
+    else
+    {
+        cerr << "Starting dfhack.init thread.\n";
+        thread * init = new thread(fInitthread, (void *) temp);
+    }
+
     cerr << "Starting DF input capture thread.\n";
     // set up hotkey capture
-    HotkeyMutex = new mutex();
-    HotkeyCond = new condition_variable();
     thread * HK = new thread(fHKthread, (void *) temp);
     started = true;
 
