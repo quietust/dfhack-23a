@@ -12,19 +12,21 @@
 #include "modules/Random.h"
 
 #include "DataDefs.h"
-#include "df/d_init.h"
+#include "df/init.h"
 #include "df/world.h"
 #include "df/ui.h"
 #include "df/unit.h"
-#include "df/unit_soul.h"
+#include "df/skill_rating.h"
 #include "df/unit_skill.h"
 #include "df/unit_preference.h"
 #include "df/map_block.h"
 #include "df/job.h"
-#include "df/job_item.h"
+#include "df/buildings_other_id.h"
+#include "df/items_other_id.h"
+#include "df/material_type.h"
+#include "df/matgloss_metal.h"
 #include "df/historical_entity.h"
 #include "df/entity_raw.h"
-#include "df/builtin_mats.h"
 #include "df/general_ref_unit_workerst.h"
 
 using std::string;
@@ -34,12 +36,12 @@ using namespace df::enums;
 
 using df::global::world;
 using df::global::ui;
-using df::global::d_init;
+using df::global::init;
 using df::global::created_item_count;
 using df::global::created_item_type;
 using df::global::created_item_subtype;
-using df::global::created_item_mattype;
-using df::global::created_item_matindex;
+using df::global::created_item_material;
+using df::global::created_item_matgloss;
 
 Random::MersenneRNG rng;
 
@@ -58,15 +60,12 @@ bool isUnitMoodable (df::unit *unit)
 
 df::job_skill getMoodSkill (df::unit *unit)
 {
-    if (!unit->status.current_soul)
-        return job_skill::STONECRAFT;
     df::historical_entity *civ = df::historical_entity::find(unit->civ_id);
-    df::unit_soul *soul = unit->status.current_soul;
     vector<df::job_skill> skills;
     df::skill_rating level = skill_rating::Dabbling;
-    for (size_t i = 0; i < soul->skills.size(); i++)
+    for (size_t i = 0; i < unit->status.skills.size(); i++)
     {
-        df::unit_skill *skill = soul->skills[i];
+        df::unit_skill *skill = unit->status.skills[i];
         switch (skill->id)
         {
         case job_skill::MINING:
@@ -113,14 +112,14 @@ df::job_skill getMoodSkill (df::unit *unit)
     return skills[rng.df_trandom(skills.size())];
 }
 
-int getCreatedMetalBars (int32_t idx)
+int getCreatedMetalBars (int32_t metal)
 {
     for (size_t i = 0; i < created_item_type->size(); i++)
     {
         if (created_item_type->at(i) == item_type::BAR &&
             created_item_subtype->at(i) == -1 &&
-            created_item_mattype->at(i) == 0 &&
-            created_item_matindex->at(i) == idx)
+            created_item_material->at(i) == material_type::METAL &&
+            created_item_matgloss->at(i) == metal)
             return created_item_count->at(i);
     }
     return 0;
@@ -468,7 +467,7 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
     CoreSuspender suspend;
 
     // First, check if moods are enabled at all
-    if (!d_init->flags4.is_set(d_init_flags4::ARTIFACTS))
+    if (!init->game.flags.is_set(init_game_flags::ARTIFACTS))
     {
         out.printerr("ARTIFACTS are not enabled!\n");
         return CR_FAILURE;
@@ -616,7 +615,6 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
         }
         unit = moodable_units[tickets[rng.df_trandom(tickets.size())]];
     }
-    df::unit_soul *soul = unit->status.current_soul;
 
     // Cancel selected unit's current job
     if (unit->job.current_job)
@@ -625,7 +623,8 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
         out.printerr("Chosen unit '%s' has active job, cannot start mood!\n", Translation::TranslateName(&unit->name, false).c_str());
         return CR_FAILURE;
     }
-    
+    // TODO: remove moody dwarf from squad
+
     ui->mood_cooldown = 1000;
     // If no mood type was specified, pick one randomly
     if (type == mood_type::None)
@@ -637,6 +636,7 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
             case 0: type = mood_type::Fell;    break;
             case 1: type = mood_type::Macabre; break;
             }
+            // TODO: if creature has ITEMCORPSE, force to Macabre
         }
         else
         {
@@ -687,8 +687,7 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
     }
 
     unit->mood = type;
-    unit->relations.mood_copy = unit->mood;
-    Gui::showAutoAnnouncement(announcement_type::STRANGE_MOOD, unit->pos, msg, color, bright);
+    Gui::showZoomAnnouncement(unit->pos, msg, color, bright);
     
     unit->status.happiness = 100;
     // TODO: make sure unit drops any wrestle items
@@ -736,7 +735,11 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
         case job_skill::FORGE_ARMOR:
         case job_skill::FORGE_FURNITURE:
         case job_skill::METALCRAFT:
-            job->job_type = job_type::StrangeMoodForge;
+            // if there are any magma forges, then use one
+            if (world->buildings.other[buildings_other_id::WORKSHOP_FORGE_MAGMA].size())
+                job->job_type = job_type::StrangeMoodMagmaForge;
+            else
+                job->job_type = job_type::StrangeMoodForge;
             break;
         case job_skill::CUTGEM:
         case job_skill::ENCRUSTGEM:
@@ -759,15 +762,15 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
     {
         if (created_item_type->at(i) == item_type::ROUGH)
         {
-            switch (created_item_mattype->at(i))
+            switch (created_item_material->at(i))
             {
-            case builtin_mats::GLASS_GREEN:
+            case material_type::GLASS_GREEN:
                 have_glass[0] = true;
                 break;
-            case builtin_mats::GLASS_CLEAR:
+            case material_type::GLASS_CLEAR:
                 have_glass[1] = true;
                 break;
-            case builtin_mats::GLASS_CRYSTAL:
+            case material_type::GLASS_CRYSTAL:
                 have_glass[2] = true;
                 break;
             }
@@ -781,43 +784,31 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
         base_item_count = 1;
 
     // Choose the base material
-    df::job_item *item;
-    if (job->job_type == job_type::StrangeMoodFell)
-    {
-        job->job_items.push_back(item = new df::job_item());
-        item->item_type = item_type::CORPSE;
-        item->flags1.bits.allow_buryable = true;
-        item->flags1.bits.murdered = true;
-        item->quantity = 1;
-        item->vector_id = job_item_vector_id::ANY_MURDERED;
-    }
-    else if (job->job_type == job_type::StrangeMoodBrooding)
+    if (job->job_type == job_type::StrangeMoodBrooding)
     {
         switch (rng.df_trandom(3))
         {
         case 0:
-            job->job_items.push_back(item = new df::job_item());
-            item->item_type = item_type::REMAINS;
-            item->flags1.bits.allow_buryable = true;
-            item->quantity = 1;
+            unit->job.mood_item_type.push_back(item_type::REMAINS);
+            unit->job.mood_item_subtype.push_back(-1);
+            unit->job.mood_material.push_back(material_type::NONE);
+            unit->job.mood_matgloss.push_back(-1);
             break;
         case 1:
-            job->job_items.push_back(item = new df::job_item());
-            item->flags1.bits.allow_buryable = true;
-            item->flags2.bits.bone = true;
-            item->flags2.bits.body_part = true;
-            item->quantity = 1;
+            unit->job.mood_item_type.push_back(item_type::BONES);
+            unit->job.mood_item_subtype.push_back(-1);
+            unit->job.mood_material.push_back(material_type::NONE);
+            unit->job.mood_matgloss.push_back(-1);
             break;
         case 2:
-            job->job_items.push_back(item = new df::job_item());
-            item->flags1.bits.allow_buryable = true;
-            item->flags2.bits.totemable = true;
-            item->flags2.bits.body_part = true;
-            item->quantity = base_item_count;
+            unit->job.mood_item_type.push_back(item_type::SKULL);
+            unit->job.mood_item_subtype.push_back(-1);
+            unit->job.mood_material.push_back(material_type::NONE);
+            unit->job.mood_matgloss.push_back(-1);
             break;
         }
     }
-    else
+    else if (job->job_type != job_type::StrangeMoodFell)
     {
         df::item *filter;
         bool found_pref;
@@ -828,69 +819,63 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
         case job_skill::MASONRY:
         case job_skill::STONECRAFT:
         case job_skill::MECHANICS:
-            job->job_items.push_back(item = new df::job_item());
-            item->item_type = item_type::BOULDER;
-            item->quantity = base_item_count;
-            item->flags3.bits.hard = true;
+            unit->job.mood_item_type.push_back(item_type::STONE);
+            unit->job.mood_item_subtype.push_back(-1);
+
             found_pref = false;
-            if (soul)
+            for (size_t i = 0; i < unit->status.preferences.size(); i++)
             {
-                for (size_t i = 0; i < soul->preferences.size(); i++)
+                df::unit_preference *pref = unit->status.preferences[i];
+                if (pref->active == 1 &&
+                    pref->type == df::unit_preference::T_type::LikeMaterial &&
+                    pref->material == material_type::STONE)
                 {
-                    df::unit_preference *pref = soul->preferences[i];
-                    if (pref->active == 1 &&
-                        pref->type == df::unit_preference::T_type::LikeMaterial &&
-                        pref->mattype == builtin_mats::INORGANIC)
-                    {
-                        item->mat_type = pref->mattype;
-                        found_pref = true;
-                        break;
-                    }
+                    unit->job.mood_material.push_back(pref->material);
+                    found_pref = true;
+                    break;
                 }
             }
             if (!found_pref)
-                item->mat_type = builtin_mats::INORGANIC;
+                unit->job.mood_material.push_back(material_type::STONE);
+            unit->job.mood_matgloss.push_back(-1);
             break;
 
         case job_skill::CARPENTRY:
         case job_skill::WOODCRAFT:
         case job_skill::BOWYER:
-            job->job_items.push_back(item = new df::job_item());
-            item->item_type = item_type::WOOD;
-            item->quantity = base_item_count;
+            unit->job.mood_item_type.push_back(item_type::WOOD);
+            unit->job.mood_item_subtype.push_back(-1);
+            unit->job.mood_material.push_back(material_type::NONE);
+            unit->job.mood_matgloss.push_back(-1);
             break;
 
         case job_skill::TANNER:
         case job_skill::LEATHERWORK:
-            job->job_items.push_back(item = new df::job_item());
-            item->item_type = item_type::SKIN_TANNED;
-            item->quantity = base_item_count;
+            unit->job.mood_item_type.push_back(item_type::SKIN_TANNED);
+            unit->job.mood_item_subtype.push_back(-1);
+            unit->job.mood_material.push_back(material_type::NONE);
+            unit->job.mood_matgloss.push_back(-1);
             break;
 
         case job_skill::WEAVING:
         case job_skill::CLOTHESMAKING:
             filter = NULL;
-            // TODO: do proper search through world->items.other[items_other_id::ANY_GENERIC35] for item_type CLOTH, mat_type 0, flags2.deep_material, and min_dimension 10000
-            for (size_t i = 0; i < world->items.other[items_other_id::ANY_GENERIC35].size(); i++)
+            // TODO: do proper search through world->items.other[items_other_id::ANY_GENERIC32] for item_type CLOTH, material 2, and flags2.deep_material
+            for (size_t i = 0; i < world->items.other[items_other_id::ANY_GENERIC32].size(); i++)
             {
-                filter = world->items.other[items_other_id::ANY_GENERIC35][i];
+                filter = world->items.other[items_other_id::ANY_GENERIC32][i];
                 if (filter->getType() != item_type::CLOTH)
                 {
                     filter = NULL;
                     continue;
                 }
-                if (filter->getMaterial() != 0)
+                if (filter->getActualMaterial() != material_type::METAL)
                 {
                     filter = NULL;
                     continue;
                 }
-                if (filter->getTotalDimension() < 10000)
-                {
-                    filter = NULL;
-                    continue;
-                }
-                MaterialInfo mat(filter->getMaterial(), filter->getMaterialIndex());
-                if (!mat.inorganic->flags.is_set(inorganic_flags::DEEP_SPECIAL))
+                MaterialInfo mat(filter->getActualMaterial(), filter->getActualMatgloss());
+                if (!mat.metal->flags.is_set(matgloss_metal_flags::DEEP))
                 {
                     filter = NULL;
                     continue;
@@ -898,57 +883,35 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
             }
             if (filter)
             {
-                job->job_items.push_back(item = new df::job_item());
-                item->item_type = item_type::CLOTH;
-                item->mat_type = filter->getMaterial();
-                item->mat_index = filter->getMaterialIndex();
-                item->quantity = base_item_count * 10000;
-                item->min_dimension = 10000;
+                unit->job.mood_item_type.push_back(item_type::CLOTH);
+                unit->job.mood_item_subtype.push_back(-1);
+                unit->job.mood_material.push_back(filter->getActualMaterial());
+                unit->job.mood_matgloss.push_back(filter->getActualMatgloss());
             }
             else
             {
-                job->job_items.push_back(item = new df::job_item());
-                item->item_type = item_type::CLOTH;
+                unit->job.mood_item_type.push_back(item_type::CLOTH);
+                unit->job.mood_item_subtype.push_back(-1);
+
                 bool found_pref = false;
-                if (soul)
+                for (size_t i = 0; i < unit->status.preferences.size(); i++)
                 {
-                    for (size_t i = 0; i < soul->preferences.size(); i++)
+                    df::unit_preference *pref = unit->status.preferences[i];
+                    if (pref->active == 1 &&
+                        pref->type == df::unit_preference::T_type::LikeMaterial &&
+                        ((pref->material == material_type::PLANT) || (pref->material == material_type::SILK)))
                     {
-                        df::unit_preference *pref = soul->preferences[i];
-                        if (pref->active == 1 &&
-                            pref->type == df::unit_preference::T_type::LikeMaterial)
-                        {
-                            MaterialInfo mat(pref->mattype, pref->matindex);
-                            if (mat.material->flags.is_set(material_flags::SILK))
-                                item->flags2.bits.silk = true;
-                            else if (mat.material->flags.is_set(material_flags::THREAD_PLANT))
-                                item->flags2.bits.plant = true;
-                            else if (mat.material->flags.is_set(material_flags::YARN))
-                                item->flags2.bits.yarn = true;
-                            else
-                                continue;
-                            found_pref = true;
-                            break;
-                        }
+                        unit->job.mood_material.push_back(pref->material);
+                        unit->job.mood_matgloss.push_back(-1);
+                        found_pref = true;
+                        break;
                     }
                 }
                 if (!found_pref)
                 {
-                    switch (rng.df_trandom(3))
-                    {
-                    case 0:
-                        item->flags2.bits.silk = true;
-                        break;
-                    case 1:
-                        item->flags2.bits.plant = true;
-                        break;
-                    case 2:
-                        item->flags2.bits.yarn = true;
-                        break;
-                    }
+                    unit->job.mood_material.push_back(rng.df_trandom(2) ? material_type::SILK : material_type::PLANT);
+                    unit->job.mood_matgloss.push_back(-1);
                 }
-                item->quantity = base_item_count * 10000;
-                item->min_dimension = 10000;
             }
             break;
 
@@ -957,22 +920,22 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
         case job_skill::FORGE_FURNITURE:
         case job_skill::METALCRAFT:
             filter = NULL;
-            // TODO: do proper search through world->items.other[items_other_id::ANY_GENERIC35] for item_type BAR, mat_type 0, and flags2.deep_material
-            for (size_t i = 0; i < world->items.other[items_other_id::ANY_GENERIC35].size(); i++)
+            // TODO: do proper search through world->items.other[items_other_id::ANY_GENERIC32] for item_type BAR, material 2, and flags2.deep_material
+            for (size_t i = 0; i < world->items.other[items_other_id::ANY_GENERIC32].size(); i++)
             {
-                filter = world->items.other[items_other_id::ANY_GENERIC35][i];
+                filter = world->items.other[items_other_id::ANY_GENERIC32][i];
                 if (filter->getType() != item_type::BAR)
                 {
                     filter = NULL;
                     continue;
                 }
-                if (filter->getMaterial() != 0)
+                if (filter->getActualMaterial() != material_type::METAL)
                 {
                     filter = NULL;
                     continue;
                 }
-                MaterialInfo mat(filter->getMaterial(), filter->getMaterialIndex());
-                if (!mat.inorganic->flags.is_set(inorganic_flags::DEEP_SPECIAL))
+                MaterialInfo mat(filter->getActualMaterial(), filter->getActualMatgloss());
+                if (!mat.metal->flags.is_set(matgloss_metal_flags::DEEP))
                 {
                     filter = NULL;
                     continue;
@@ -980,120 +943,114 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
             }
             if (filter)
             {
-                job->job_items.push_back(item = new df::job_item());
-                item->item_type = item_type::BAR;
-                item->mat_type = filter->getMaterial();
-                item->mat_index = filter->getMaterialIndex();
-                item->quantity = base_item_count * 150;
-                item->min_dimension = 150;
+                unit->job.mood_item_type.push_back(item_type::BAR);
+                unit->job.mood_item_subtype.push_back(-1);
+                unit->job.mood_material.push_back(filter->getActualMaterial());
+                unit->job.mood_matgloss.push_back(filter->getActualMatgloss());
             }
             else
             {
-                job->job_items.push_back(item = new df::job_item());
-                item->item_type = item_type::BAR;
-                item->mat_type = 0;
-                vector<int32_t> mats;
-                if (soul)
+                unit->job.mood_item_type.push_back(item_type::BAR);
+                unit->job.mood_item_subtype.push_back(-1);
+                unit->job.mood_material.push_back(material_type::METAL);
+
+                vector<int32_t> metals;
+                for (size_t i = 0; i < unit->status.preferences.size(); i++)
                 {
-                    for (size_t i = 0; i < soul->preferences.size(); i++)
-                    {
-                        df::unit_preference *pref = soul->preferences[i];
-                        if (pref->active == 1 &&
-                            pref->type == df::unit_preference::T_type::LikeMaterial &&
-                            pref->mattype == 0 && getCreatedMetalBars(pref->matindex) > 0)
-                            mats.push_back(pref->matindex);
-                    }
+                    df::unit_preference *pref = unit->status.preferences[i];
+                    if (pref->active == 1 &&
+                        pref->type == df::unit_preference::T_type::LikeMaterial &&
+                        pref->material == material_type::METAL && getCreatedMetalBars(pref->matgloss) > 0)
+                        metals.push_back(pref->matgloss);
                 }
-                if (mats.size())
-                    item->mat_index = mats[rng.df_trandom(mats.size())];
-                item->quantity = base_item_count * 150;
-                item->min_dimension = 150;
+                if (metals.size())
+                    unit->job.mood_matgloss.push_back(metals[rng.df_trandom(metals.size())]);
+                else
+                    unit->job.mood_matgloss.push_back(-1);
             }
             break;
 
         case job_skill::CUTGEM:
         case job_skill::ENCRUSTGEM:
-            job->job_items.push_back(item = new df::job_item());
-            item->item_type = item_type::ROUGH;
-            item->mat_type = 0;
-            item->quantity = base_item_count;
+            unit->job.mood_item_type.push_back(item_type::ROUGH);
+            unit->job.mood_item_subtype.push_back(-1);
+            unit->job.mood_material.push_back(material_type::STONE);
+            unit->job.mood_matgloss.push_back(-1);
             break;
 
         case job_skill::GLASSMAKER:
-            job->job_items.push_back(item = new df::job_item());
-            item->item_type = item_type::ROUGH;
+            unit->job.mood_item_type.push_back(item_type::ROUGH);
+            unit->job.mood_item_subtype.push_back(-1);
+
             found_pref = false;
-            if (soul)
+            for (size_t i = 0; i < unit->status.preferences.size(); i++)
             {
-                for (size_t i = 0; i < soul->preferences.size(); i++)
+                df::unit_preference *pref = unit->status.preferences[i];
+                if (pref->active == 1 &&
+                    pref->type == df::unit_preference::T_type::LikeMaterial &&
+                    ((pref->material == material_type::GLASS_GREEN) ||
+                     (pref->material == material_type::GLASS_CLEAR && have_glass[1]) ||
+                     (pref->material == material_type::GLASS_CRYSTAL && have_glass[2])))
                 {
-                    df::unit_preference *pref = soul->preferences[i];
-                    if (pref->active == 1 &&
-                        pref->type == df::unit_preference::T_type::LikeMaterial &&
-                        ((pref->mattype == builtin_mats::GLASS_GREEN) ||
-                         (pref->mattype == builtin_mats::GLASS_CLEAR && have_glass[1]) ||
-                         (pref->mattype == builtin_mats::GLASS_CRYSTAL && have_glass[2])))
-                    {
-                        item->mat_type = pref->mattype;
-                        item->mat_index = pref->matindex;
-                        found_pref = true;
-                    }
+                    unit->job.mood_material.push_back(pref->material);
+                    unit->job.mood_matgloss.push_back(pref->matgloss);
+                    found_pref = true;
                 }
             }
             if (!found_pref)
             {
-                vector<int32_t> mats;
-                mats.push_back(builtin_mats::GLASS_GREEN);
+                vector<df::material_type> mats;
+                mats.push_back(material_type::GLASS_GREEN);
                 if (have_glass[1])
-                    mats.push_back(builtin_mats::GLASS_CLEAR);
+                    mats.push_back(material_type::GLASS_CLEAR);
                 if (have_glass[2])
-                    mats.push_back(builtin_mats::GLASS_CRYSTAL);
-                item->mat_type = mats[rng.df_trandom(mats.size())];
+                    mats.push_back(material_type::GLASS_CRYSTAL);
+                unit->job.mood_material.push_back(mats[rng.df_trandom(mats.size())]);
+                unit->job.mood_matgloss.push_back(-1);
             }
-            item->quantity = base_item_count;
             break;
 
         case job_skill::BONECARVE:
             found_pref = false;
-            if (soul)
+            for (size_t i = 0; i < unit->status.preferences.size(); i++)
             {
-                for (size_t i = 0; i < soul->preferences.size(); i++)
+                df::unit_preference *pref = unit->status.preferences[i];
+                if (pref->active == 1 &&
+                    pref->type == df::unit_preference::T_type::LikeMaterial &&
+                    (pref->material == material_type::BONE || pref->material == material_type::SHELL))
                 {
-                    df::unit_preference *pref = soul->preferences[i];
-                    if (pref->active == 1 &&
-                        pref->type == df::unit_preference::T_type::LikeMaterial)
-                    {
-                        MaterialInfo mat(pref->mattype, pref->matindex);
-                        if (mat.material->flags.is_set(material_flags::BONE))
-                        {
-                            job->job_items.push_back(item = new df::job_item());
-                            item->flags2.bits.bone = true;
-                            item->flags2.bits.body_part = true;
-                            found_pref = true;
-                            break;
-                        }
-                        else if (mat.material->flags.is_set(material_flags::SHELL))
-                        {
-                            job->job_items.push_back(item = new df::job_item());
-                            item->flags2.bits.shell = true;
-                            item->flags2.bits.body_part = true;
-                            found_pref = true;
-                            break;
-                        }
-                    }
+                    if (pref->material == material_type::BONE)
+                        unit->job.mood_item_type.push_back(item_type::BONES);
+                    else
+                        unit->job.mood_item_type.push_back(item_type::SHELL);
+                    unit->job.mood_item_subtype.push_back(-1);
+                    unit->job.mood_material.push_back(material_type::NONE);
+                    unit->job.mood_matgloss.push_back(-1);
+                    found_pref = true;
+                    break;
                 }
             }
             if (!found_pref)
             {
-                job->job_items.push_back(item = new df::job_item());
-                item->flags2.bits.bone = true;
-                item->flags2.bits.body_part = true;
-                found_pref = true;
+                unit->job.mood_item_type.push_back(rng.df_trandom(2) ? item_type::SHELL : item_type::BONES);
+                unit->job.mood_item_subtype.push_back(-1);
+                unit->job.mood_material.push_back(material_type::NONE);
+                unit->job.mood_matgloss.push_back(-1);
             }
-            item->quantity = base_item_count;
             break;
         }
     }
+    if (job->job_type != job_type::StrangeMoodFell && base_item_count > 1)
+    {
+        for (int i = 1; i < base_item_count; i++)
+        {
+            unit->job.mood_item_type.push_back(unit->job.mood_item_type[0]);
+            unit->job.mood_item_subtype.push_back(unit->job.mood_item_subtype[0]);
+            unit->job.mood_material.push_back(unit->job.mood_material[0]);
+            unit->job.mood_matgloss.push_back(unit->job.mood_matgloss[0]);
+        }
+    }
+    
 
     // Choose additional mood materials
     // Gem cutters/setters using a single gem require nothing else, and fell moods need only their corpse
@@ -1146,130 +1103,113 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
                 switch (rng.df_trandom(3))
                 {
                 case 0:
-                    job->job_items.push_back(item = new df::job_item());
-                    item->item_type = item_type::REMAINS;
-                    item->flags1.bits.allow_buryable = true;
-                    item->quantity = 1;
+                    unit->job.mood_item_type.push_back(item_type::REMAINS);
                     break;
                 case 1:
-                    job->job_items.push_back(item = new df::job_item());
-                    item->flags1.bits.allow_buryable = true;
-                    item->flags2.bits.bone = true;
-                    item->flags2.bits.body_part = true;
-                    item->quantity = 1;
+                    unit->job.mood_item_type.push_back(item_type::BONES);
                     break;
                 case 2:
-                    // in older versions, they would request additional skulls
-                    // in 0.34.11, the request becomes "nothing"
+                    unit->job.mood_item_type.push_back(item_type::SKULL);
                     break;
                 }
+                unit->job.mood_item_subtype.push_back(-1);
+                unit->job.mood_material.push_back(material_type::NONE);
+                unit->job.mood_matgloss.push_back(-1);
             }
             else
             {
                 df::item_type item_type;
-                int16_t mat_type;
-                df::job_item_flags2 flags2;
+                df::material_type material;
                 do
                 {
                     item_type = item_type::NONE;
-                    mat_type = -1;
-                    flags2.whole = 0;
-                    switch (rng.df_trandom(10))
+                    material = material_type::NONE;
+                    switch (rng.df_trandom(11))
                     {
                     case 0:
                         item_type = item_type::WOOD;
-                        mat_type = -1;
+                        material = material_type::NONE;
                         break;
                     case 1:
                         item_type = item_type::BAR;
-                        mat_type = builtin_mats::INORGANIC;
+                        material = material_type::METAL;
                         break;
                     case 2:
                         item_type = item_type::SMALLGEM;
-                        mat_type = -1;
+                        material = material_type::NONE;
                         break;
                     case 3:
                         item_type = item_type::BLOCKS;
-                        mat_type = builtin_mats::INORGANIC;
+                        material = material_type::STONE;
                         break;
                     case 4:
                         item_type = item_type::ROUGH;
-                        mat_type = builtin_mats::INORGANIC;
+                        material = material_type::STONE;
                         break;
                     case 5:
-                        item_type = item_type::BOULDER;
-                        mat_type = builtin_mats::INORGANIC;
+                        item_type = item_type::STONE;
+                        material = material_type::STONE;
                         break;
                     case 6:
-                        flags2.bits.bone = true;
-                        flags2.bits.body_part = true;
+                        item_type = item_type::BONES;
+                        material = material_type::NONE;
                         break;
                     case 7:
-                        item_type = item_type::SKIN_TANNED;
-                        mat_type = -1;
+                        item_type = item_type::SHELL;
+                        material = material_type::NONE;
                         break;
                     case 8:
+                        item_type = item_type::SKIN_TANNED;
+                        material = material_type::NONE;
+                        break;
+                    case 9:
                         item_type = item_type::CLOTH;
-                        mat_type = -1;
-                        switch (rng.df_trandom(3))
+                        switch (rng.df_trandom(2))
                         {
                         case 0:
-                            flags2.bits.plant = true;
+                            material = material_type::PLANT;
                             break;
                         case 1:
-                            flags2.bits.silk = true;
-                            break;
-                        case 2:
-                            flags2.bits.yarn = true;
+                            material = material_type::SILK;
                             break;
                         }
                         break;
-                    case 9:
+                    case 10:
                         item_type = item_type::ROUGH;
                         switch (rng.df_trandom(3))
                         {
                         case 0:
-                            mat_type = builtin_mats::GLASS_GREEN;
+                            material = material_type::GLASS_GREEN;
                             break;
                         case 1:
-                            mat_type = builtin_mats::GLASS_CLEAR;
+                            material = material_type::GLASS_CLEAR;
                             break;
                         case 2:
-                            mat_type = builtin_mats::GLASS_CRYSTAL;
+                            material = material_type::GLASS_CRYSTAL;
                             break;
                         }
                         break;
                     }
-                    item = job->job_items[0];
-                    if (item->item_type == item_type && item->mat_type == mat_type)
+                    if (unit->job.mood_item_type[0] == item_type && unit->job.mood_material[0] == material)
                         continue;
                     if (item_type == avoid_type)
                         continue;
-                    if (avoid_glass && ((mat_type == builtin_mats::GLASS_GREEN) || (mat_type == builtin_mats::GLASS_CLEAR) || (mat_type == builtin_mats::GLASS_CRYSTAL)))
+                    if (avoid_glass && ((material == material_type::GLASS_GREEN) || (material == material_type::GLASS_CLEAR) || (material == material_type::GLASS_CRYSTAL)))
                         continue;
-                    if ((mat_type == builtin_mats::GLASS_GREEN) && !have_glass[0])
+                    if ((material == material_type::GLASS_GREEN) && !have_glass[0])
                         continue;
-                    if ((mat_type == builtin_mats::GLASS_CLEAR) && !have_glass[1])
+                    if ((material == material_type::GLASS_CLEAR) && !have_glass[1])
                         continue;
-                    if ((mat_type == builtin_mats::GLASS_CRYSTAL) && !have_glass[2])
+                    if ((material == material_type::GLASS_CRYSTAL) && !have_glass[2])
                         continue;
                     break;
                 } while (1);
-                job->job_items.push_back(item = new df::job_item());
-                item->item_type = item_type;
-                item->mat_type = mat_type;
-                item->flags2.whole = flags2.whole;
-                item->quantity = 1;
-                if (item_type == item_type::BAR)
-                {
-                    item->quantity *= 150;
-                    item->min_dimension = 150;
-                }
-                if (item_type == item_type::CLOTH)
-                {
-                    item->quantity *= 10000;
-                    item->min_dimension = 10000;
-                }
+
+
+                unit->job.mood_item_type.push_back(item_type);
+                unit->job.mood_item_subtype.push_back(-1);
+                unit->job.mood_material.push_back(material);
+                unit->job.mood_matgloss.push_back(-1);
             }
         }
     }
@@ -1298,7 +1238,7 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
         if (!rng.df_trandom(100))
             unit->status.artifact_name = unit->name;
     }
-    unit->unk_18e = 0;
+    unit->mood_claimedWorkshop = 0;
     return CR_OK;
 }
 

@@ -166,10 +166,12 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
         int count_got = 0;
         for (size_t i = 0; i < job->items.size(); i++)
         {
+/*
             df::item_type type = job->job_items[i]->item_type;
             if (type == item_type::BAR || type == item_type::CLOTH)
                 count_got += job->items[i]->item->getTotalDimension();
             else
+*/
                 count_got += 1;
         }
 
