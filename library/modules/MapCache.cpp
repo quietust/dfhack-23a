@@ -1056,7 +1056,7 @@ MapExtras::MapCache::MapCache()
 
         memset(biomes[i].layer_stone, -1, sizeof(biomes[i].layer_stone));
 
-        for (size_t j = 0; j < std::min(BiomeInfo::MAX_LAYERS,layer_mats[i].size()); j++)
+        for (size_t j = 0; j < std::min<size_t>(BiomeInfo::MAX_LAYERS,layer_mats[i].size()); j++)
         {
             biomes[i].layer_stone[j] = layer_mats[i][j];
 
