@@ -845,7 +845,7 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
         case job_skill::BOWYER:
             unit->job.mood_item_type.push_back(item_type::WOOD);
             unit->job.mood_item_subtype.push_back(-1);
-            unit->job.mood_material.push_back(material_type::NONE);
+            unit->job.mood_material.push_back(material_type::WOOD);
             unit->job.mood_matgloss.push_back(-1);
             break;
 
