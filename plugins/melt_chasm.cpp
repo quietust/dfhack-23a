@@ -186,7 +186,7 @@ struct dwarfmode_hook : df::viewscreen_dwarfmodest
                     if (!item_removeMelt(item))
                         item_addMelt(item);
                 }
-                if (ui->activity_stats.found_chasm && Screen::isKeyPressed(interface_key::STORES_CHASM) && isChasmable(item))
+                if (ui->tasks.found_chasm && Screen::isKeyPressed(interface_key::STORES_CHASM) && isChasmable(item))
                 {
                     item->flags.bits.dump = !item->flags.bits.dump;
                     if (item->flags.bits.dump)
@@ -218,7 +218,7 @@ struct item_hook : df::viewscreen_itemst
                 if (!item_removeMelt(item))
                     item_addMelt(item);
             }
-            if (ui->activity_stats.found_chasm && Screen::isKeyPressed(interface_key::STORES_CHASM) && isChasmable(item))
+            if (ui->tasks.found_chasm && Screen::isKeyPressed(interface_key::STORES_CHASM) && isChasmable(item))
             {
                 item->flags.bits.dump = !item->flags.bits.dump;
                 if (item->flags.bits.dump)
@@ -253,7 +253,7 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
                 x = dims.menu_x2 - 2;
                 OutputString(12, x, y, "M");
             }
-            if (ui->activity_stats.found_chasm && item->flags.bits.dump)
+            if (ui->tasks.found_chasm && item->flags.bits.dump)
             {
                 x = dims.menu_x2 - 1;
                 OutputString(8, x, y, "C");
@@ -262,7 +262,7 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
         if (ui_look_list->items[*ui_look_cursor]->type == df::ui_look_list::T_items::Item)
         {
             df::item *item = ui_look_list->items[*ui_look_cursor]->item;
-            if (ui->activity_stats.found_chasm)
+            if (ui->tasks.found_chasm)
             {
                 x = dims.menu_x1 + 12;
                 OutputString(10, x, 21, Screen::getKeyDisplay(interface_key::STORES_CHASM));
@@ -293,14 +293,14 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
                 x = dims.menu_x2 - 5;
                 OutputString(12, x, y, "M");
             }
-            if (ui->activity_stats.found_chasm && item->flags.bits.dump)
+            if (ui->tasks.found_chasm && item->flags.bits.dump)
             {
                 x = dims.menu_x2 - 4;
                 OutputString(8, x, y, "C");
             }
         }
         df::item *item = bld->contained_items[*ui_building_item_cursor]->item;
-        if (ui->activity_stats.found_chasm)
+        if (ui->tasks.found_chasm)
         {
             x = dims.menu_x1 + 12;
             y = 19;
@@ -323,7 +323,7 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
             y = 2;
             OutputString(12, x, y, "M");
         }
-        if (ui->activity_stats.found_chasm && item->flags.bits.dump)
+        if (ui->tasks.found_chasm && item->flags.bits.dump)
         {
             x = 77;
             y = 2;
@@ -337,7 +337,7 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
             OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STORES_MELT));
             OutputString(7, x, y, ": Melt");
         }
-        if (ui->activity_stats.found_chasm && isChasmable(item))
+        if (ui->tasks.found_chasm && isChasmable(item))
         {
             x = 55;
             y = 21;
