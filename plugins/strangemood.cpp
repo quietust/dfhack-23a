@@ -404,8 +404,12 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
                 skill = job_skill::TANNER;
             else if (parameters[i] == "weaver")
                 skill = job_skill::WEAVING;
-            else if (parameters[i] == "clothier")
+            else if (parameters[i] == "clothesmaker")
                 skill = job_skill::CLOTHESMAKING;
+            else if (parameters[i] == "furnaceoperator")
+                skill = job_skill::SMELT;
+            else if (parameters[i] == "adamantineextractor")
+                skill = job_skill::EXTRACT_ADAMANTINE;
             else if (parameters[i] == "weaponsmith")
                 skill = job_skill::FORGE_WEAPON;
             else if (parameters[i] == "armorsmith")
@@ -414,7 +418,7 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
                 skill = job_skill::FORGE_FURNITURE;
             else if (parameters[i] == "gemcutter")
                 skill = job_skill::CUTGEM;
-            else if (parameters[i] == "gemsetter")
+            else if (parameters[i] == "jeweler")
                 skill = job_skill::ENCRUSTGEM;
             else if (parameters[i] == "woodcrafter")
                 skill = job_skill::WOODCRAFT;
@@ -424,6 +428,12 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
                 skill = job_skill::METALCRAFT;
             else if (parameters[i] == "glassmaker")
                 skill = job_skill::GLASSMAKER;
+            else if (parameters[i] == "adamantineworker")
+                skill = job_skill::ADAMANTINE_WORK;
+            else if (parameters[i] == "adamantinesmelter")
+                skill = job_skill::ADAMANTINE_SMELT;
+            else if (parameters[i] == "adamantineweaver")
+                skill = job_skill::ADAMANTINE_WEAVE;
             else if (parameters[i] == "leatherworker")
                 skill = job_skill::LEATHERWORK;
             else if (parameters[i] == "bonecarver")
