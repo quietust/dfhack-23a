@@ -34,9 +34,9 @@ using df::global::ui_unit_view_mode;
 using df::global::ui_selected_unit;
 using df::global::gps;
 
-void OutputString(int8_t color, int &x, int y, const std::string &text)
+void OutputString(int8_t fg, int8_t bg, int &x, int y, const std::string &text)
 {
-    Screen::paintString(Screen::Pen(' ', color, 0), x, y, text);
+    Screen::paintString(Screen::Pen(' ', fg, bg), x, y, text);
     x += text.length();
 }
 
@@ -67,8 +67,13 @@ struct unitjobs_hook : df::viewscreen_unitjobsst
     }
 };
 
-void printMeetingJob (int color, int x, int y, df::unit *unit)
+void printMeetingJob (int8_t fg, int8_t bg, bool highlight, int x, int y, df::unit *unit)
 {
+    if (highlight)
+    {
+        fg = 0;
+        bg = 7;
+    }
     if (!unit)
         return;
     if (!Units::isCitizen(unit))
@@ -81,7 +86,7 @@ void printMeetingJob (int color, int x, int y, df::unit *unit)
     df::activity_info *activity = ref->activity;
     if (activity->unit_actor != unit && activity->unit_actor && activity->unit_actor->meeting.state == 2)
     {
-        OutputString(11, x, y, "Conduct Meeting");
+        OutputString(fg, bg, x, y, "Conduct Meeting");
         return;
     }
     if (!unit->status.guild_complaints.size())
@@ -101,20 +106,19 @@ void printMeetingJob (int color, int x, int y, df::unit *unit)
 
     if (unit->meeting.state < 1)
         return;
-    OutputString(color, x, y, "Attend Meeting");
+    OutputString(fg, bg, x, y, "Attend Meeting");
 }
 
 DFhackCExport command_result plugin_onrender ( color_ostream &out)
 {
     auto dims = Gui::getDwarfmodeViewDims();
-    int x, y, color;
+    int x, y, fg, bg;
     if (inHook_dwarfmode)
     {
-        x = dims.menu_x1 + 1;
-        y = 6;
-        color = 11;
+        x = dims.menu_x1 + 1; y = 6;
+        fg = 11; bg = 0;
         df::unit *unit = world->units.active[*ui_selected_unit];
-        printMeetingJob(color, x, y, unit);
+        printMeetingJob(fg, bg, false, x, y, unit);
         inHook_dwarfmode = false;
     }
 
@@ -125,19 +129,22 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
         if (inHook_viewscreen->mode)
         {
             x = 40;
-            color = 11;
+            fg = 11; bg = 0;
         }
         else
         {
             x = 2;
-            color = 3;
+            fg = 3; bg = 0;
         }
         for (int i = 0; i < 19; i++)
         {
             int idx = inHook_viewscreen->cursor_pos - (inHook_viewscreen->cursor_pos % 19) + i;
-            if (idx >= inHook_viewscreen->jobs.size())
+            if (idx >= inHook_viewscreen->units.size())
                 break;
-            printMeetingJob(color, x, y, inHook_viewscreen->units[idx]);
+            if (inHook_viewscreen->units[idx] == NULL || inHook_viewscreen->jobs[idx] != NULL)
+                continue;
+            y = i + 2;
+            printMeetingJob(fg, bg, (idx == inHook_viewscreen->cursor_pos), x, y, inHook_viewscreen->units[idx]);
         }
         inHook_unitjobs = false;
         inHook_viewscreen = NULL;
