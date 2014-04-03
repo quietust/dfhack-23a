@@ -7,7 +7,7 @@
 #include <MiscUtils.h>
 #include <modules/Gui.h>
 #include <modules/Screen.h>
-#include <modules/Maps.h>
+#include <modules/Units.h>
 #include <vector>
 #include <string>
 #include <set>
@@ -16,6 +16,8 @@
 #include <VTableInterpose.h>
 #include "df/world.h"
 #include "df/ui.h"
+#include "df/ui_unit_view_mode.h"
+#include "df/activity_info.h"
 #include "df/viewscreen_dwarfmodest.h"
 #include "df/viewscreen_unitjobsst.h"
 
@@ -29,6 +31,7 @@ using namespace df::enums;
 using df::global::world;
 using df::global::ui;
 using df::global::ui_unit_view_mode;
+using df::global::ui_selected_unit;
 using df::global::gps;
 
 void OutputString(int8_t color, int &x, int y, const std::string &text)
@@ -44,13 +47,14 @@ struct dwarfmode_hook : df::viewscreen_dwarfmodest
 
     DEFINE_VMETHOD_INTERPOSE(void, view, ())
     {
-        if ((ui->main.mode == ui_sidebar_mode::ViewUnits) && (ui_unit_view_mode->value == ui_unit_view_mode::T_value::General))
+        if ((ui->main.mode == ui_sidebar_mode::ViewUnits) && (*ui_selected_unit != -1) && (ui_unit_view_mode->value == df::ui_unit_view_mode::General))
             inHook_dwarfmode = true;
         INTERPOSE_NEXT(view)();
     }
 };
 
 bool inHook_unitjobs = false;
+df::viewscreen_unitjobsst *inHook_viewscreen = NULL;
 struct unitjobs_hook : df::viewscreen_unitjobsst
 {
     typedef df::viewscreen_unitjobsst interpose_base;
@@ -58,43 +62,85 @@ struct unitjobs_hook : df::viewscreen_unitjobsst
     DEFINE_VMETHOD_INTERPOSE(void, view, ())
     {
         inHook_unitjobs = true;
+        inHook_viewscreen = this;
         INTERPOSE_NEXT(view)();
     }
 };
 
+void printMeetingJob (int color, int x, int y, df::unit *unit)
+{
+    if (!unit)
+        return;
+    if (!Units::isCitizen(unit))
+        return;
+    if (unit->job.current_job)
+        return;
+    df::specific_ref *ref = Units::getSpecificRef(unit, specific_ref_type::ACTIVITY);
+    if (!ref)
+        return;
+    df::activity_info *activity = ref->activity;
+    if (activity->unit_actor != unit && activity->unit_actor && activity->unit_actor->meeting.state == 2)
+    {
+        OutputString(11, x, y, "Conduct Meeting");
+        return;
+    }
+    if (!unit->status.guild_complaints.size())
+        return;
+    if (unit->mood != -1)
+        return;
+
+    {
+        auto prof = unit->meeting.target_profession;
+        if (prof == -1)
+            return;
+        if (ui->nobles_arrived[prof] < ui->units_killed[prof])
+            return;
+        if (unit->profession == prof)
+            return;
+    }
+
+    if (unit->meeting.state < 1)
+        return;
+    OutputString(color, x, y, "Attend Meeting");
+}
+
 DFhackCExport command_result plugin_onrender ( color_ostream &out)
 {
     auto dims = Gui::getDwarfmodeViewDims();
-    int x,  y;
+    int x, y, color;
     if (inHook_dwarfmode)
     {
-        // TODO
-        // ensure that unit is valid (fort member)
-        // ensure unit has no job
-        // check if dwarf is attending meeting
-
-        x = dims.menu_x1 + 2;
+        x = dims.menu_x1 + 1;
         y = 6;
-        // OutputString(12, x, y, "Conduct Meeting");
+        color = 11;
+        df::unit *unit = world->units.active[*ui_selected_unit];
+        printMeetingJob(color, x, y, unit);
         inHook_dwarfmode = false;
     }
 
-    if (inHook_unitjobs)
+    if (inHook_unitjobs && inHook_viewscreen)
     {
-        // TODO
-        // iterate across units on current page
-        // ensure units are valid (fort member)
-        // ensure unit has no job
-        // check if dwarf is attending meeting
-        inHook_dwarfmode_look = false;
+        inHook_dwarfmode = false;
 
-        if (mode)
+        if (inHook_viewscreen->mode)
+        {
             x = 40;
+            color = 11;
+        }
         else
+        {
             x = 2;
-        y = 2;
-        // OutputString(12, x, y, "Conduct Meeting");
+            color = 3;
+        }
+        for (int i = 0; i < 19; i++)
+        {
+            int idx = inHook_viewscreen->cursor_pos - (inHook_viewscreen->cursor_pos % 19) + i;
+            if (idx >= inHook_viewscreen->jobs.size())
+                break;
+            printMeetingJob(color, x, y, inHook_viewscreen->units[idx]);
+        }
         inHook_unitjobs = false;
+        inHook_viewscreen = NULL;
     }
     return CR_OK;
 }
