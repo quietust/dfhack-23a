@@ -89,7 +89,7 @@ void printMeetingJob (int8_t fg, int8_t bg, bool highlight, int x, int y, df::un
         OutputString(fg, bg, x, y, "Conduct Meeting");
         return;
     }
-    if (!unit->status.guild_complaints.size())
+    if (!unit->status.complaints.size())
         return;
     if (unit->mood != -1)
         return;
