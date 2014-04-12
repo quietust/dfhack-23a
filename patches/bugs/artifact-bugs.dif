@@ -1,0 +1,32 @@
+Artifact holders never drop/hide their artifacts
+All artifact gauntlets are left-handed
+Armorsmith strange moods incorrectly produce helmets using SHOES item type
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+000B5430: B0 B8
+000B5432: C2 FF
+000B5433: 04 FF
+000B5434: 00 FF
+000B5435: 90 C2
+000B5436: 90 04
+000B5437: 90 00
+0012DD09: 01 02
+0014079B: 8A 8B
+001407A1: B0 B8
+001407A3: C2 FF
+001407A4: 04 FF
+001407A5: 00 FF
+001407A6: 90 C2
+001407A7: 90 04
+001407A8: 90 00
+00171ED7: 0F BD
+00171ED8: 95 1D
+00171ED9: C0 00
+00171EDA: 84 00
+00171EDB: C0 00
+001E8015: 0F 90
+001E8016: BE 90
+001E8017: C0 90

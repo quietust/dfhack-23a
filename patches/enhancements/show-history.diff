@@ -1,0 +1,12 @@
+Display detailed history info in Fortress Mode for floor/wall engravings
+Display detailed history info in Fortress Mode for item descriptions.
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+000A209E: 00 01
+0017ABED: 0F 90
+0017ABEE: 94 90
+0017ABEF: C1 6A
+0017ABF0: 51 01

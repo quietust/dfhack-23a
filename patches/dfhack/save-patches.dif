@@ -1,0 +1,23 @@
+Partially disable save file encryption
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+0010CFA9: E8 68
+0010CFAA: A2 C4
+0010CFAB: 52 09
+0010CFAC: 17 00
+0010CFAE: 68 6A
+0010CFAF: FF 00
+0010CFB0: FF 51
+0010CFB1: FF E8
+0010CFB2: 7F 5A
+0010CFB3: E8 5C
+0010CFB4: 18 21
+0010CFB5: 52 00
+0010CFB6: 17 31
+0010CFB7: 00 C0
+0010CFBB: 14 1C
+0010CFC2: B8 C0
+0010CFD8: 10 18

@@ -1,0 +1,36 @@
+Weapons stores in Human towns use armor materials
+Human caravans bring mill powders in stacks of 1 instead of 10
+Human caravans bring extracts in stacks of 1 instead of 10
+Prepared meal values do not take their ingredients into account
+Art images of creatures are not valued properly by civilizations
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+00096EFF: 0E 0B
+001F3FBA: 43 41
+0025188B: 8B B0
+0025188C: 6F 0A
+0025188D: 10 90
+0025188F: 81 66
+00251890: CD 81
+00251891: 00 4F
+00251892: C0 10
+00251894: 00 C0
+00251897: 89 88
+00251898: 6F 47
+00251899: 10 3C
+00251A6F: 8B 80
+00251A70: 5D 4D
+00251A71: 10 11
+00251A72: 56 C0
+00251A73: 80 B0
+00251A74: CF 0A
+00251A75: C0 53
+00251A78: 89 88
+00251A79: 5D 45
+00251A7A: 10 3C
+0035D44C: 90 E0
+0035D44D: 66 29
+0035D44E: 5E 5F

@@ -1,0 +1,7 @@
+Increase mining success rate for gems and coal - 100% for Legendary miners.
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+0022B3D7: 02 01

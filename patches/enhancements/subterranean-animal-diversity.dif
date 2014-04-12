@@ -1,0 +1,24 @@
+Increase subterranean animal diversity during embark. May result in some types of subterranean creatures being more common than otherwise (due to having duplicate entries).
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+00287CE1: 05 A3
+00287CE2: 07 FC
+00287CE3: 00 03
+00287CE4: 66 A9
+00287CE5: A3 00
+00287CE6: FA 66
+00287CE7: 03 05
+00287CE8: A9 07
+00287CEB: 8B A3
+00287CEC: 4E FA
+00287CED: 10 03
+00287CEE: 66 A9
+00287CEF: 89 00
+00287CF0: 0D BB
+00287CF1: FC 01
+00287CF2: 03 00
+00287CF3: A9 00
+00287D8A: 55 53

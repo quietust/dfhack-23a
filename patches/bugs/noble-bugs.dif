@@ -1,0 +1,40 @@
+Sheriff doesn't get unhappy thoughts from insufficient jails
+Mayor and Sheriff don't get unhappy thoughts from insufficient fortress guards
+Baron doesn't get unhappy thoughts from insufficient royal guards
+Nobles don't get thoughts about tomb quality
+Demands expire too soon
+Game crashes at beginning of season if the Mayor has received more than 6 Guild requests Bug:6449
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+00234425: 84 85
+0023448B: 74 75
+002344E2: 74 75
+002B45A1: 8B 31
+002B45A2: 4C C0
+002B45A3: 24 89
+002B45A4: 34 42
+002B45A5: 66 0C
+002B45A7: 54 4C
+002B45AC: 51 4A
+002BCEF3: 8B 90
+002BCEF4: 54 E9
+002BCEF5: 24 61
+002BCEF6: 3C 17
+002BCEF7: 8B 09
+002BCEF8: F0 00
+002CB95A: 82 81
+0034E65A: 00 8B
+0034E65B: 00 94
+0034E65C: 00 24
+0034E65D: 00 70
+0034E65E: 00 01
+0034E661: 00 89
+0034E662: 00 C6
+0034E663: 00 E9
+0034E664: 00 91
+0034E665: 00 E8
+0034E666: 00 F6
+0034E667: 00 FF

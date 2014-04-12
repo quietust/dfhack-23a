@@ -1,0 +1,11 @@
+Vermin fish in aquariums/ponds cancel updates of remaining vermin
+Vermin can only escape from artifact containers
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+00169B1B: 84 85
+00169D12: DD D6
+00169D28: 85 84
+00169D29: C6 BF

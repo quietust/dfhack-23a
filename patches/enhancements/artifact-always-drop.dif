@@ -1,0 +1,10 @@
+Force nervous artifact holders to always drop their artifacts instead of hiding them or becoming obssessed with them.
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+000A721F: 0F 90
+000A7220: 84 E9
+000A7221: B1 22
+000A7222: 03 02

@@ -1,0 +1,13 @@
+[BIOME_ANY_TROPICAL] puts trees in temperate swamps and marshes instead of tropical ones
+Savage river fish are never selected for region populations
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+00218D26: 06 0A
+00218D64: 07 0B
+00218DDC: 08 0D
+00218E19: 09 0E
+002F74F6: 45 22
+002F7517: 75 EB

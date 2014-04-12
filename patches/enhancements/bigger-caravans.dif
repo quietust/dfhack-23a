@@ -1,0 +1,31 @@
+Increase caravan capacity - pack animals from 100 to 200, wagons from 500 to 1500.
+Make caravans bring drink barrels filled to 25 instead of 20.
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+000F9BF4: 70 EC
+000F9BF5: FE FA
+000F9CC3: 70 EC
+000F9CC4: FE FA
+00237B26: F4 DC
+00237B27: 01 05
+00237B75: 64 C8
+00238A04: 64 C8
+00238A43: 8B 81
+00238A44: 08 00
+00238A45: 83 C8
+00238A46: C1 00
+00238A47: 64 00
+00238A48: 89 00
+00238A49: 08 90
+002395F1: 64 C8
+00239630: 8B 81
+00239631: 38 00
+00239632: 83 C8
+00239633: C7 00
+00239634: 64 00
+00239635: 89 00
+00239636: 38 90
+00251511: 14 19

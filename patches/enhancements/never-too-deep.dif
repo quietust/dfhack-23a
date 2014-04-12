@@ -1,0 +1,8 @@
+Disable "Too Deep" ending from mining raw adamantine.
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+002332D7: 0F 90
+002332D8: 8E E9

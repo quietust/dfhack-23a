@@ -1,0 +1,24 @@
+Pregnant dwarves have miscarriages when Hungry instead of when Starving or Dehydrated
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+002BD3CF: 81 90
+002BD3D0: F9 E9
+002BD3D1: 50 AF
+002BD3D2: C3 12
+002BD3D3: 00 09
+0034E684: 00 8B
+0034E685: 00 8D
+0034E686: 00 8C
+0034E687: 00 03
+0034E68A: 00 81
+0034E68B: 00 F9
+0034E68C: 00 50
+0034E68D: 00 C3
+0034E690: 00 E9
+0034E691: 00 40
+0034E692: 00 ED
+0034E693: 00 F6
+0034E694: 00 FF

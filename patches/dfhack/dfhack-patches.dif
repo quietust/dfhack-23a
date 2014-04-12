@@ -1,0 +1,13 @@
+Disable usage of small-block heap
+Force serialized heap access
+Don't over-allocate memory blocks
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+0031E74F: 94 95
+003A3B04: F8 00
+003A3B05: 03 00
+0031C306: 0F 00
+0031C309: F0 FF

@@ -1,0 +1,47 @@
+Waterfall Z-coordinates are uninitialized, may not generate mist properly.
+Giant cave spider web Z-coordinates are uninitialized, may not appear properly.
+Some 2D distance calculations incorrectly pass Z-coordinate distance as "mode" flag
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+00099C4F: 2A 31
+00099C50: D3 D2
+00099D7D: 2A 31
+00099D7E: D3 D2
+000ECA1A: 2A 31
+000ECA1B: D1 D2
+000FD472: 2A 31
+000FD473: D1 D2
+001023B8: 2A 31
+001023B9: C8 C9
+00104EC9: 2A 31
+00104ECA: 51 D2
+00104ECB: 0A 90
+00105BD0: 2A 31
+00105BD1: 4A C9
+00105BD2: 08 90
+0010714B: 2A 31
+0010714C: 51 D2
+0010714D: 1C 90
+00249EDD: BB 66
+00249EDE: 10 89
+00249EDF: 00 6B
+00249EE0: 00 20
+00249EE1: 00 90
+00249EE5: 94 AC
+00249EE6: 01 47
+00249EE7: 00 10
+0028A90E: 66 90
+002D096F: 2A 31
+002D0970: D0 D2
+002D0A9D: 2A 31
+002D0A9E: D3 D2
+0034E695: 00 BB
+0034E696: 00 10
+0034E69A: 00 E9
+0034E69B: 00 DE
+0034E69C: 00 B9
+0034E69D: 00 EF
+0034E69E: 00 FF
