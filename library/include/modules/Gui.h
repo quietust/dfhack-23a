@@ -1,4 +1,4 @@
-﻿/*
+/*
 https://github.com/peterix/dfhack
 Copyright (c) 2009-2012 Petr Mrázek (peterix@gmail.com)
 
@@ -95,6 +95,9 @@ namespace DFHack
         // A building is selected via 'q', 't' or 'i' (civzone)
         DFHACK_EXPORT bool any_building_hotkey(df::viewscreen *top);
         DFHACK_EXPORT df::building *getSelectedBuilding(color_ostream &out, bool quiet = false);
+
+        // Low-level API that gives full control over announcements and reports
+        DFHACK_EXPORT void writeToGamelog(std::string message);
 
         // Show a plain announcement, or a titan-style popup message
         DFHACK_EXPORT void showZoomAnnouncement(df::coord pos, std::string message, int color = 7, bool bright = true);

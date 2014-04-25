@@ -676,3 +676,69 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
     }
     return out;
 }
+
+int DFHack::getMaterialValue(t_materialType material, t_materialSubtype matgloss)
+{
+    auto raws = df::global::world->raws;
+    switch (material)
+    {
+    case material_type::STONE:
+        if (matgloss >= 0 && matgloss < raws.matgloss.stone.size())
+            return raws.matgloss.stone[matgloss]->value;
+        return 0;
+
+    case material_type::METAL:
+        if (matgloss >= 0 && matgloss < raws.matgloss.metal.size())
+            return raws.matgloss.metal[matgloss]->value;
+        return 0;
+
+    case material_type::BONE:
+    case material_type::HORN:
+    case material_type::SHELL:
+    case material_type::LEATHER:
+    case material_type::RENDERED_FAT:
+    case material_type::FAT:
+        if (matgloss >= 0 && matgloss < raws.creatures.size())
+            return raws.creatures[matgloss]->modvalue;
+        return 0;
+
+    case material_type::IVORY:
+    case material_type::PEARL:
+    case material_type::SILK:
+        if (matgloss >= 0 && matgloss < raws.creatures.size())
+            return 2 * raws.creatures[matgloss]->modvalue;
+        return 0;
+
+    case material_type::AMBER:
+    case material_type::CORAL:
+    case material_type::GLASS_GREEN:
+    case material_type::COAL:
+    case material_type::LYE:
+        return 2;
+
+    case material_type::PLANT:
+    case material_type::PLANT_ALCOHOL:
+        if (matgloss >= 0 && matgloss < raws.matgloss.plant.size())
+            return raws.matgloss.plant[matgloss]->value;
+        return 0;
+
+    case material_type::GLASS_CLEAR:
+        return 5;
+
+    case material_type::GLASS_CRYSTAL:
+    case material_type::SALT:
+        return 10;
+
+    case material_type::POTASH:
+        return 3;
+
+    case material_type::PEARLASH:
+        return 4;
+
+    case material_type::SOAP_ANIMAL:
+        if (matgloss >= 0 && matgloss < raws.creatures.size())
+            return 5 * raws.creatures[matgloss]->modvalue;
+        return 0;
+    }
+    return 1;
+}

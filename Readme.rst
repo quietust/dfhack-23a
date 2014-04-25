@@ -28,15 +28,15 @@ All new releases are announced in the bay12 thread: http://tinyurl.com/dfhack-ng
 =============
 Compatibility
 =============
-DFHack works on Windows XP, Vista, 7 or any modern Linux distribution.
-OSX is not supported due to lack of developers with a Mac.
+DFHack works on Windows XP, Vista, 7, any modern Linux distribution, or OS X
+10.6.8-10.9.
 
 Currently, version 0.34.11 is supported (and tested). If you need DFHack
 for older versions, look for older releases.
 
 On Windows, you have to use the SDL version of DF.
 
-It is possible to use the Windows DFHack under wine/OSX.
+It is also possible to use the Windows DFHack with Wine under Linux and OS X.
 
 ====================
 Installation/Removal
@@ -329,6 +329,13 @@ Options:
                           The building must be one of stockpile, workshop, furnace, trap,
                           siege engine or an activity zone.
 
+command-prompt
+--------------
+A one line command prompt in df. Same as entering command into dfhack console. Best 
+used as a keybinding. Can be called with optional "entry" that will start prompt with 
+that pre-filled.
+
+.. image:: images/command-prompt.png
 
 Adventure mode
 ==============
@@ -701,8 +708,7 @@ Subcommands:
  :create: Create a new shrub/sapling.
  :grow: Make saplings grow into trees.
  :extirpate: Kills trees and shrubs, turning them into ashes instantly.
- :immolate: Similar to extirpate, but sets the plants on fire instead. The
-fires can and *will* spread ;)
+ :immolate: Similar to extirpate, but sets the plants on fire instead. The fires can and *will* spread ;)
 
 ``create`` creates a new sapling under the cursor. Takes a raw ID as
 argument (e.g. TOWER_CAP). The cursor must be located on a dirt or grass
@@ -712,6 +718,7 @@ floor tile.
 Works on all shrubs of the map if the cursor is hidden.
 
 ``extirpate`` and ``immolate`` work only on the plant under the cursor.
+
 For mass effects, use one of the additional options:
  :shrubs:            affect all shrubs on the map
  :trees:             affect all trees on the map
@@ -2042,6 +2049,13 @@ Scripts in this subdirectory fix various bugs and issues, some of them obscure.
   every time a save game is loaded; putting ``fix/cloth-stockpile enable``
   in ``dfhack.init`` makes it run automatically.
 
+* fix/build-location
+
+  Fixes construction jobs that are stuck trying to build a wall while standing
+  on the same exact tile (bug 5991), designates the tile restricted traffic to
+  hopefully avoid jamming it again, and unsuspends them.
+
+
 gui/*
 =====
 
@@ -2125,6 +2139,9 @@ With the special argument ``him``, targets only the selected creature.
 With the special argument ``undead``, targets all undeads on the map,
 regardless of their race.
 
+When specifying a race, a caste can be specified to further restrict the
+targeting. To do that, append and colon and the caste name after the race.
+
 Any non-dead non-caged unit of the specified race gets its ``blood_count``
 set to 0, which means immediate death at the next game tick. For creatures
 such as vampires, it also sets animal.vanish_countdown to 2.
@@ -2140,6 +2157,7 @@ but ignore caged/chained creatures.
 Ex::
 
     exterminate gob
+    exterminate gob:male
 
 To kill a single creature, select the unit with the 'v' cursor and::
 
@@ -2632,6 +2650,16 @@ Rationale: individual choice seems to be unreliable when there is a weapon short
 and may lead to inappropriate weapons being selected.
 
 
+gui/clone-uniform
+=================
+
+Bind to a key (the example config uses Ctrl-C), and activate in the Uniforms
+page of the military screen with the cursor in the leftmost list.
+
+When invoked, the script duplicates the currently selected uniform template,
+and selects the newly created copy.
+
+
 gui/guide-path
 ==============
 
@@ -2801,11 +2829,21 @@ keybinding. (e.g. keybinding set Ctrl-T gui/advfort). Possible arguments:
   
 * job - selects that job (e.g. Dig or FellTree)
 
+An example of player digging in adventure mode:
+
+.. image:: images/advfort.png
+
+.. admonition:: DISCLAIMER
+
+    advfort changes only persist in non procedural sites. Namely: player forts, caves, camps.
+
 gui/companion-order
 ===================
 
 A script to issue orders for companions. Select companions with lower case chars, issue orders with upper 
 case. Must be in look or talk mode to issue command on tile.
+
+.. image:: images/companion-order.png
 
 * move - orders selected companions to move to location. If companions are following they will move no more than 3 tiles from you.
 * equip - try to equip items on the ground.
@@ -2815,7 +2853,6 @@ case. Must be in look or talk mode to issue command on tile.
 * wait - temporarily remove from party
 * follow - rejoin the party after "wait"
 * leave - remove from party (can be rejoined by talking)
-
 
 gui/gm-editor
 =============
@@ -2831,8 +2868,20 @@ There are three ways to open this editor:
 * using gui/gm-editor dialog - shows an in game dialog to input lua command. Works
   the same as version above.
   
+.. image:: images/gm-editor.png
+
 This editor allows to change and modify almost anything in df. Press '?' for an 
 in-game help.
+
+gui/mod-manager
+===============
+
+A way to simply install and remove small mods. It looks for specially formated mods in
+df subfolder 'mods'. Mods are not included, for example mods see: `github mini mod repository <https://github.com/warmist/df-mini-mods>`_
+
+.. image:: images/mod-manager.png
+
+
 
 =============
 Behavior Mods

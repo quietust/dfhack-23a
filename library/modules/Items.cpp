@@ -300,7 +300,7 @@ bool Items::setOwner(df::item *item, df::unit *unit)
     {
         df::general_ref *ref = item->general_refs[i];
 
-        if (!strict_virtual_cast<df::general_ref_unit_itemownerst>(ref))
+        if (ref->getType() != general_ref_type::UNIT_ITEMOWNER)
             continue;
 
         if (auto cur = ref->getUnit())
@@ -810,4 +810,280 @@ void Items::item_uncategorize(df::item *item)
 
         pop ebx
     }
+}
+
+int Items::getItemBaseValue(int16_t item_type, int16_t item_subtype, int16_t material, int16_t matgloss)
+{
+    int value = 0;
+    switch (item_type)
+    {
+    case item_type::BAR:
+    case item_type::SMALLGEM:
+    case item_type::BLOCKS:
+    case item_type::SKIN_TANNED:
+        value = 5;
+        break;
+
+    case item_type::ROUGH:
+    case item_type::STONE:
+    case item_type::WOOD:
+        value = 3;
+        break;
+
+    case item_type::DOOR:
+    case item_type::FLOODGATE:
+    case item_type::BED:
+    case item_type::CHAIR:
+    case item_type::CHAIN:
+    case item_type::FLASK:
+    case item_type::GOBLET:
+    case item_type::INSTRUMENT:
+    case item_type::TOY:
+    case item_type::CAGE:
+    case item_type::BARREL:
+    case item_type::BUCKET:
+    case item_type::ANIMALTRAP:
+    case item_type::TABLE:
+    case item_type::COFFIN:
+    case item_type::WEAPON:
+    case item_type::BOX:
+    case item_type::BIN:
+    case item_type::ARMORSTAND:
+    case item_type::WEAPONRACK:
+    case item_type::CABINET:
+    case item_type::FIGURINE:
+    case item_type::AMULET:
+    case item_type::SCEPTER:
+    case item_type::CROWN:
+    case item_type::RING:
+    case item_type::EARRING:
+    case item_type::BRACELET:
+    case item_type::GEM:
+    case item_type::BACKPACK:
+    case item_type::QUIVER:
+    case item_type::BALLISTAARROWHEAD:
+    case item_type::TRAPCOMP:
+    case item_type::PIPE_SECTION:
+    case item_type::HATCH_COVER:
+    case item_type::GRATE:
+    case item_type::QUERN:
+    case item_type::MILLSTONE:
+        value = 10;
+        break;
+
+    case item_type::WINDOW:
+    case item_type::STATUE:
+        value = 25;
+        break;
+
+    case item_type::ARMOR:
+        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.armor.size())
+            value = world->raws.itemdefs.armor[item_subtype]->value;
+        else
+            value = 10;
+        break;
+
+    case item_type::SHOES:
+        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.shoes.size())
+            value = world->raws.itemdefs.shoes[item_subtype]->value;
+        else
+            value = 5;
+        break;
+
+    case item_type::SHIELD:
+        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.shields.size())
+            value = world->raws.itemdefs.shields[item_subtype]->value;
+        else
+            value = 10;
+        break;
+
+    case item_type::HELM:
+        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.helms.size())
+            value = world->raws.itemdefs.helms[item_subtype]->value;
+        else
+            value = 10;
+        break;
+
+    case item_type::GLOVES:
+        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.gloves.size())
+            value = world->raws.itemdefs.gloves[item_subtype]->value;
+        else
+            value = 5;
+        break;
+
+    case item_type::AMMO:
+    case item_type::COIN:
+        value = 1;
+        break;
+
+    case item_type::ANVIL:
+        value = 100;
+        break;
+
+    case item_type::MEAT:
+    case item_type::FISH:
+    case item_type::FISH_RAW:
+        if (material >= 0 && material < world->raws.creatures.size())
+            return 2 * world->raws.creatures[material]->modvalue;
+        return 0;
+
+    case item_type::VERMIN:
+        value = 0;
+        if (material >= 0 && material < world->raws.creatures.size())
+            value = world->raws.creatures[material]->petvalue;
+        value /= 2;
+        if (!value)
+                return 1;
+        return value;
+
+    case item_type::PET:
+        if (material >= 0 && material < world->raws.creatures.size())
+            return world->raws.creatures[material]->petvalue;
+        return 0;
+
+    case item_type::SEEDS:
+        return 1;
+
+    case item_type::PLANT:
+        if (material >= 0 && material < world->raws.matgloss.plant.size())
+            return 2 * world->raws.matgloss.plant[material]->value;
+        return 0;
+
+    case item_type::LEAVES:
+        return 5;
+
+    case item_type::THREAD:
+        value = 6;
+        break;
+
+    case item_type::CLOTH:
+        value = 7;
+        break;
+
+    case item_type::TOTEM:
+        if (matgloss >= 0 && matgloss < world->raws.creatures.size())
+            return 10 * world->raws.creatures[matgloss]->modvalue;
+        return 0;
+
+    case item_type::PANTS:
+        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.pants.size())
+            value = world->raws.itemdefs.pants[item_subtype]->value;
+        else
+            value = 10;
+        break;
+
+    case item_type::CATAPULTPARTS:
+    case item_type::BALLISTAPARTS:
+    case item_type::TRAPPARTS:
+        value = 30;
+        break;
+
+    case item_type::SIEGEAMMO:
+        value = 20;
+        break;
+
+    case item_type::EXTRACT:
+        if (material == material_type::LEATHER && matgloss >= 0 && matgloss < world->raws.creatures.size())
+            return world->raws.creatures[matgloss]->extract_value;
+        if (material == material_type::PLANT && matgloss >= 0 && matgloss < world->raws.matgloss.plant.size())
+            return world->raws.matgloss.plant[matgloss]->extractvalue;
+        return 0;
+
+    case item_type::DRINK:
+        if (material == material_type::PLANT_ALCOHOL && matgloss >= 0 && matgloss < world->raws.matgloss.plant.size())
+            return world->raws.matgloss.plant[matgloss]->drinkvalue;
+        return 0;
+
+    case item_type::POWDER_MISC:
+        if (material == material_type::PLANT)
+        {
+            if (matgloss >= 0 && matgloss < world->raws.matgloss.plant.size())
+                return world->raws.matgloss.plant[matgloss]->mill_value;
+            return 0;
+        }
+        value = 3;
+        break;
+
+    case item_type::CHEESE:
+        if (material == material_type::LEATHER && matgloss >= 0 && matgloss < world->raws.creatures.size())
+            return world->raws.creatures[matgloss]->cheese_value;
+        return 0;
+
+    case item_type::FOOD:
+        return 10;
+
+    case item_type::LIQUID_MISC:
+        if (material == material_type::LYE)
+            return 5;
+        return 0;
+
+    case item_type::GLOB:
+        if (material == material_type::RENDERED_FAT)
+            return 1;
+        return 0;
+
+    default:
+        return 0;
+    }
+
+    return value * getMaterialValue(material, matgloss);
+}
+
+int Items::getValue(df::item *item)
+{
+    CHECK_NULL_POINTER(item);
+
+    int16_t item_type = item->getType();
+    int16_t item_subtype = item->getSubtype();
+    int16_t material = item->getMaterial();
+    int32_t matgloss = item->getMatgloss();
+
+    // Get base value for item type, subtype, and material
+    int value = getItemBaseValue(item_type, item_subtype, material, matgloss);
+
+    // Ignore entity value modifications
+
+    // Improve value based on quality
+    int quality = item->getQuality();
+    value *= (quality + 1);
+    if (quality == 5)
+        value *= 2;
+
+    // Add improvement values
+    int impValue = item->getThreadDyeValue(NULL) + item->getImprovementsValue(NULL);
+    if (item_type == item_type::AMMO) // Ammo improvements are worth less
+        impValue /= 30;
+    value += impValue;
+
+    // Degrade value due to wear
+    switch (item->getWear())
+    {
+    case 1:
+        value = value * 3 / 4;
+        break;
+    case 2:
+        value = value / 2;
+        break;
+    case 3:
+        value = value / 4;
+        break;
+    }
+
+    // Ignore value bonuses from magic, since that never actually happens
+
+    // Artifacts have 10x value
+    if (item->flags.bits.artifact)
+        value *= 10;
+
+    // Boost value from stack size
+    value *= item->getStackSize();
+    // ...but not for coins
+    if (item_type == item_type::COIN)
+    {
+        value /= 500;
+        if (!value)
+            value = 1;
+    }
+
+    return value;
 }

@@ -174,5 +174,10 @@ DFHACK_EXPORT df::proj_itemst *makeProjectile(MapExtras::MapCache &mc, df::item 
 DFHACK_EXPORT void item_categorize(df::item *item, bool in_play);
 DFHACK_EXPORT void item_uncategorize(df::item *item);
 
+/// Gets value of base-quality item with specified type and material
+DFHACK_EXPORT int getItemBaseValue(int16_t item_type, int16_t item_subtype, int16_t material, int16_t matgloss);
+
+/// Gets the value of a specific item, ignoring civ values and trade agreements
+DFHACK_EXPORT int getValue(df::item *item);
 }
 }
