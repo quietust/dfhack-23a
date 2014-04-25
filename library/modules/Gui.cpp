@@ -1,4 +1,4 @@
-﻿/*
+/*
 https://github.com/peterix/dfhack
 Copyright (c) 2009-2012 Petr Mrázek (peterix@gmail.com)
 
@@ -79,6 +79,8 @@ using namespace DFHack;
 #include "df/enabler.h"
 #include "df/layer_object_listst.h"
 #include "df/assign_trade_status.h"
+#include "df/game_mode.h"
+#include "df/unit.h"
 
 using namespace df::enums;
 using df::global::gview;
@@ -89,6 +91,7 @@ using df::global::world;
 using df::global::selection_rect;
 using df::global::ui_menu_width;
 using df::global::ui_area_map_width;
+using df::global::gamemode;
 
 static df::layer_object_listst *getLayerList(df::viewscreen_layer *layer, int idx)
 {
@@ -844,9 +847,20 @@ void Gui::showZoomAnnouncement(df::coord pos, std::string message, int color, bo
     revealInDwarfmodeMap(pos, true);
 }
 
+DFHACK_EXPORT void Gui::writeToGamelog(std::string message)
+{
+    if (message.empty())
+        return;
+
+    std::ofstream fseed("gamelog.txt", std::ios::out | std::ios::app);
+    if(fseed.is_open())
+        fseed << message << std::endl;
+    fseed.close();
+}
+
 void Gui::showAnnouncement(std::string message, int color, bool bright)
 {
-    using df::global::gview;
+    writeToGamelog(message);
 
     bool continued = false;
 

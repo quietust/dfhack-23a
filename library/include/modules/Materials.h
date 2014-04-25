@@ -270,6 +270,7 @@ namespace DFHack
         bool ReadAllMaterials(void);
     };
     DFHACK_EXPORT std::string getMaterialDescription(t_materialType type, t_materialSubtype subtype);
+    DFHACK_EXPORT int getMaterialValue(t_materialType material, t_materialSubtype matgloss);
 }
 #endif
 

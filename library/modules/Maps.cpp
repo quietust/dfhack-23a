@@ -281,9 +281,8 @@ bool Maps::canStepBetween(df::coord pos1, df::coord pos2)
     df::tiletype_shape shape2 = ENUM_ATTR(tiletype,shape,type2);
 
     if ( dx == 0 && dy == 0 ) {
-        //check for forbidden hatches and floors and such
-        df::enums::tile_building_occ::tile_building_occ upOcc = index_tile<df::tile_occupancy>(block2->occupancy,pos2).bits.building;
-        if ( upOcc == df::enums::tile_building_occ::Impassable)
+        df::tile_building_occ upOcc = index_tile<df::tile_occupancy>(block2->occupancy,pos2).bits.building;
+        if ( upOcc == tile_building_occ::Impassable)
             return false;
 
         if ( shape1 == tiletype_shape::STAIR_UPDOWN && shape2 == shape1 )
@@ -302,6 +301,7 @@ bool Maps::canStepBetween(df::coord pos1, df::coord pos2)
     
     //diagonal up: has to be a ramp
     if ( shape1 == tiletype_shape::RAMP /*&& shape2 == tiletype_shape::RAMP*/ ) {
+
         return true;
     }
 

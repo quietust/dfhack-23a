@@ -778,9 +778,7 @@ static VALUE rb_dfmemory_stlstring_delete(VALUE self, VALUE addr)
 }
 static VALUE rb_dfmemory_stlstring_init(VALUE self, VALUE addr)
 {
-    // XXX THIS IS TERRIBLE
-    stl::string *ptr = new stl::string;
-    memcpy((void*)rb_num2ulong(addr), (void*)ptr, sizeof(*ptr));
+    new((void*)rb_num2ulong(addr)) stl::string();
     return Qtrue;
 }
 static VALUE rb_dfmemory_read_stlstring(VALUE self, VALUE addr)
@@ -812,8 +810,7 @@ static VALUE rb_dfmemory_vec_delete(VALUE self, VALUE addr)
 }
 static VALUE rb_dfmemory_vec_init(VALUE self, VALUE addr)
 {
-    stl::vector<uint8_t> *ptr = new stl::vector<uint8_t>;
-    memcpy((void*)rb_num2ulong(addr), (void*)ptr, sizeof(*ptr));
+    new((void*)rb_num2ulong(addr)) stl::vector<uint8_t>();
     return Qtrue;
 }
 // vector<uint8>
@@ -903,8 +900,7 @@ static VALUE rb_dfmemory_vecbool_delete(VALUE self, VALUE addr)
 }
 static VALUE rb_dfmemory_vecbool_init(VALUE self, VALUE addr)
 {
-    stl::vector<bool> *ptr = new stl::vector<bool>;
-    memcpy((void*)rb_num2ulong(addr), (void*)ptr, sizeof(*ptr));
+    new((void*)rb_num2ulong(addr)) stl::vector<bool>();
     return Qtrue;
 }
 static VALUE rb_dfmemory_vecbool_length(VALUE self, VALUE addr)

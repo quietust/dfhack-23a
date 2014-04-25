@@ -675,3 +675,102 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
     }
     return out;
 }
+
+int DFHack::getMaterialValue(t_materialType material, t_materialSubtype matgloss)
+{
+    auto raws = df::global::world->raws;
+    switch (material)
+    {
+    case material_type::STONE_GRAY:
+    case material_type::STONE_LIGHT:
+    case material_type::STONE_DARK:
+        if (matgloss >= 0 && matgloss < raws.matgloss.stone.size())
+        {
+            auto raw = raws.matgloss.stone[matgloss];
+            if (raw->flags.bits.SHARP)
+                return 3;
+            if (raw->flags.bits.DARK || raw->flags.bits.LIGHT)
+                return 2;
+        }
+        return 1;
+
+    case material_type::GOLD:
+    case material_type::STEEL:
+        return 30;
+
+    case material_type::IRON:
+    case material_type::SILVER:
+    case material_type::GLASS_CRYSTAL:
+    case material_type::PIGIRON:
+        return 10;
+
+    case material_type::COPPER:
+    case material_type::JADE:
+    case material_type::AMBER:
+    case material_type::CORAL:
+    case material_type::GLASS_GREEN:
+    case material_type::ZINC:
+    case material_type::TIN:
+    case material_type::COAL:
+    case material_type::LYE:
+        return 2;
+
+    case material_type::GEM_ORNAMENTAL:
+    case material_type::GEM_SEMI:
+    case material_type::GEM_PRECIOUS:
+    case material_type::GEM_RARE:
+        if (matgloss >= 0 && matgloss < raws.matgloss.gem.size())
+            return raws.matgloss.gem[matgloss]->value;
+        return 0;
+
+    case material_type::BONE:
+    case material_type::HORN:
+    case material_type::SHELL:
+    case material_type::LEATHER:
+    case material_type::RENDERED_FAT:
+    case material_type::FAT:
+        if (matgloss >= 0 && matgloss < raws.creatures.size())
+            return raws.creatures[matgloss]->modvalue;
+        return 0;
+
+    case material_type::IVORY:
+    case material_type::PEARL:
+    case material_type::SILK:
+        if (matgloss >= 0 && matgloss < raws.creatures.size())
+            return 2 * raws.creatures[matgloss]->modvalue;
+        return 0;
+
+    case material_type::ADAMANTINE:
+        return 300;
+
+    case material_type::PLANT:
+        if (matgloss >= 0 && matgloss < raws.matgloss.plant.size())
+            return raws.matgloss.plant[matgloss]->value;
+        return 0;
+
+    case material_type::GLASS_CLEAR:
+    case material_type::BRONZE:
+        return 5;
+
+    case material_type::BRASS:
+        return 7;
+
+    case material_type::PLATINUM:
+        return 40;
+
+    case material_type::ELECTRUM:
+        return 20;
+
+    case material_type::POTASH:
+        return 3;
+
+    case material_type::PEARLASH:
+        return 4;
+
+    case material_type::SOAP_ANIMAL:
+        if (matgloss >= 0 && matgloss < raws.creatures.size())
+            return 5 * raws.creatures[matgloss]->modvalue;
+        return 0;
+    }
+    return 1;
+}
