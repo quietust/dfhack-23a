@@ -360,9 +360,9 @@ bool Materials::CopyInorganicMaterials (std::vector<t_matgloss> & stone)
         mat.name = orig->name;
 
         mat.value = 1;
-        if (orig->flags.is_set(matgloss_stone_flags::LIGHT) || orig->flags.is_set(matgloss_stone_flags::DARK))
+        if (orig->flags.bits.LIGHT || orig->flags.bits.DARK)
           mat.value = 2;
-        if (orig->flags.is_set(matgloss_stone_flags::SHARP))
+        if (orig->flags.bits.SHARP)
           mat.value = 3;
         mat.wall_tile = orig->tile;
         mat.fore = orig->color[0];

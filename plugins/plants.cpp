@@ -320,13 +320,13 @@ command_result df_createplant (color_ostream &out, vector <string> & parameters)
     {
         plant->hitpoints = 100000;
 
-        if (plant_raw->flags.is_set(matgloss_plant_flags::CAVE))
+        if (plant_raw->flags.bits.CAVE)
             plant->flags = plant_flags::shrub_cave;
-        else if (plant_raw->flags.is_set(matgloss_plant_flags::RIVER))
+        else if (plant_raw->flags.bits.RIVER)
             plant->flags = plant_flags::shrub_river;
-        else if (plant_raw->flags.is_set(matgloss_plant_flags::SWAMP))
+        else if (plant_raw->flags.bits.SWAMP)
             plant->flags = plant_flags::shrub_swamp;
-        else if (plant_raw->flags.is_set(matgloss_plant_flags::FOREST))
+        else if (plant_raw->flags.bits.FOREST)
             plant->flags = plant_flags::shrub_forest;
         else // this shouldn't happen
             plant->flags = plant_flags::shrub_forest;

@@ -365,7 +365,7 @@ std::string Job::getName(df::job *job)
 
     stl::string desc;
     auto button = df::allocate<df::interface_button_building_new_jobst>();
-    button->reaction_name = job->reaction_name;
+    button->ammo_class = job->ammo_class;
     button->job_type = job->job_type;
     button->item_subtype = job->item_subtype;
     button->material = job->material;

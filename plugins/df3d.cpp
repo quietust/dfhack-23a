@@ -229,9 +229,9 @@ command_result addzlevel (color_ostream &out, vector <string> & parameters)
         for (int i = 0; i < world->raws.matgloss.stone.size(); i++)
         {
             auto stone = world->raws.matgloss.stone[i];
-            if (stone->flags.is_set(matgloss_stone_flags::LIGHT))
+            if (stone->flags.bits.LIGHT)
                 stone_light.push_back(i);
-            if (stone->flags.is_set(matgloss_stone_flags::DARK))
+            if (stone->flags.bits.DARK)
                 stone_dark.push_back(i);
         }
 
@@ -452,11 +452,11 @@ command_result addzlevel (color_ostream &out, vector <string> & parameters)
             case 4: // red = 1
                 color++;
             case 2: // green = 0
-                if (gem->flags.is_set(matgloss_gem_flags::ORNAMENTAL))
+                if (gem->flags.bits.ORNAMENTAL)
                     gem_ornamental[color].push_back(i);
-                if (gem->flags.is_set(matgloss_gem_flags::SEMI))
+                if (gem->flags.bits.SEMI)
                     gem_semi[color].push_back(i);
-                if (gem->flags.is_set(matgloss_gem_flags::PRECIOUS))
+                if (gem->flags.bits.PRECIOUS)
                     gem_precious[color].push_back(i);
             }
         }
