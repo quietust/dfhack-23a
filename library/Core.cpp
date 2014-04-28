@@ -1406,6 +1406,9 @@ void Core::doUpdate(color_ostream &out, bool first_update)
     // Execute per-frame handlers
     onUpdate(out);
 
+    // Check for hotkeys
+    checkHotkeys();
+
     out << std::flush;
 }
 
@@ -1539,10 +1542,37 @@ int Core::Shutdown ( void )
     return -1;
 }
 
-// FIXME: this is HORRIBLY broken
-// from ncurses
-#define KEY_F0      0410        /* Function keys.  Space for 64 */
-#define KEY_F(n)    (KEY_F0+(n))    /* Value of function key n */
+void Core::checkHotkeys()
+{
+    using df::global::gview;
+
+    // do NOT process events before we are ready.
+    if(!started) return;
+
+    // need gview to check for input
+    if (!gview) return;
+
+    int key = gview->current_key;
+
+    // release any keys not being pressed
+    for (auto iter = hotkey_states.begin(); iter != hotkey_states.end(); ++iter)
+    {
+        if (iter->first != key)
+            iter->second = false;
+    }
+
+    if (!hotkey_states[key])
+    {
+        hotkey_states[key] = true;
+
+        int mod = 0;
+        if (gview->current_shift) mod |= 1;
+        if (gview->current_ctrl) mod |= 2;
+        if (gview->current_alt) mod |= 4;
+
+        SelectHotkey(key, mod);
+    }
+}
 
 bool Core::SelectHotkey(int sym, int modifiers)
 {
@@ -1601,7 +1631,6 @@ bool Core::SelectHotkey(int sym, int modifiers)
 
 static bool parseKeySpec(std::string keyspec, int *psym, int *pmod, std::string *pfocus)
 {
-/*
     *pmod = 0;
 
     if (pfocus)
@@ -1631,16 +1660,15 @@ static bool parseKeySpec(std::string keyspec, int *psym, int *pmod, std::string 
             break;
     }
     if (keyspec.size() == 1 && keyspec[0] >= 'A' && keyspec[0] <= 'Z') {
-        *psym = SDL::K_a + (keyspec[0]-'A');
+        *psym = keyspec[0];
         return true;
     } else if (keyspec.size() == 2 && keyspec[0] == 'F' && keyspec[1] >= '1' && keyspec[1] <= '9') {
-        *psym = SDL::K_F1 + (keyspec[1]-'1');
+        *psym = VK_F1 + (keyspec[1]-'1');
         return true;
     } else if (keyspec == "Enter") {
-        *psym = SDL::K_RETURN;
+        *psym = VK_RETURN;
         return true;
     } else
-    */
         return false;
 }
 
