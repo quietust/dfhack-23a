@@ -236,6 +236,7 @@ namespace DFHack
         tthread::mutex * HotkeyMutex;
         tthread::condition_variable * HotkeyCond;
 
+        void checkHotkeys();
         bool SelectHotkey(int key, int modifiers);
 
         // for state change tracking
