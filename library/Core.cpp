@@ -1549,8 +1549,9 @@ void Core::checkHotkeys()
 
         int mod = 0;
         if (gview->current_shift) mod |= 1;
-        if (gview->current_ctrl) mod |= 2;
-        if (gview->current_alt) mod |= 4;
+        // 23a's interfacest does not track Ctrl or Alt
+        if (GetKeyState(VK_CONTROL) & 0x8000) mod |= 2;
+        if (GetKeyState(VK_MENU) & 0x8000) mod |= 4;
 
         SelectHotkey(key, mod);
     }
