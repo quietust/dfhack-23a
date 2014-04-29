@@ -89,7 +89,7 @@ if (BUILD_SUPPORTED)
     # this is a plugin which helps detect cursed creatures (vampires, necromancers, werebeasts, ...)
 #   DFHACK_PLUGIN(cursecheck cursecheck.cpp)
     # automatically assign labors to dwarves!
-    DFHACK_PLUGIN(autolabor autolabor.cpp)
+#   DFHACK_PLUGIN(autolabor autolabor.cpp)
 #   DFHACK_PLUGIN(dig dig.cpp)
     DFHACK_PLUGIN(drybuckets drybuckets.cpp)
     DFHACK_PLUGIN(getplants getplants.cpp)
