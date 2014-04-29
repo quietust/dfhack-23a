@@ -366,7 +366,7 @@ static int hauler_pct = 33;
 static std::vector<struct labor_info> labor_infos;
 
 static const struct labor_default default_labor_infos[] = {
-    /* MINE */                  {AUTOMATIC, true, 2, 200, 0},
+    /* MINE */                  {DISABLE, true, 2, 200, 0}, // Need special handling for weapon labors
     /* HAUL_STONE */            {HAULERS, false, 1, 200, 0},
     /* HAUL_WOOD */             {HAULERS, false, 1, 200, 0},
     /* HAUL_BODY */             {HAULERS, false, 1, 200, 0},
@@ -376,20 +376,14 @@ static const struct labor_default default_labor_infos[] = {
     /* HAUL_FURNITURE */        {HAULERS, false, 1, 200, 0},
     /* HAUL_ANIMAL */           {HAULERS, false, 1, 200, 0},
     /* CLEAN */                 {HAULERS, false, 1, 200, 0},
-    /* CUTWOOD */               {AUTOMATIC, true, 1, 200, 0},
+    /* CUTWOOD */               {DISABLE, true, 1, 200, 0}, // Need special handling for weapon labors
     /* CARPENTER */             {AUTOMATIC, false, 1, 200, 0},
     /* DETAIL */                {AUTOMATIC, false, 1, 200, 0},
     /* MASON */                 {AUTOMATIC, false, 1, 200, 0},
     /* ARCHITECT */             {AUTOMATIC, false, 1, 200, 0},
     /* ANIMALTRAIN */           {AUTOMATIC, false, 1, 200, 0},
     /* ANIMALCARE */            {AUTOMATIC, false, 1, 200, 0},
-    /* DIAGNOSE */              {AUTOMATIC, false, 1, 200, 0},
-    /* SURGERY */               {AUTOMATIC, false, 1, 200, 0},
-    /* BONE_SETTING */          {AUTOMATIC, false, 1, 200, 0},
-    /* SUTURING */              {AUTOMATIC, false, 1, 200, 0},
-    /* DRESSING_WOUNDS */       {AUTOMATIC, false, 1, 200, 0},
-    /* FEED_WATER_CIVILIANS */  {AUTOMATIC, false, 200, 200, 0},
-    /* RECOVER_WOUNDED */       {HAULERS, false, 1, 200, 0},
+    /* HEALTHCARE */            {HAULERS, false, 1, 200, 0},
     /* BUTCHER */               {AUTOMATIC, false, 1, 200, 0},
     /* TRAPPER */               {AUTOMATIC, false, 1, 200, 0},
     /* DISSECT_VERMIN */        {AUTOMATIC, false, 1, 200, 0},
@@ -410,7 +404,7 @@ static const struct labor_default default_labor_infos[] = {
     /* FISH */                  {AUTOMATIC, false, 1, 1, 0},
     /* CLEAN_FISH */            {AUTOMATIC, false, 1, 200, 0},
     /* DISSECT_FISH */          {AUTOMATIC, false, 1, 200, 0},
-    /* HUNT */                  {AUTOMATIC, true, 1, 1, 0},
+    /* HUNT */                  {DISABLE, true, 1, 1, 0}, // Need special handling for weapon labors
     /* SMELT */                 {AUTOMATIC, false, 1, 200, 0},
     /* FORGE_WEAPON */          {AUTOMATIC, false, 1, 200, 0},
     /* FORGE_ARMOR */           {AUTOMATIC, false, 1, 200, 0},
@@ -423,51 +417,29 @@ static const struct labor_default default_labor_infos[] = {
     /* BONE_CARVE */            {AUTOMATIC, false, 1, 200, 0},
     /* GLASSMAKER */            {AUTOMATIC, false, 1, 200, 0},
     /* EXTRACT_STRAND */        {AUTOMATIC, false, 1, 200, 0},
+    /* AXE */                   {DISABLE, true, 1, 200, 0},
+    /* SWORD */                 {DISABLE, true, 1, 200, 0},
+    /* MACE */                  {DISABLE, true, 1, 200, 0},
+    /* HAMMER */                {DISABLE, true, 1, 200, 0},
+    /* SPEAR */                 {DISABLE, true, 1, 200, 0},
+    /* DAGGER */                {DISABLE, true, 1, 200, 0},
+    /* CROSSBOW */              {DISABLE, true, 1, 200, 0},
+    /* BOW */                   {DISABLE, true, 1, 200, 0},
+    /* BLOWGUN */               {DISABLE, true, 1, 200, 0},
+    /* PIKE */                  {DISABLE, true, 1, 200, 0},
+    /* WHIP */                  {DISABLE, true, 1, 200, 0},
+    /* SHIELD */                {DISABLE, true, 1, 200, 0},
+    /* ARMOR */                 {DISABLE, true, 1, 200, 0},
     /* SIEGECRAFT */            {AUTOMATIC, false, 1, 200, 0},
     /* SIEGEOPERATE */          {AUTOMATIC, false, 1, 200, 0},
     /* BOWYER */                {AUTOMATIC, false, 1, 200, 0},
     /* MECHANIC */              {AUTOMATIC, false, 1, 200, 0},
+    /* WEAPON_NUMBER */         {DISABLE, false, 1, 200, 0},
     /* POTASH_MAKING */         {AUTOMATIC, false, 1, 200, 0},
     /* LYE_MAKING */            {AUTOMATIC, false, 1, 200, 0},
     /* DYER */                  {AUTOMATIC, false, 1, 200, 0},
     /* BURN_WOOD */             {AUTOMATIC, false, 1, 200, 0},
-    /* OPERATE_PUMP */          {AUTOMATIC, false, 1, 200, 0},
-    /* SHEARER */               {AUTOMATIC, false, 1, 200, 0},
-    /* SPINNER */               {AUTOMATIC, false, 1, 200, 0},
-    /* POTTERY */               {AUTOMATIC, false, 1, 200, 0},
-    /* GLAZING */               {AUTOMATIC, false, 1, 200, 0},
-    /* PRESSING */              {AUTOMATIC, false, 1, 200, 0},
-    /* BEEKEEPING */            {AUTOMATIC, false, 1, 1, 0}, // reduce risk of stuck beekeepers (see http://www.bay12games.com/dwarves/mantisbt/view.php?id=3981)
-    /* WAX_WORKING */           {AUTOMATIC, false, 1, 200, 0},
-    /* PUSH_HAUL_VEHICLES */    {HAULERS, false, 1, 200, 0}
-};
-
-static const int responsibility_penalties[] = {
-    0,      /* LAW_MAKING */
-    0,      /* LAW_ENFORCEMENT */
-    3000,   /* RECEIVE_DIPLOMATS */
-    0,      /* MEET_WORKERS */
-    1000,   /* MANAGE_PRODUCTION */
-    3000,   /* TRADE */
-    1000,   /* ACCOUNTING */
-    0,      /* ESTABLISH_COLONY_TRADE_AGREEMENTS */
-    0,      /* MAKE_INTRODUCTIONS */
-    0,      /* MAKE_PEACE_AGREEMENTS */
-    0,      /* MAKE_TOPIC_AGREEMENTS */
-    0,      /* COLLECT_TAXES */
-    0,      /* ESCORT_TAX_COLLECTOR */
-    0,      /* EXECUTIONS */
-    0,      /* TAME_EXOTICS */
-    0,      /* RELIGION */
-    0,      /* ATTACK_ENEMIES */
-    0,      /* PATROL_TERRITORY */
-    0,      /* MILITARY_GOALS */
-    0,      /* MILITARY_STRATEGY */
-    0,      /* UPGRADE_SQUAD_EQUIPMENT */
-    0,      /* EQUIPMENT_MANIFESTS */
-    0,      /* SORT_AMMUNITION */
-    0,      /* BUILD_MORALE */
-    5000    /* HEALTH_MANAGEMENT */
+    /* OPERATE_PUMP */          {AUTOMATIC, false, 1, 200, 0}
 };
 
 struct dwarf_info_t
@@ -651,13 +623,13 @@ DFhackCExport command_result plugin_init ( color_ostream &out, std::vector <Plug
         "  To prevent particular dwarves from being managed by autolabor, put them\n"
         "  in any burrow.\n"
         "Examples:\n"
-        "  autolabor MINE 2\n"
-        "    Keep at least 2 dwarves with mining enabled.\n"
+        "  autolabor PLANT 2\n"
+        "    Keep at least 2 dwarves with farming enabled.\n"
         "  autolabor CUT_GEM 1 1\n"
         "    Keep exactly 1 dwarf with gemcutting enabled.\n"
-        "  autolabor FEED_WATER_CIVILIANS haulers\n"
+        "  autolabor HEALTHCARE haulers\n"
         "    Have haulers feed and water wounded dwarves.\n"
-        "  autolabor CUTWOOD disable\n"
+        "  autolabor BUTCHER disable\n"
         "    Turn off autolabor for wood cutting.\n"
     ));
 
