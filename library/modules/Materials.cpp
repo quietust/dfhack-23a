@@ -679,7 +679,7 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
 
 int DFHack::getMaterialValue(t_materialType material, t_materialSubtype matgloss)
 {
-    auto raws = df::global::world->raws;
+    auto &raws = df::global::world->raws;
     switch (material)
     {
     case material_type::STONE:
