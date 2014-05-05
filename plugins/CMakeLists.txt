@@ -169,6 +169,7 @@ if (BUILD_SUPPORTED)
     DFHACK_PLUGIN(strangemood strangemood.cpp)
 #   DFHACK_PLUGIN(command-prompt command-prompt.cpp)
     DFHACK_PLUGIN(sort_depot sort_depot.cpp)
+    DFHACK_PLUGIN(sort_build sort_build.cpp)
 endif()
 
 # this is the skeleton plugin. If you want to make your own, make a copy and then change it

@@ -163,6 +163,13 @@ tweak hive-crash
 # Dwarf Manipulator (simple in-game Dwarf Therapist replacement)
 enable manipulator
 
+# Various UI improvements for 23a
+enable melt_chasm
+enable show_meeting
+enable sort_build
+enable sort_depot
+enable tile_status
+
 # Search tool in various screens (by falconne)
 enable search
 
