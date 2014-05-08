@@ -1,0 +1,17 @@
+Siegers fail to renew their campfires, instead allowing them to burn out.
+Siegers can set new campfires on top of some types of Ashes.
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+000E4159: 56 74
+000E415A: B9 11
+000E415B: 78 3C
+000E415C: B2 7E
+000E415D: AC 74
+000E415E: 00 0D
+000E415F: E8 E9
+000E4160: EC 14
+000E4161: B2 03
+000E4162: 21 00
+000E449E: 38 30
