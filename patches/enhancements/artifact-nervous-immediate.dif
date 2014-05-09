@@ -1,8 +1,0 @@
-Cause artifact holders to immediately get nervous, rather than waiting a while. May lead to hilarity if the artifact's creator decides to haul it somewhere.
-
-----8<----
-This difference file is created by The Interactive Disassembler
-
-dwarfort.exe
-000A70F6: 35 00
-000A70F7: 07 00
