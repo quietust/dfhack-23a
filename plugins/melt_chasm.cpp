@@ -23,6 +23,7 @@
 #include "df/item.h"
 #include "df/items_other_id.h"
 #include "df/building_actual.h"
+#include "df/job.h"
 
 using std::set;
 using std::vector;
@@ -151,6 +152,20 @@ void item_addMelt (df::item *item)
     item_cancelChasmJob(item);
 }
 
+bool isBuildingValid (df::building *building)
+{
+    if (!building)
+        return false;
+    if (!building->isActual())
+        return false;
+    if (building->getBuildStage() < building->getMaxBuildStage())
+        return false;
+    for (size_t i = 0; i < building->jobs.size(); i++)
+        if (building->jobs[i]->job_type == job_type::DestroyBuilding)
+            return false;
+    return true;
+}
+
 bool inHook_dwarfmode_look = false;
 bool inHook_dwarfmode_build = false;
 struct dwarfmode_hook : df::viewscreen_dwarfmodest
@@ -171,11 +186,11 @@ struct dwarfmode_hook : df::viewscreen_dwarfmodest
             }
             if (ui->main.mode == ui_sidebar_mode::BuildingItems)
             {
-                if (world->selected_building && world->selected_building->isActual())
+                if (isBuildingValid(world->selected_building))
                 {
                     inHook_dwarfmode_build = true;
                     df::building_actual *bld = (df::building_actual *)world->selected_building;
-                    if (*ui_building_item_cursor < bld->contained_items.size())
+                    if ((*ui_building_item_cursor >= 0) && (*ui_building_item_cursor < bld->contained_items.size()))
                         item = bld->contained_items[*ui_building_item_cursor]->item;
                 }
             }
@@ -285,7 +300,7 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
         {
             y = 4 + i;
             int cur_item = start_item + i;
-            if (cur_item >= num_items)
+            if ((cur_item < 0) || (cur_item >= num_items))
                 break;
             df::item *item = bld->contained_items[cur_item]->item;
             if (item_isMelt(item))
@@ -299,19 +314,22 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
                 OutputString(8, x, y, "C");
             }
         }
-        df::item *item = bld->contained_items[*ui_building_item_cursor]->item;
-        if (ui->tasks.found_chasm)
+        if (*ui_building_item_cursor >= 0 && *ui_building_item_cursor < num_items)
         {
-            x = dims.menu_x1 + 12;
-            y = 19;
-            OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STORES_CHASM));
-            OutputString(isChasmable(item) ? 15 : 8, x, y, ": Chasm");
-        }
+            df::item *item = bld->contained_items[*ui_building_item_cursor]->item;
+            if (ui->tasks.found_chasm)
+            {
+                x = dims.menu_x1 + 12;
+                y = 19;
+                OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STORES_CHASM));
+                OutputString(isChasmable(item) ? 15 : 8, x, y, ": Chasm");
+            }
 
-        x = dims.menu_x1 + 22;
-        y = 19;
-        OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STORES_MELT));
-        OutputString(isMeltable(item) ? 15 : 8, x, y, ": Melt");
+            x = dims.menu_x1 + 22;
+            y = 19;
+            OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STORES_MELT));
+            OutputString(isMeltable(item) ? 15 : 8, x, y, ": Melt");
+        }
         inHook_dwarfmode_build = false;
     }
     if (inHook_item)
