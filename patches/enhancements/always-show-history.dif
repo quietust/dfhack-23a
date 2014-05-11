@@ -1,0 +1,16 @@
+Display detailed history info in Fortress Mode
+
+----8<----
+This difference file is created by The Interactive Disassembler
+
+dwarfort.exe
+00313ECA: 8B 66
+00313ECB: 54 BA
+00313ECC: 24 01
+00313ECD: 7C 00
+003140A4: 8B 66
+003140A5: 44 B8
+003140A6: 24 01
+003140A7: 7C 00
+003140D4: E5 00
+003140D5: 06 00

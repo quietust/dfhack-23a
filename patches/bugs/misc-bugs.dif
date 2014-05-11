@@ -1,8 +1,11 @@
 Pregnant dwarves have miscarriages when Hungry instead of when Starving or Dehydrated
+Pikemasters are given skill levels in Axe instead of Pike
+
 ----8<----
 This difference file is created by The Interactive Disassembler
 
 dwarfort.exe
+002A5144: 2A 36
 002BD3CF: 81 90
 002BD3D0: F9 E9
 002BD3D1: 50 AF
