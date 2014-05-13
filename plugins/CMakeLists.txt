@@ -171,6 +171,7 @@ if (BUILD_SUPPORTED)
     DFHACK_PLUGIN(sort_depot sort_depot.cpp)
     DFHACK_PLUGIN(sort_build sort_build.cpp)
     DFHACK_PLUGIN(more_jobs more_jobs.cpp)
+    DFHACK_PLUGIN(trade_review trade_review.cpp)
 endif()
 
 # this is the skeleton plugin. If you want to make your own, make a copy and then change it
