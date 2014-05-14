@@ -7,7 +7,6 @@
 #include <MiscUtils.h>
 #include <modules/Gui.h>
 #include <modules/Screen.h>
-#include <modules/Items.h>
 #include <vector>
 #include <string>
 #include <set>
@@ -159,6 +158,7 @@ void item_addMelt (df::item *item)
 
 void item_removeFromJobs (df::item *item)
 {
+    bool clear_job_flag = false;
     for (size_t i = 0; i < item->specific_refs.size(); i++)
     {
         if (item->specific_refs[i]->type != specific_ref_type::JOB)
@@ -171,6 +171,8 @@ void item_removeFromJobs (df::item *item)
                 continue;
             if (job->items[j]->role == 2)
                 collapse = true;
+            if (job->items[j]->role != 6)
+                clear_job_flag = true;
             delete job->items[j];
             job->items.erase(job->items.begin() + j--);
         }
@@ -178,6 +180,17 @@ void item_removeFromJobs (df::item *item)
             job->flags.bits.item_lost = 1;
         delete item->specific_refs[i];
         item->specific_refs.erase(item->specific_refs.begin() + i--);
+    }
+    if (clear_job_flag)
+    {
+        for (size_t i = 0; i < item->specific_refs.size(); i++)
+            if (item->general_refs[i]->getType() == general_ref_type::PROJECTILE)
+            {
+                clear_job_flag = false;
+                break;
+            }
+        if (clear_job_flag)
+            item->flags.bits.in_job = 0;
     }
 }
 
