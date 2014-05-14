@@ -1,4 +1,4 @@
-// Melt/Chasm shortcut keys from more places
+// Forbid/Melt/Chasm shortcut keys from more places
 
 #include "Core.h"
 #include <Console.h>
@@ -7,6 +7,7 @@
 #include <MiscUtils.h>
 #include <modules/Gui.h>
 #include <modules/Screen.h>
+#include <modules/Items.h>
 #include <vector>
 #include <string>
 #include <set>
@@ -19,11 +20,13 @@
 #include "df/init.h"
 #include "df/viewscreen_dwarfmodest.h"
 #include "df/viewscreen_itemst.h"
+#include "df/viewscreen_storesst.h"
 #include "df/interface_key.h"
 #include "df/item.h"
 #include "df/items_other_id.h"
 #include "df/building_actual.h"
 #include "df/job.h"
+#include "df/job_item_ref.h"
 
 using std::set;
 using std::vector;
@@ -110,6 +113,8 @@ bool isMeltable (df::item *item)
 void item_cancelMeltJob (df::item *item)
 {
     // TODO: if there is an active "melt item" job for this item, cancel it
+    // Cancelling jobs is non-trivial, so this is harder than it sounds,
+    // though we could probably just trigger a "job item misplaced" instead
 }
 
 void item_cancelChasmJob (df::item *item)
@@ -150,6 +155,30 @@ void item_addMelt (df::item *item)
     vec.push_back(item);
     item->flags.bits.dump = 0;
     item_cancelChasmJob(item);
+}
+
+void item_removeFromJobs (df::item *item)
+{
+    for (size_t i = 0; i < item->specific_refs.size(); i++)
+    {
+        if (item->specific_refs[i]->type != specific_ref_type::JOB)
+            continue;
+        df::job *job = item->specific_refs[i]->job;
+        bool collapse = false;
+        for (size_t j = 0; j < job->items.size(); j++)
+        {
+            if (job->items[j]->item != item)
+                continue;
+            if (job->items[j]->role == 2)
+                collapse = true;
+            delete job->items[j];
+            job->items.erase(job->items.begin() + j--);
+        }
+        if (((job->job_type == job_type::ConstructBuilding) && (collapse)) || (job->job_type != job_type::ConstructBuilding))
+            job->flags.bits.item_lost = 1;
+        delete item->specific_refs[i];
+        item->specific_refs.erase(item->specific_refs.begin() + i--);
+    }
 }
 
 bool isBuildingValid (df::building *building)
@@ -209,6 +238,12 @@ struct dwarfmode_hook : df::viewscreen_dwarfmodest
                     else
                         item_cancelChasmJob(item);
                 }
+                if (Screen::isKeyPressed(interface_key::STRING_F))
+                {
+                    item->flags.bits.forbid = !item->flags.bits.forbid;
+                    if (item->flags.bits.forbid)
+                        item_removeFromJobs(item);
+                }
             }
         }
         INTERPOSE_NEXT(view)();
@@ -216,7 +251,7 @@ struct dwarfmode_hook : df::viewscreen_dwarfmodest
 };
 
 bool inHook_item = false;
-df::item *itemhook_item;
+df::item *itemhook_item = NULL;
 struct item_hook : df::viewscreen_itemst
 {
     typedef df::viewscreen_itemst interpose_base;
@@ -228,6 +263,12 @@ struct item_hook : df::viewscreen_itemst
             inHook_item = true;
             itemhook_item = item;
 
+            if (Screen::isKeyPressed(interface_key::STRING_F))
+            {
+                item->flags.bits.forbid = !item->flags.bits.forbid;
+                if (item->flags.bits.forbid)
+                    item_removeFromJobs(item);
+            }
             if (Screen::isKeyPressed(interface_key::STORES_MELT) && isMeltable(item))
             {
                 if (!item_removeMelt(item))
@@ -241,6 +282,28 @@ struct item_hook : df::viewscreen_itemst
                 else
                     item_cancelChasmJob(item);
             }
+        }
+        INTERPOSE_NEXT(view)();
+    }
+};
+
+bool inHook_stores = false;
+df::viewscreen_storesst *storeshook_screen = NULL;
+struct stores_hook : df::viewscreen_storesst
+{
+    typedef df::viewscreen_storesst interpose_base;
+
+    DEFINE_VMETHOD_INTERPOSE(void, view, ())
+    {
+        inHook_stores = true;
+        storeshook_screen = this;
+        if (in_right_list && !in_group_mode && item_cursor >= 0 && item_cursor <= items.size() && Screen::isKeyPressed(interface_key::STRING_F))
+        {
+            df::item *item = items[item_cursor];
+
+            item->flags.bits.forbid = !item->flags.bits.forbid;
+            if (item->flags.bits.forbid)
+                item_removeFromJobs(item);
         }
         INTERPOSE_NEXT(view)();
     }
@@ -277,11 +340,18 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
         if (ui_look_list->items[*ui_look_cursor]->type == df::ui_look_list::T_items::Item)
         {
             df::item *item = ui_look_list->items[*ui_look_cursor]->item;
+
+            x = dims.menu_x1 + 1;
+            y = 21;
+            OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STRING_F));
+            OutputString(15, x, y, item->flags.bits.forbid ? ": Claim " : ": Forbid");
+
             if (ui->tasks.found_chasm)
             {
                 x = dims.menu_x1 + 12;
-                OutputString(10, x, 21, Screen::getKeyDisplay(interface_key::STORES_CHASM));
-                OutputString(isChasmable(item) ? 15 : 8, x, 21, ": Chasm");
+                y = 21;
+                OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STORES_CHASM));
+                OutputString(isChasmable(item) ? 15 : 8, x, y, ": Chasm");
             }
 
             x = dims.menu_x1 + 22;
@@ -317,6 +387,12 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
         if (*ui_building_item_cursor >= 0 && *ui_building_item_cursor < num_items)
         {
             df::item *item = bld->contained_items[*ui_building_item_cursor]->item;
+
+            x = dims.menu_x1 + 1;
+            y = 19;
+            OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STRING_F));
+            OutputString(15, x, y, item->flags.bits.forbid ? ": Claim " : ": Forbid");
+
             if (ui->tasks.found_chasm)
             {
                 x = dims.menu_x1 + 12;
@@ -348,6 +424,11 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
             OutputString(8, x, y, "C");
         }
 
+        x = 55;
+        y = 19;
+        OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STRING_F));
+        OutputString(7, x, y, item->flags.bits.forbid ? ": Claim " : ": Forbid");
+
         if (isMeltable(item))
         {
             x = 55;
@@ -364,11 +445,25 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
         }
         inHook_item = false;
     }
+    if (inHook_stores)
+    {
+        x = 66;
+        y = 21;
+        OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STRING_F));
+
+        int fg = 8;
+        if (storeshook_screen->in_right_list && !storeshook_screen->in_group_mode)
+            fg = 15;
+        OutputString(fg, x, y, ": Forbid");
+
+        inHook_stores = false;
+    }
     return CR_OK;
 }
 
 IMPLEMENT_VMETHOD_INTERPOSE(dwarfmode_hook, view);
 IMPLEMENT_VMETHOD_INTERPOSE(item_hook, view);
+IMPLEMENT_VMETHOD_INTERPOSE(stores_hook, view);
 
 DFHACK_PLUGIN("melt_chasm");
 DFHACK_PLUGIN_IS_ENABLED(is_enabled);
@@ -383,6 +478,8 @@ DFhackCExport command_result plugin_enable(color_ostream &out, bool enable)
         if (!INTERPOSE_HOOK(dwarfmode_hook, view).apply(enable))
             return CR_FAILURE;
         if (!INTERPOSE_HOOK(item_hook, view).apply(enable))
+            return CR_FAILURE;
+        if (!INTERPOSE_HOOK(stores_hook, view).apply(enable))
             return CR_FAILURE;
 
         is_enabled = enable;
@@ -401,5 +498,6 @@ DFhackCExport command_result plugin_shutdown ( color_ostream &out )
 {
     INTERPOSE_HOOK(dwarfmode_hook, view).remove();
     INTERPOSE_HOOK(item_hook, view).remove();
+    INTERPOSE_HOOK(stores_hook, view).remove();
     return CR_OK;
 }
