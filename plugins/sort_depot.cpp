@@ -20,6 +20,7 @@
 #include "df/viewscreen_assigntradest.h"
 #include "df/assign_trade_status.h"
 #include "df/building_tradedepotst.h"
+#include "df/ui.h"
 
 using std::set;
 using std::vector;
@@ -29,6 +30,7 @@ using namespace DFHack;
 using namespace df::enums;
 
 using df::global::world;
+using df::global::ui;
 using df::global::gps;
 
 void OutputString(int8_t fg, int &x, int y, const std::string &text)
@@ -81,7 +83,9 @@ struct assigntrade_hook : df::viewscreen_assigntradest
 
     DEFINE_VMETHOD_INTERPOSE(void, view, ())
     {
-        if (Screen::isKeyPressed(interface_key::STRING_V_CAP))
+        bool have_broker = (ui->nobles_arrived[profession::BROKER] > ui->units_killed[profession::BROKER]);
+
+        if (Screen::isKeyPressed(interface_key::STRING_V_CAP) && have_broker)
         {
             vector<trade_pair> values;
 
@@ -147,6 +151,8 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
     int x;
     if (inHook)
     {
+        bool have_broker = (ui->nobles_arrived[profession::BROKER] > ui->units_killed[profession::BROKER]);
+
         df::coord depot_pos(inHook_viewscreen->depot->centerx, inHook_viewscreen->depot->centery, inHook_viewscreen->depot->z);
         int depot_tag = getPathTag(depot_pos);
 
@@ -168,12 +174,15 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
             else
                 OutputString(10, x, i + 2, stl_sprintf("Distance: %-6i ", dist));
 
-            OutputString(14, x, i + 2, stl_sprintf("%10i\x0F", val));
+            OutputString(14, x, i + 2, have_broker ? stl_sprintf("%10i\x0F", val) : "           ");
         }
 
         x = 2;
-        OutputString(12, x, 23, Screen::getKeyDisplay(interface_key::STRING_V_CAP));
-        OutputString(15, x, 23, ": sort by value, ");
+        if (have_broker)
+        {
+            OutputString(12, x, 23, Screen::getKeyDisplay(interface_key::STRING_V_CAP));
+            OutputString(15, x, 23, ": sort by value, ");
+        }
 
         OutputString(12, x, 23, Screen::getKeyDisplay(interface_key::STRING_D_CAP));
         OutputString(15, x, 23, ": sort by distance from depot.");
