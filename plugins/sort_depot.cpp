@@ -39,11 +39,15 @@ void OutputString(int8_t fg, int &x, int y, const std::string &text)
 
 int getTotalItemValue (df::item *item)
 {
+    if (item->flags.bits.artifact)
+        return 0;
+
     int val = Items::getValue(item);
-    std::vector<df::item *> contents;
-    Items::getContainedItems(item, &contents);
-    for (size_t i = 0; i < contents.size(); i++)
-        val += getTotalItemValue(contents[i]);
+    std::vector<df::item *> item_contents;
+    Items::getContainedItems(item, &item_contents);
+    for (size_t i = 0; i < item_contents.size(); i++)
+        val += getTotalItemValue(item_contents[i]);
+
     return val;
 }
 
