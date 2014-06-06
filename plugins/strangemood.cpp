@@ -106,7 +106,7 @@ df::job_skill getMoodSkill (df::unit *unit)
     return skills[rng.df_trandom(skills.size())];
 }
 
-void selectWord (const df::world_raws::T_language::T_word_table &table, int32_t &word, df::part_of_speech &part, int mode)
+void selectWord (const df::language_word_table &table, int32_t &word, df::part_of_speech &part, int mode)
 {
     if (table.parts[mode].size())
     {
@@ -122,7 +122,7 @@ void selectWord (const df::world_raws::T_language::T_word_table &table, int32_t 
     }
 }
 
-void generateName(df::language_name &output, int language, int mode, const df::world_raws::T_language::T_word_table &table1, const df::world_raws::T_language::T_word_table &table2)
+void generateName(df::language_name &output, int language, int mode, const df::language_word_table &table1, const df::language_word_table &table2)
 {
     for (int i = 0; i < 100; i++)
     {

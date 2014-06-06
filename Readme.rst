@@ -337,6 +337,27 @@ that pre-filled.
 
 .. image:: images/command-prompt.png
 
+rendermax
+---------
+A collection of renderer replacing/enhancing filters. For better effect try changing the
+black color in palette to non totally black. For more info see thread in forums:
+http://www.bay12forums.com/smf/index.php?topic=128487.0
+
+Options:
+
+ :rendermax trippy: Randomizes each tiles color. Used for fun mainly.
+ :rendermax light:  Enable lighting engine.
+ :rendermax light reload: Reload the settings file.
+ :rendermax light sun <x>|cycle: Set time to <x> (in hours) or set it to df time cycle.
+ :rendermax occlusionON|occlusionOFF: Show debug occlusion info.
+ :rendermax disable: Disable any filter that is enabled.
+
+An image showing lava and dragon breath. Not pictured here: sunlight, shining items/plants,
+materials that color the light etc...
+
+.. image:: images/rendermax.png
+
+
 Adventure mode
 ==============
 
@@ -1371,6 +1392,11 @@ Subcommands that persist until disabled or DF quit:
 :hive-crash: The hive code crashes if there are ungathered products in a hive without bees (bug 6368).
              This tweak prevents it by auto-gathering the products if this happens.
 
+:craft-age-wear: Fixes the behavior of crafted items wearing out over time (bug 6003).
+                 With this tweak, items made from cloth and leather will gain a level of wear every 20 years.
+
+:adamantine-cloth-wear: Prevents adamantine clothing from wearing out while being worn (bug 6481).
+
 fix-armory
 ----------
 
@@ -1501,6 +1527,15 @@ dwarfexport
 -----------
 Export dwarves to RuneSmith-compatible XML.
 
+exportlegends
+-------------
+Exports data from legends mode; allowing a set-and-forget export of large worlds.  
+
+Options:
+
+ :maps: Exports all fifteen detailed maps
+ :all: first exports the world/gen info, then the XML, then all detailed maps
+
 
 Job management
 ==============
@@ -1541,6 +1576,29 @@ job-duplicate
 Duplicate the selected job in a workshop:
  * In 'q' mode, when a job is highlighted within a workshop or furnace building,
    instantly duplicates the job.
+
+stockflow
+---------
+Allows the fortress bookkeeper to queue jobs through the manager.
+
+Usage:
+
+ ``stockflow enable``
+    Enable the plugin.
+ ``stockflow disable``
+    Disable the plugin.
+ ``stockflow list``
+    List any work order settings for your stockpiles.
+ ``stockflow status``
+    Display whether the plugin is enabled.
+
+While enabled, the 'q' menu of each stockpile will have two new options:
+  * j: Select a job to order, from an interface like the manager's screen.
+  * J: Cycle between several options for how many such jobs to order.
+
+Whenever the bookkeeper updates stockpile records, new work orders will
+be placed on the manager's queue for each such selection, reduced by the
+number of identical orders already in the queue.
 
 workflow
 --------
@@ -1933,6 +1991,29 @@ another savegame you can use the command list_export:
      autobutcher.bat
 
 
+autochop
+---------
+Automatically manage tree cutting designation to keep available logs withing given
+quotas.
+
+Open the dashboard by running:
+::  
+
+     getplants autochop
+
+The plugin must be activated (with 'a') before it can be used. You can then set logging quotas
+and restrict designations to specific burrows (with 'Enter') if desired. The plugin's activity
+cycle runs once every in game day.
+
+If you add
+::
+
+      enable getplants
+      
+to your dfhack.init there will be a hotkey to open the dashboard from the chop designation
+menu.
+
+
 autolabor
 ---------
 Automatically manage dwarf labors.
@@ -1998,6 +2079,11 @@ Options:
                 Valid values are "miner", "carpenter", "engraver", "mason", "tanner", "weaver", "clothier", "weaponsmith", "armorsmith", "metalsmith", "gemcutter", "gemsetter", "woodcrafter", "stonecrafter", "metalcrafter", "glassmaker", "leatherworker", "bonecarver", "bowyer", and "mechanic".
 
 Known limitations: if the selected unit is currently performing a job, the mood will not be started.
+
+log-region
+----------
+When enabled in dfhack.init, each time a fort is loaded identifying information will be written to the gamelog.  Assists in parsing the file if you switch between forts, and adds information for story-building. 
+
 
 =======
 Scripts
@@ -2335,6 +2421,10 @@ alternatively pass cage IDs as arguments::
 
   stripcaged weapons 25321 34228
 
+undump-buildings
+================
+Undesignates building base materials for dumping.
+
 create-items
 ============
 Spawn arbitrary items under the cursor.
@@ -2395,6 +2485,10 @@ dfhack commands. Useful for hotkeys.
 
 Example::
     multicmd locate-ore iron ; digv
+
+dfstatus
+========
+Show a quick overview of critical stock quantities, including food, dirnks, wood, and various bars.  
 
 =======================
 In-game interface tools
@@ -2876,7 +2970,7 @@ in-game help.
 gui/mod-manager
 ===============
 
-A way to simply install and remove small mods. It looks for specially formated mods in
+A way to simply install and remove small mods. It looks for specially formatted mods in
 df subfolder 'mods'. Mods are not included, for example mods see: `github mini mod repository <https://github.com/warmist/df-mini-mods>`_
 
 .. image:: images/mod-manager.png
