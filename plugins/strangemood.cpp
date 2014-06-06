@@ -125,7 +125,7 @@ int getCreatedMetalBars (int32_t metal)
     return 0;
 }
 
-void selectWord (const df::world_raws::T_language::T_word_table &table, int32_t &word, df::enum_field<df::part_of_speech,int16_t> &part, int mode)
+void selectWord (const df::language_word_table &table, int32_t &word, df::enum_field<df::part_of_speech,int16_t> &part, int mode)
 {
     if (table.parts[mode].size())
     {
@@ -141,7 +141,7 @@ void selectWord (const df::world_raws::T_language::T_word_table &table, int32_t 
     }
 }
 
-void generateName(df::language_name &output, int language, int mode, const df::world_raws::T_language::T_word_table &table1, const df::world_raws::T_language::T_word_table &table2)
+void generateName(df::language_name &output, int language, int mode, const df::language_word_table &table1, const df::language_word_table &table2)
 {
     for (int i = 0; i < 100; i++)
     {

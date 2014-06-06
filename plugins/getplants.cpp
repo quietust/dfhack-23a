@@ -7,6 +7,7 @@
 
 #include "DataDefs.h"
 #include "TileTypes.h"
+#include "modules/Maps.h"
 #include "df/world.h"
 #include "df/map_block.h"
 #include "df/tile_dig_designation.h"

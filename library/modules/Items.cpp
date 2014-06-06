@@ -227,6 +227,8 @@ ITEMDEF_VECTORS
 #undef ITEM
 
     default:
+        if (items[1] == "NONE")
+            return true;
         break;
     }
 
@@ -753,16 +755,22 @@ df::proj_itemst *Items::makeProjectile(MapExtras::MapCache &mc, df::item *item)
     if (!ref)
         return NULL;
 
+    auto proj = df::allocate<df::proj_itemst>();
+    if (!proj) {
+        delete ref;
+        return NULL;
+    }
+
     if (!detachItem(mc, item))
     {
         delete ref;
+        delete proj;
         return NULL;
     }
 
     item->pos = pos;
     item->flags.bits.in_job = true;
 
-    auto proj = new df::proj_itemst();
     proj->link = new df::proj_list_link();
     proj->link->item = proj;
     proj->id = (*proj_next_id)++;
@@ -877,35 +885,35 @@ int Items::getItemBaseValue(int16_t item_type, int16_t item_subtype, int16_t mat
         break;
 
     case item_type::ARMOR:
-        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.armor.size())
+        if (size_t(item_subtype) < world->raws.itemdefs.armor.size())
             value = world->raws.itemdefs.armor[item_subtype]->value;
         else
             value = 10;
         break;
 
     case item_type::SHOES:
-        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.shoes.size())
+        if (size_t(item_subtype) < world->raws.itemdefs.shoes.size())
             value = world->raws.itemdefs.shoes[item_subtype]->value;
         else
             value = 5;
         break;
 
     case item_type::SHIELD:
-        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.shields.size())
+        if (size_t(item_subtype) < world->raws.itemdefs.shields.size())
             value = world->raws.itemdefs.shields[item_subtype]->value;
         else
             value = 10;
         break;
 
     case item_type::HELM:
-        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.helms.size())
+        if (size_t(item_subtype) < world->raws.itemdefs.helms.size())
             value = world->raws.itemdefs.helms[item_subtype]->value;
         else
             value = 10;
         break;
 
     case item_type::GLOVES:
-        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.gloves.size())
+        if (size_t(item_subtype) < world->raws.itemdefs.gloves.size())
             value = world->raws.itemdefs.gloves[item_subtype]->value;
         else
             value = 5;
@@ -966,7 +974,7 @@ int Items::getItemBaseValue(int16_t item_type, int16_t item_subtype, int16_t mat
         return 0;
 
     case item_type::PANTS:
-        if (item_subtype >= 0 && item_subtype < world->raws.itemdefs.pants.size())
+        if (size_t(item_subtype) < world->raws.itemdefs.pants.size())
             value = world->raws.itemdefs.pants[item_subtype]->value;
         else
             value = 10;
