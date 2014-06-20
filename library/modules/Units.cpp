@@ -1216,3 +1216,8 @@ int8_t DFHack::Units::getCreatureProfessionColor(int race, df::profession pid)
     // default to dwarven peasant color
     return 3;
 }
+
+std::string DFHack::Units::getSquadName(df::unit *unit)
+{
+    return Translation::TranslateName(&unit->military.name, true);
+}

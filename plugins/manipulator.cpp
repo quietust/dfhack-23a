@@ -1165,7 +1165,7 @@ void viewscreen_unitlaborsst::render()
             str += ", holding ";
             str += shield_names[unit->status.labors[columns[sel_column].labor]];
         }
-        Screen::paintString(Screen::Pen(' ', 9, 0), x, 3 + num_rows + 2, str);
+        Screen::paintString(Screen::Pen(' ', 9, 0), x, y, str);
 
         canToggle = (cur->allowEdit) && (columns[sel_column].labor != unit_labor::NONE);
     }
