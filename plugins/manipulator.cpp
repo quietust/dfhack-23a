@@ -25,6 +25,7 @@
 #include "df/unit_skill.h"
 #include "df/creature_graphics_role.h"
 #include "df/creature_raw.h"
+#include "df/historical_entity.h"
 
 using std::set;
 using std::vector;
@@ -101,6 +102,12 @@ struct SkillColumn
     char label[3]; // column header
     skillcolumn_type type;
     df::unit_labor extdata;
+    bool isValidLabor (df::historical_entity *entity = NULL) const
+    {
+        if (labor == unit_labor::NONE)
+            return false;
+        return true;
+    }
 };
 
 #define NUM_COLUMNS (sizeof(columns) / sizeof(SkillColumn))
@@ -552,6 +559,8 @@ void viewscreen_unitlaborsst::feed(std::set<df::interface_key> *events)
     if (!units.size())
         return;
 
+    df::historical_entity *cur_entity = df::historical_entity::find(ui->civ_id);
+
     if (do_refresh_names)
         refreshNames();
 
@@ -771,18 +780,19 @@ void viewscreen_unitlaborsst::feed(std::set<df::interface_key> *events)
     {
         df::unit *unit = cur->unit;
         const SkillColumn &col = columns[input_column];
+        int8_t newstatus = (unit->status.labors[col.labor] ? 0 : 1);
         switch (col.type)
         {
         case SKILL_NORMAL:
-            if (col.labor == unit_labor::NONE)
+            if (!col.isValidLabor(cur_entity))
                 break;
             if (!cur->allowEdit)
                 break;
-            unit->status.labors[col.labor] = unit->status.labors[col.labor] ? 0 : 1;
+            unit->status.labors[col.labor] = newstatus;
             break;
 
         case SKILL_SPECIAL:
-            if (col.labor == unit_labor::NONE)
+            if (!col.isValidLabor(cur_entity))
                 break;
             if (!cur->allowEdit)
                 break;
@@ -790,11 +800,13 @@ void viewscreen_unitlaborsst::feed(std::set<df::interface_key> *events)
             {
                 for (int i = 0; i < NUM_COLUMNS; i++)
                 {
-                    if ((columns[i].labor != unit_labor::NONE) && (columns[i].type == SKILL_SPECIAL))
+                    if (columns[i].isValidLabor(cur_entity) && (columns[i].type == SKILL_SPECIAL))
                         unit->status.labors[columns[i].labor] = 0;
                 }
             }
-            unit->status.labors[col.labor] = unit->status.labors[col.labor] ? 0 : 1;
+            unit->status.labors[col.labor] = newstatus;
+            if (!newstatus)
+                break;
             for (int i = 0; i < NUM_COLUMNS; i++)
             {
                 if (columns[i].type != SKILL_COMBAT)
@@ -812,7 +824,7 @@ void viewscreen_unitlaborsst::feed(std::set<df::interface_key> *events)
             {
                 if (columns[i].labor == unit_labor::NONE)
                     continue;
-                if ((columns[i].type == SKILL_SPECIAL) && (columns[i].extdata != col.labor))
+                if ((columns[i].type == SKILL_SPECIAL) && columns[i].isValidLabor(cur_entity) && (columns[i].extdata != col.labor))
                     unit->status.labors[columns[i].labor] = 0;
                 if (columns[i].type == SKILL_COMBAT)
                     unit->status.labors[columns[i].labor] = (columns[i].labor == col.labor) ? 1 : 0;
@@ -923,6 +935,8 @@ void viewscreen_unitlaborsst::render()
 {
     if (Screen::isDismissed(this))
         return;
+
+    df::historical_entity *cur_entity = df::historical_entity::find(ui->civ_id);
 
     auto dim = Screen::getWindowSize();
 
@@ -1167,7 +1181,16 @@ void viewscreen_unitlaborsst::render()
         }
         Screen::paintString(Screen::Pen(' ', 9, 0), x, y, str);
 
-        canToggle = (cur->allowEdit) && (columns[sel_column].labor != unit_labor::NONE);
+        switch (columns[sel_column].type)
+        {
+        case SKILL_NORMAL:
+        case SKILL_SPECIAL:
+            canToggle = (cur->allowEdit) && columns[sel_column].isValidLabor(cur_entity);
+            break;
+        default:
+            canToggle = (cur->allowEdit);
+            break;
+        }
     }
 
     int x = 2, y = dim.y - 3;
