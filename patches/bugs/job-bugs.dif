@@ -2,6 +2,7 @@ Improved items cannot be used for general jobs
 Trap components ignore MATERIAL_SIZE for construction, instead always using 2 bars
 Metal chests cannot be melted
 Effects attached to jobs do not save correctly
+Skilled siege operators fail to aim straight
 
 ----8<----
 This difference file is created by The Interactive Disassembler
@@ -27,6 +28,22 @@ dwarfort.exe
 001087B8: 04 00
 00108EA3: FD 00
 00108EA4: 03 00
+00225E20: 4E 4C
+00225E21: 20 24
+00225E22: 8B 30
+00225E23: 56 8B
+00225E24: 24 54
+00225E25: 8B 24
+00225E26: 7E 2C
+00225E27: 1C 89
+00225E28: 89 7E
+00225E29: 4C 1C
+00225E2A: 24 89
+00225E2B: 30 4E
+00225E2C: 89 20
+00225E2D: 54 89
+00225E2E: 24 56
+00225E2F: 2C 24
 00226817: E8 89
 00226818: 44 74
 00226819: FD 24
