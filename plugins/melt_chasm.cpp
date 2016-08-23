@@ -334,7 +334,7 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
         {
             y = 2 + i;
             int cur_item = start_item + i;
-            if (cur_item >= num_items)
+            if ((cur_item < 0) || (cur_item >= num_items))
                 break;
             if (ui_look_list->items[cur_item]->type != df::ui_look_list::T_items::Item)
                 continue;
@@ -350,7 +350,7 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
                 OutputString(8, x, y, "C");
             }
         }
-        if (ui_look_list->items[*ui_look_cursor]->type == df::ui_look_list::T_items::Item)
+        if ((*ui_look_cursor >= 0) && (*ui_look_cursor < num_items) && (ui_look_list->items[*ui_look_cursor]->type == df::ui_look_list::T_items::Item))
         {
             df::item *item = ui_look_list->items[*ui_look_cursor]->item;
 
