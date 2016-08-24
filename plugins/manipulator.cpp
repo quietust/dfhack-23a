@@ -1115,15 +1115,15 @@ void viewscreen_unitlaborsst::render()
         }
     }
 
-    UnitInfo *cur = units[sel_row];
     bool canToggle = false;
-    if (cur != NULL)
+    if ((sel_row >= 0) && (sel_row < units.size()))
     {
+        UnitInfo *cur = units[sel_row];
         df::unit *unit = cur->unit;
         int x = 1, y = 3 + num_rows + 2;
         Screen::Pen white_pen(' ', 15, 0);
 
-        Screen::paintString(white_pen, x, y, (cur->unit && cur->unit->sex) ? "\x0b" : "\x0c");
+        Screen::paintString(white_pen, x, y, (unit && unit->sex) ? "\x0b" : "\x0c");
         x += 2;
         Screen::paintString(white_pen, x, y, cur->transname);
         x += cur->transname.length();
