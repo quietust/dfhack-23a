@@ -510,25 +510,25 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
         if (matgloss >= 0 && matgloss < raws.matgloss.gem.size())
             out = raws.matgloss.gem[matgloss]->name[0];
         else
-            out = "ornamental gem";
+            out = "ornamental stones";
         break;
     case material_type::GEM_SEMI:
         if (matgloss >= 0 && matgloss < raws.matgloss.gem.size())
             out = raws.matgloss.gem[matgloss]->name[0];
         else
-            out = "semi-precious gem";
+            out = "semi-precious gems";
         break;
     case material_type::GEM_PRECIOUS:
         if (matgloss >= 0 && matgloss < raws.matgloss.gem.size())
             out = raws.matgloss.gem[matgloss]->name[0];
         else
-            out = "precious gem";
+            out = "precious gems";
         break;
     case material_type::GEM_RARE:
         if (matgloss >= 0 && matgloss < raws.matgloss.gem.size())
             out = raws.matgloss.gem[matgloss]->name[0];
         else
-            out = "rare gem";
+            out = "rare gems";
         break;
     case material_type::BONE:
         if (matgloss >= 0 && matgloss < raws.creatures.size())
@@ -566,8 +566,15 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
         break;
     case material_type::LEATHER:
         if (matgloss >= 0 && matgloss < raws.creatures.size())
+        {
             out = raws.creatures[matgloss]->name[0] + " ";
-        out += "leather";
+            if (raws.creatures[matgloss]->flags.is_set(creature_raw_flags::CHITIN))
+                out += "chitin";
+            else
+                out += "leather";
+        }
+        else
+            out += "leather";
         break;
     case material_type::ADAMANTINE:
         out = "adamantine";
@@ -581,7 +588,7 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
         if (matgloss >= 0 && matgloss < raws.matgloss.plant.size())
             out = raws.matgloss.plant[matgloss]->name;
         else
-            out = "plant";
+            out = "plant fiber";
         break;
     case material_type::GLASS_GREEN:
         out = "green glass";
@@ -605,12 +612,7 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
         out = "tin";
         break;
     case material_type::COAL:
-        if (matgloss == 0)
-            out = "charcoal";
-        else if (matgloss == 1)
-            out = "coke";
-        else
-            out = "coal";
+        out = "coal";
         break;
     case material_type::BRONZE:
         out = "bronze";
@@ -664,7 +666,7 @@ std::string DFHack::getMaterialDescription(t_materialType material, t_materialSu
         out = "vomit";
         break;
     case material_type::BLOOD:
-        out = "blood";    // TODO - matgloss supposedly indicates color, so we can get "ichor", "pus", "goo", etc.
+        out = "blood";
         break;
     case material_type::SLIME:
         out = "slime";
