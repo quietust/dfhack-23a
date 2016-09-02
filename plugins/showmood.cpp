@@ -161,19 +161,6 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
             out.print("not yet claimed a workshop but will want");
         out.print(" the following items:\n");
 
-        // total amount of stuff fetched so far
-        int count_got = 0;
-        for (size_t i = 0; i < job->items.size(); i++)
-        {
-/*
-            df::item_type type = job->job_items[i]->item_type;
-            if (type == item_type::BAR || type == item_type::CLOTH)
-                count_got += job->items[i]->item->getTotalDimension();
-            else
-*/
-                count_got += 1;
-        }
-
         for (size_t i = 0; i < unit->job.mood_item_type.size(); i++)
         {
             df::item_type item_type = unit->job.mood_item_type[i];
@@ -184,11 +171,16 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
             out.print("Item %i: ", i + 1);
             MaterialInfo matinfo(material, matgloss);
             string mat_name = matinfo.toString();
+            if (material == -1)
+                mat_name = "any";
 
             switch (item_type)
             {
             case item_type::STONE:
                 out.print("%s stone", mat_name.c_str());
+                break;
+            case item_type::ORE:
+                out.print("%s ore", mat_name.c_str());
                 break;
             case item_type::BLOCKS:
                 out.print("%s blocks", mat_name.c_str());
@@ -203,40 +195,32 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
                 out.print("%s cut gems", mat_name.c_str());
                 break;
             case item_type::ROUGH:
-                if (material == material_type::GEM_ORNAMENTAL)
-                {
-                    if (matgloss == -1)
-                        mat_name = "any ornamental";
-                    out.print("%s rough gems", mat_name.c_str());
-                }
-                else
-                if (material == material_type::GEM_SEMI)
-                {
-                    if (matgloss == -1)
-                        mat_name = "any semi-rare";
-                    out.print("%s rough gems", mat_name.c_str());
-                }
-                else
-                if (material == material_type::GEM_PRECIOUS)
-                {
-                    if (matgloss == -1)
-                        mat_name = "any precious";
-                    out.print("%s rough gems", mat_name.c_str());
-                }
-                else
-                if (material == material_type::GEM_RARE)
-                {
-                    if (matgloss == -1)
-                        mat_name = "any rare";
-                    out.print("%s rough gems", mat_name.c_str());
-                }
-                else
+                if (material == material_type::GEM_ORNAMENTAL || material == material_type::GEM_SEMI || material == material_type::GEM_PRECIOUS || material == material_type::GEM_RARE)
+                    out.print("rough %s", mat_name.c_str());
+                else if (material == material_type::GLASS_GREEN || material == material_type::GLASS_CLEAR || material == material_type::GLASS_CRYSTAL)
                     out.print("raw %s", mat_name.c_str());
+                else
+                    out.print("any rough gems");
                 break;
             case item_type::SKIN_TANNED:
-                out.print("%s leather", mat_name.c_str());
+                out.print("leather");
+                break;
+            case item_type::BONES:
+                out.print("bones");
+                break;
+            case item_type::SKULL:
+                out.print("a skull");
+                break;
+            case item_type::SHELL:
+                out.print("a shell");
                 break;
             case item_type::CLOTH:
+                if (material == material_type::PLANT)
+                    out.print("plant fiber cloth");
+                else if (material == material_type::SILK)
+                    out.print("silk cloth");
+                else
+                    out.print("any cloth (impossible?)");
                 switch (material)
                 {
                 case material_type::PLANT:
@@ -251,10 +235,7 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
                 out.print("%s cloth", mat_name.c_str());
                 break;
             case item_type::REMAINS:
-                out.print("%s remains", mat_name.c_str());
-                break;
-            case item_type::CORPSE:
-                out.print("%s corpse", mat_name.c_str());
+                out.print("chunk or vermin remains");
                 break;
             default:
                 {
@@ -266,12 +247,7 @@ command_result df_showmood (color_ostream &out, vector <string> & parameters)
                 }
             }
 
-            // total amount of stuff fetched for this requirement
-            // XXX may fail with cloth/thread/bars if need 1 and fetch 2
-            if (count_got)
-                out.print(" (collected)");
             out.print("\n");
-            count_got--;
         }
     }
     if (!found)
