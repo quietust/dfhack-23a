@@ -1045,8 +1045,8 @@ command_result df_strangemood (color_ostream &out, vector <string> & parameters)
                     unit->job.mood_material.push_back(material_type::GLASS_CRYSTAL);
                     break;
                 }
+                unit->job.mood_matgloss.push_back(-1);
             }
-            unit->job.mood_matgloss.push_back(-1);
             break;
 
         case job_skill::BONECARVE:
