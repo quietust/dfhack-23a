@@ -86,7 +86,7 @@ df::general_ref *getLinkedBuildingRef (df::building_actual *bld, int slot, df::g
         return NULL;
 
     // slot in range?
-    if (slot < 0 || slot > bld->contained_items.size())
+    if (slot < 0 || slot >= bld->contained_items.size())
         return NULL;
 
     // slot is building component?
@@ -189,10 +189,10 @@ struct dwarfmode_hook : df::viewscreen_dwarfmodest
 
 DFhackCExport command_result plugin_onrender ( color_ostream &out)
 {
-    auto dims = Gui::getDwarfmodeViewDims();
-    int x, y;
     if (inHook_dwarfmode_builditems)
     {
+        auto dims = Gui::getDwarfmodeViewDims();
+        int x, y;
         df::tile_designation flags = *Maps::getTileDesignation(Gui::getCursorPos());
 
         // Do we have a linkage to display?

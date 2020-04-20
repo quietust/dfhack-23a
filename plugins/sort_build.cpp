@@ -183,27 +183,25 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
         OutputString(12, x, 22, Screen::getKeyDisplay(interface_key::STRING_X));
         OutputString(15, x, 22, ": Sort");
 
+        // When in build mode, change the normal cursor speed from 10 tiles to 1 tile
+        if (Screen::isKeyPressed(interface_key::CURSOR_UP) || Screen::isKeyPressed(interface_key::CURSOR_UPLEFT) || Screen::isKeyPressed(interface_key::CURSOR_UPRIGHT))
+            moveScreen(0, 9);
+        if (Screen::isKeyPressed(interface_key::CURSOR_DOWN) || Screen::isKeyPressed(interface_key::CURSOR_DOWNLEFT) || Screen::isKeyPressed(interface_key::CURSOR_DOWNRIGHT))
+            moveScreen(0, -9);
+        if (Screen::isKeyPressed(interface_key::CURSOR_LEFT) || Screen::isKeyPressed(interface_key::CURSOR_UPLEFT) || Screen::isKeyPressed(interface_key::CURSOR_DOWNLEFT))
+            moveScreen(9, 0);
+        if (Screen::isKeyPressed(interface_key::CURSOR_RIGHT) || Screen::isKeyPressed(interface_key::CURSOR_UPRIGHT) || Screen::isKeyPressed(interface_key::CURSOR_DOWNRIGHT))
+            moveScreen(-9, 0);
 
-            // When in build mode, change the normal cursor speed to 1 tile
-            if (Screen::isKeyPressed(interface_key::CURSOR_UP) || Screen::isKeyPressed(interface_key::CURSOR_UPLEFT) || Screen::isKeyPressed(interface_key::CURSOR_UPRIGHT))
-                moveScreen(0, 9);
-            if (Screen::isKeyPressed(interface_key::CURSOR_DOWN) || Screen::isKeyPressed(interface_key::CURSOR_DOWNLEFT) || Screen::isKeyPressed(interface_key::CURSOR_DOWNRIGHT))
-                moveScreen(0, -9);
-            if (Screen::isKeyPressed(interface_key::CURSOR_LEFT) || Screen::isKeyPressed(interface_key::CURSOR_UPLEFT) || Screen::isKeyPressed(interface_key::CURSOR_DOWNLEFT))
-                moveScreen(9, 0);
-            if (Screen::isKeyPressed(interface_key::CURSOR_RIGHT) || Screen::isKeyPressed(interface_key::CURSOR_UPRIGHT) || Screen::isKeyPressed(interface_key::CURSOR_DOWNRIGHT))
-                moveScreen(-9, 0);
-
-            // Also change the fast cursor speed to 10 tiles
-            if (Screen::isKeyPressed(interface_key::CURSOR_UP_FAST) || Screen::isKeyPressed(interface_key::CURSOR_UPLEFT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_UPRIGHT_FAST))
-                moveScreen(0, 10);
-            if (Screen::isKeyPressed(interface_key::CURSOR_DOWN_FAST) || Screen::isKeyPressed(interface_key::CURSOR_DOWNLEFT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_DOWNRIGHT_FAST))
-                moveScreen(0, -10);
-            if (Screen::isKeyPressed(interface_key::CURSOR_LEFT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_UPLEFT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_DOWNLEFT_FAST))
-                moveScreen(10, 0);
-            if (Screen::isKeyPressed(interface_key::CURSOR_RIGHT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_UPRIGHT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_DOWNRIGHT_FAST))
-                moveScreen(-10, 0);
-
+        // Also change the fast cursor speed from 20 tiles to 10 tiles
+        if (Screen::isKeyPressed(interface_key::CURSOR_UP_FAST) || Screen::isKeyPressed(interface_key::CURSOR_UPLEFT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_UPRIGHT_FAST))
+            moveScreen(0, 10);
+        if (Screen::isKeyPressed(interface_key::CURSOR_DOWN_FAST) || Screen::isKeyPressed(interface_key::CURSOR_DOWNLEFT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_DOWNRIGHT_FAST))
+            moveScreen(0, -10);
+        if (Screen::isKeyPressed(interface_key::CURSOR_LEFT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_UPLEFT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_DOWNLEFT_FAST))
+            moveScreen(10, 0);
+        if (Screen::isKeyPressed(interface_key::CURSOR_RIGHT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_UPRIGHT_FAST) || Screen::isKeyPressed(interface_key::CURSOR_DOWNRIGHT_FAST))
+            moveScreen(-10, 0);
 
         inHook = false;
     }

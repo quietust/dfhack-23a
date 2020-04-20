@@ -148,9 +148,9 @@ struct assigntrade_hook : df::viewscreen_assigntradest
 
 DFhackCExport command_result plugin_onrender ( color_ostream &out)
 {
-    int x;
     if (inHook)
     {
+        int x;
         bool have_broker = (ui->nobles_arrived[profession::BROKER] > ui->units_killed[profession::BROKER]);
 
         df::coord depot_pos(inHook_viewscreen->depot->centerx, inHook_viewscreen->depot->centery, inHook_viewscreen->depot->z);

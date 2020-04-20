@@ -50,10 +50,10 @@ struct dwarfmode_hook : df::viewscreen_dwarfmodest
 
 DFhackCExport command_result plugin_onrender ( color_ostream &out)
 {
-    auto dims = Gui::getDwarfmodeViewDims();
-    int x,  y;
     if (inHook_dwarfmode_look)
     {
+        auto dims = Gui::getDwarfmodeViewDims();
+        int x,  y;
         df::tile_designation flags = *Maps::getTileDesignation(Gui::getCursorPos());
 
         y = 23;

@@ -111,21 +111,20 @@ void printMeetingJob (int8_t fg, int8_t bg, bool highlight, int x, int y, df::un
 
 DFhackCExport command_result plugin_onrender ( color_ostream &out)
 {
-    auto dims = Gui::getDwarfmodeViewDims();
-    int x, y, fg, bg;
     if (inHook_dwarfmode)
     {
-        x = dims.menu_x1 + 1; y = 6;
-        fg = 11; bg = 0;
+        auto dims = Gui::getDwarfmodeViewDims();
+        int x = dims.menu_x1 + 1, y = 6;
+        int fg = 11, bg = 0;
         df::unit *unit = world->units.active[*ui_selected_unit];
         printMeetingJob(fg, bg, false, x, y, unit);
         inHook_dwarfmode = false;
+        return CR_OK;
     }
 
     if (inHook_unitjobs && inHook_viewscreen)
     {
-        inHook_dwarfmode = false;
-
+        int x, y, fg, bg;
         if (inHook_viewscreen->mode)
         {
             x = 40;

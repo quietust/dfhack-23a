@@ -324,10 +324,10 @@ struct stores_hook : df::viewscreen_storesst
 
 DFhackCExport command_result plugin_onrender ( color_ostream &out)
 {
-    auto dims = Gui::getDwarfmodeViewDims();
-    int x, y;
     if (inHook_dwarfmode_look)
     {
+        auto dims = Gui::getDwarfmodeViewDims();
+        int x, y;
         int start_item = *ui_look_cursor - *ui_look_cursor % 19;
         int num_items = ui_look_list->items.size();
         for (int i = 0; i < 19; i++)
@@ -373,9 +373,12 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
             OutputString(isMeltable(item) ? 15 : 8, x, y, ": Melt");
         }
         inHook_dwarfmode_look = false;
+        return CR_OK;
     }
     if (inHook_dwarfmode_build)
     {
+        auto dims = Gui::getDwarfmodeViewDims();
+        int x, y;
         df::building_actual *bld = (df::building_actual *)world->selected_building;
         int start_item = *ui_building_item_cursor - *ui_building_item_cursor % 14;
         int num_items = bld->contained_items.size();
@@ -420,9 +423,11 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
             OutputString(isMeltable(item) ? 15 : 8, x, y, ": Melt");
         }
         inHook_dwarfmode_build = false;
+        return CR_OK;
     }
     if (inHook_item)
     {
+        int x, y;
         df::item *item = itemhook_item;
         if (item_isMelt(item))
         {
@@ -457,11 +462,11 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
             OutputString(7, x, y, ": Chasm");
         }
         inHook_item = false;
+        return CR_OK;
     }
     if (inHook_stores)
     {
-        x = 66;
-        y = 21;
+        int x = 66, y = 21;
         OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STRING_F));
 
         int fg = 8;
@@ -470,6 +475,7 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
         OutputString(fg, x, y, ": Forbid");
 
         inHook_stores = false;
+        return CR_OK;
     }
     return CR_OK;
 }
