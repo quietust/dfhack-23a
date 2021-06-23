@@ -129,8 +129,12 @@ add_definitions(-DDFHACK_23a)
 
 #### expose depends ####
 
+# needed for downloading libruby
+include(CMake/DownloadFile.cmake)
+
 # find and make available libz
 if(NOT UNIX)
+    cmake_policy(SET CMP0074 NEW)
     SET(ZLIB_ROOT depends/zlib/)
 endif()
 find_package(ZLIB REQUIRED)
