@@ -1,9 +1,15 @@
 Pregnant dwarves have miscarriages when Hungry instead of when Starving or Dehydrated
+Wages viewscreen shows Job name twice instead of Setter name
 
 ----8<----
 This difference file is created by The Interactive Disassembler
 
 dwarfort.exe
+0013A4C1: E9 8D
+0013A4C2: F8 4C
+0013A4C3: 41 24
+0013A4C4: 21 1C
+0013A4C5: 00 51
 002BD3CF: 81 90
 002BD3D0: F9 E9
 002BD3D1: 50 AF
@@ -22,3 +28,13 @@ dwarfort.exe
 0034E692: 00 ED
 0034E693: 00 F6
 0034E694: 00 FF
+0034E6BE: 8B 00
+0034E6BF: 8C 00
+0034E6C0: 24 00
+0034E6C1: E8 00
+0034E6C5: 51 00
+0034E6C6: E9 00
+0034E6C7: 02 00
+0034E6C8: BE 00
+0034E6C9: DE 00
+0034E6CA: FF 00
