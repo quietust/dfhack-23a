@@ -222,8 +222,8 @@ command_result df_probe (color_ostream &out, vector <string> & parameters)
     out.print("temperature1: %d U\n",mc.temperature1At(cursor));
     out.print("temperature2: %d U\n",mc.temperature2At(cursor));
 
-    int bx = world->fortress.pos.x;
-    int by = world->fortress.pos.y;
+    int bx = world->fortress.pos_outdoor.x;
+    int by = world->fortress.pos_outdoor.y;
 
     auto biome = &world->world_data.region_map[bx][by];
 

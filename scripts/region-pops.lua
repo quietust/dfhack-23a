@@ -9,27 +9,56 @@ local function sort_keys(tab)
     return ipairs(kt)
 end
 
-local is_plant_map = {
-    Animal = false, Vermin = false, VerminInnumerable = false,
-    ColonyInsect = false, Tree = true, Grass = true, Bush = true
+local pop_type_map = {
+    Animal_Wildlife = 0,
+    Animal_FishPond = 0,
+    Animal_FishRiver = 0,
+    Animal_FishCaveRiver = 0,
+    Plant_River = 1,
+    Plant_Swamp = 1,
+    Plant_Forest = 1,
+    Plant_Cave = 1,
+    Animal_VerminEater = 0,
+    Animal_VerminFlies = 0,
+    Animal_VerminSwamper = 0,
+    Animal_VerminCaveRiver = 0,
+    Animal_LargeCaveRiver = 0,
+    Animal_VerminChasm = 0,
+    Animal_LargeChasm = 0,
+    Animal_VerminLava = 0,
+    Animal_LargeLava = 0,
+    Animal_VerminSoil = 0,
+    Animal_VerminSoilColony = 0,
+    Animal_VerminGrounder = 0,
+    Animal_FishOcean = 0,
+    Tree_IndoorWet = 2,
+    Tree_IndoorDry = 2,
+    Tree_OutdoorWet = 2,
+    Tree_OutdoorDry = 2
 }
 
 function enum_populations()
     local stat_table = {
         plants = {},
+        trees = {},
         creatures = {},
         any = {}
     }
 
     for i,v in ipairs(df.global.world.populations) do
         local typeid = df.world_population_type[v.type]
-        local is_plant = is_plant_map[typeid]
+        local pop_type = pop_type_map[typeid]
         local id, obj, otable, idtoken
 
-        if is_plant then
+        if pop_type == 1 then
             id = v.plant
-            obj = df.plant_raw.find(id)
+            obj = df.matgloss_plant.find(id)
             otable = stat_table.plants
+            idtoken = obj.id
+        elseif pop_type == 2 then
+            id = v.tree
+            obj = df.matgloss_wood.find(id)
+            otable = stat_table.trees
             idtoken = obj.id
         else
             id = v.race
@@ -41,7 +70,7 @@ function enum_populations()
         local entry = otable[idtoken]
         if not entry then
             entry = {
-                obj = obj, token = idtoken, id = id, records = {},
+                obj = obj, type = typeid, token = idtoken, id = id, records = {},
                 count = 0, known_count = 0,
                 known = false, infinite = false
             }
@@ -52,7 +81,7 @@ function enum_populations()
         table.insert(entry.records, v)
         entry.known = entry.known or v.flags.discovered
 
-        if v.quantity < 10000001 then
+        if v.quantity < 30000 then
             entry.count = entry.count + v.quantity
             if v.flags.discovered then
                 entry.known_count = entry.known_count + v.quantity
@@ -76,7 +105,9 @@ function list_poptable(entries, all, pattern)
             if entry.infinite then
                 count = 'innumerable'
             end
-            print(string.format('%-40s %s', entry.token, count))
+            i,j = string.find(entry.type, '_')
+            type = "("..string.sub(entry.type, j+1)..")"
+            print(string.format('%20s %-40s %s', type, entry.token, count))
         end
     end
 end
@@ -84,6 +115,8 @@ end
 function list_populations(stat_table, all, pattern)
     print('Plants:')
     list_poptable(stat_table.plants, true, pattern)
+    print('\nTrees:')
+    list_poptable(stat_table.trees, true, pattern)
     print('\nCreatures and vermin:')
     list_poptable(stat_table.creatures, all, pattern)
 end
@@ -91,9 +124,10 @@ end
 
 function boost_population(entry, factor, boost_count)
     for _,v in ipairs(entry.records) do
-        if v.quantity < 10000001 then
+        if v.quantity < 30000 then
             boost_count = boost_count + 1
             v.quantity = math.floor(v.quantity * factor)
+            v.quantity_reload = math.floor(v.quantity_reload * factor)
         end
     end
     return boost_count
@@ -101,9 +135,10 @@ end
 
 function incr_population(entry, factor, boost_count)
     for _,v in ipairs(entry.records) do
-        if v.quantity < 10000001 then
+        if v.quantity < 30000 then
             boost_count = boost_count + 1
             v.quantity = math.max(0, v.quantity + factor)
+            v.quantity_reload = math.max(0, v.quantity_reload + factor)
         end
     end
     return boost_count

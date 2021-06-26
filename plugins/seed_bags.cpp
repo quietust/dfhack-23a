@@ -38,7 +38,7 @@ using df::global::job_next_id;
 // State
 int job_last_id;
 
-DFHACK_PLUGIN("seedbags");
+DFHACK_PLUGIN("seed_bags");
 DFHACK_PLUGIN_IS_ENABLED(is_enabled);
 
 struct seed_info

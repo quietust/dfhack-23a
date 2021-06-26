@@ -417,12 +417,12 @@ void MapExtras::BlockInfo::SquashVeins(df::map_block *mb,
             if (mat == tiletype_material::STONE_DARK)
             {
                 material[x][y] = material_type::STONE_DARK;
-                matgloss[x][y] = world->lava_stone;
+                matgloss[x][y] = world->raws.lava_stone;
             }
             else
             {
                 material[x][y] = material_type::STONE_LIGHT;
-                matgloss[x][y] = world->river_stone;
+                matgloss[x][y] = world->raws.river_stone;
             }
             for (int i = 0; i < world->stone_clusters.size(); i++)
             {
