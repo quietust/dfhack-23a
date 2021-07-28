@@ -180,7 +180,7 @@ if (BUILD_SUPPORTED)
     DFHACK_PLUGIN(trade_review trade_review.cpp)
     DFHACK_PLUGIN(lever_links lever_links.cpp)
     DFHACK_PLUGIN(seed_bags seed_bags.cpp)
-    DFHACK_PLUGIN(stocks_cursor stocks_cursor.cpp)
+    DFHACK_PLUGIN(better_stocks better_stocks.cpp)
 endif()
 
 # this is the skeleton plugin. If you want to make your own, make a copy and then change it

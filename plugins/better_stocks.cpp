@@ -1,12 +1,14 @@
-// Preserve the cursor position on the Stocks screen when changing mode
+// Various improvements to the Stocks screen
+// - preserve cursor position in right pane when pressing Tab
+// - color items which are part of buildings
 
 #include "Core.h"
 #include <Console.h>
 #include <Export.h>
 #include <PluginManager.h>
 #include <MiscUtils.h>
+#include <modules/Gui.h>
 #include <modules/Screen.h>
-#include <modules/Translation.h>
 #include <vector>
 #include <string>
 #include <set>
@@ -17,6 +19,7 @@
 #include "df/item.h"
 #include "df/viewscreen_storesst.h"
 #include "df/interfacest.h"
+#include "df/graphic.h"
 
 using std::set;
 using std::vector;
@@ -25,11 +28,14 @@ using std::string;
 using namespace DFHack;
 using namespace df::enums;
 
+using df::global::gps;
 using df::global::world;
 using df::global::ui;
 using df::global::ui_build_selector;
 using df::global::gview;
 
+bool inHook = false;
+df::viewscreen_storesst *inHook_viewscreen = NULL;
 struct stocks_hook : df::viewscreen_storesst
 {
     typedef df::viewscreen_storesst interpose_base;
@@ -68,15 +74,53 @@ struct stocks_hook : df::viewscreen_storesst
                 }
             }
         }
+        inHook = true;
+        inHook_viewscreen = this;
         INTERPOSE_NEXT(view)();
         if (new_cursor != -1)
             item_cursor = new_cursor;
     }
 };
 
+DFhackCExport command_result plugin_onrender ( color_ostream &out)
+{
+    if (inHook && inHook_viewscreen)
+    {
+        if (!inHook_viewscreen->in_group_mode)
+        {
+            int sel = inHook_viewscreen->item_cursor % 19;
+            int top = inHook_viewscreen->item_cursor - sel;
+            for (int i = 0; i < 19; i++)
+            {
+                if (top + i >= inHook_viewscreen->items.size())
+                    break;
+                if (!inHook_viewscreen->items[top+i]->flags.bits.in_building)
+                    continue;
+                if (inHook_viewscreen->items[top+i]->flags.bits.forbid)
+                    continue;
+                int y = i + 2;
+                for (int x = 40; x < 80; x++)
+                {
+                    if ((x == 76) && (gps->screen[x][y].chr == 'M') && (gps->screen[x][y].fore == 4) && gps->screen[x][y].bright)
+                        continue;
+                    if ((x == 78) && (gps->screen[x][y].chr == 'C') && (gps->screen[x][y].fore == 0) && gps->screen[x][y].bright)
+                        continue;
+                    if ((x == 79) && (gps->screen[x][y].chr == '\xDB'))
+                        continue;
+                    gps->screen[x][y].fore = 3;
+                }                
+            }
+        }       
+        inHook = false;
+        inHook_viewscreen = NULL;
+    }
+    return CR_OK;
+}
+
+
 IMPLEMENT_VMETHOD_INTERPOSE(stocks_hook, view);
 
-DFHACK_PLUGIN("stocks_cursor");
+DFHACK_PLUGIN("better_stocks");
 DFHACK_PLUGIN_IS_ENABLED(is_enabled);
 
 DFhackCExport command_result plugin_enable(color_ostream &out, bool enable)
