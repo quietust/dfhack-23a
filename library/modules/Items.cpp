@@ -575,7 +575,6 @@ static bool detachItem(MapExtras::MapCache &mc, df::item *item)
         if (item->flags.bits.garbage_collect)
         {
             item->flags.bits.garbage_collect = false;
-            // TODO - this isn't a vmethod, so we need a hook for it
             Items::item_categorize(item,true);
         }
 
@@ -789,31 +788,17 @@ df::proj_itemst *Items::makeProjectile(MapExtras::MapCache &mc, df::item *item)
 
 void Items::item_categorize(df::item *item, bool in_play)
 {
-    static void *func_ptr = NULL;
-    if (!func_ptr && !Core::getInstance().vinfo->getAddress("func_item_categorize", func_ptr))
+    static void (__thiscall *categorize)(df::item *, bool) = NULL;
+    if (!categorize && !Core::getInstance().vinfo->getAddress("func_item_categorize", categorize))
         return; // should probably kill program
-
-    __asm
-    {
-        movzx eax, in_play
-        push eax
-        mov ecx, item
-        mov eax, func_ptr
-        call eax
-    }
+    categorize(item, in_play);
 }
 void Items::item_uncategorize(df::item *item)
 {
-    static void *func_ptr = NULL;
-    if (!func_ptr && !Core::getInstance().vinfo->getAddress("func_item_uncategorize", func_ptr))
+    static void (__thiscall *uncategorize)(df::item *) = NULL;
+    if (!uncategorize && !Core::getInstance().vinfo->getAddress("func_item_uncategorize", uncategorize))
         return; // should probably kill program
-
-    __asm
-    {
-        mov ecx, item
-        mov eax, func_ptr
-        call eax
-    }
+    uncategorize(item);
 }
 
 int Items::getItemBaseValue(int16_t item_type, int16_t item_subtype, int16_t material, int16_t matgloss)

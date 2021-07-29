@@ -386,15 +386,10 @@ void dfhack_viewscreen::logic()
 
 void dfhack_viewscreen::render()
 {
-    static void *func_ptr = NULL;
-    if (!func_ptr && !Core::getInstance().vinfo->getAddress("func_render", func_ptr))
+    static void (__thiscall *render)(df::graphic *) = NULL;
+    if (!render && !Core::getInstance().vinfo->getAddress("func_render", render))
         return; // should probably kill program
-
-    __asm
-    {
-        mov eax, func_ptr
-        call eax
-    }
+    render(gps);
     Screen::invalidate();
 }
 
