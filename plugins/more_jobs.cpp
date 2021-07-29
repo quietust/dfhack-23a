@@ -201,18 +201,7 @@ struct stockpile_hook : df::viewscreen_layer_stockpilest
     }
 };
 
-bool init_createquota = false;
-struct jobmanagement_hook : df::viewscreen_jobmanagementst
-{
-    typedef df::viewscreen_jobmanagementst interpose_base;
-
-    DEFINE_VMETHOD_INTERPOSE(void, view, ())
-    {
-        init_createquota = Screen::isKeyPressed(interface_key::MANAGER_NEW_ORDER);
-        INTERPOSE_NEXT(view)();
-    }
-};
-
+bool init_createquota = true;
 struct createquota_hook : df::viewscreen_createquotast
 {
     typedef df::viewscreen_createquotast interpose_base;
@@ -225,7 +214,6 @@ struct createquota_hook : df::viewscreen_createquotast
         if (init_createquota)
         {
             init_createquota = false;
-
             df::historical_entity *entity = df::historical_entity::find(ui->civ_id);
             if (!entity)
             {
@@ -382,13 +370,17 @@ struct createquota_hook : df::viewscreen_createquotast
                 page_indices.push_back(i);
         }
         INTERPOSE_NEXT(view)();
+        if (breakdown_level != interface_breakdown_types::NONE)
+        {
+            init_createquota = true;
+            return;
+        }
     }
 };
 
 IMPLEMENT_VMETHOD_INTERPOSE(workshop_hook, populateTaskList);
 IMPLEMENT_VMETHOD_INTERPOSE(furnace_hook, populateTaskList);
 IMPLEMENT_VMETHOD_INTERPOSE(stockpile_hook, view);
-IMPLEMENT_VMETHOD_INTERPOSE(jobmanagement_hook, view);
 IMPLEMENT_VMETHOD_INTERPOSE(createquota_hook, view);
 
 DFHACK_PLUGIN("more_jobs");
@@ -403,8 +395,6 @@ DFhackCExport command_result plugin_enable(color_ostream &out, bool enable)
         if (!INTERPOSE_HOOK(furnace_hook, populateTaskList).apply(enable))
             return CR_FAILURE;
         if (!INTERPOSE_HOOK(stockpile_hook, view).apply(enable))
-            return CR_FAILURE;
-        if (!INTERPOSE_HOOK(jobmanagement_hook, view).apply(enable))
             return CR_FAILURE;
         if (!INTERPOSE_HOOK(createquota_hook, view).apply(enable))
             return CR_FAILURE;
@@ -425,7 +415,6 @@ DFhackCExport command_result plugin_shutdown ( color_ostream &out )
     INTERPOSE_HOOK(workshop_hook, populateTaskList).remove();
     INTERPOSE_HOOK(furnace_hook, populateTaskList).remove();
     INTERPOSE_HOOK(stockpile_hook, view).remove();
-    INTERPOSE_HOOK(jobmanagement_hook, view).remove();
     INTERPOSE_HOOK(createquota_hook, view).remove();
     return CR_OK;
 }

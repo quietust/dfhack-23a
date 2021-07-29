@@ -1,6 +1,7 @@
 // Various improvements to the Stocks screen
 // - preserve cursor position in right pane when pressing Tab
 // - color items which are part of buildings
+// - fix item counts to take stack size and flags into account
 
 #include "Core.h"
 #include <Console.h>
@@ -34,14 +35,62 @@ using df::global::ui;
 using df::global::ui_build_selector;
 using df::global::gview;
 
+typedef bool (df::item::*itemFunc)(void);
+
+bool item_isHiddenFromStocks (df::item *item)
+{
+    bool ret;
+    __asm
+    {
+        mov ecx, item
+        mov eax, 0x5e97b0
+        call eax
+        mov ret, al
+    }
+    return ret;
+}
+
+bool item_isLocallyOwned (df::item *item)
+{
+    bool ret;
+    __asm
+    {
+        mov ecx, item
+        mov eax, 0x5e97d0
+        call eax
+        mov ret, al
+    }
+    return ret;
+}
+
 bool inHook = false;
 df::viewscreen_storesst *inHook_viewscreen = NULL;
+bool init_stores = true;
 struct stocks_hook : df::viewscreen_storesst
 {
     typedef df::viewscreen_storesst interpose_base;
 
     DEFINE_VMETHOD_INTERPOSE(void, view, ())
     {
+        if (init_stores)
+        {
+            init_stores = false;
+            for (int i = 0; i < category_total.size(); i++)
+                category_total[i] = 0;
+            for (int i = 0; i < category_busy.size(); i++)
+                category_busy[i] = 0;
+            for (int i = 0; i < world->items.other[0].size(); i++)
+            {
+                df::item *item = world->items.other[0][i];
+                if (item_isHiddenFromStocks(item))
+                    continue;
+                if (item->flags.bits.in_building || !item_isLocallyOwned(item))
+                    category_busy[item->getType()] += item->getStackSize();
+                else
+                    category_total[item->getType()] += item->getStackSize();
+            }
+        }
+
         int new_cursor = -1;
         if ((in_right_list) && (item_cursor >= 0) && (Screen::isKeyPressed(interface_key::CHANGETAB)))
         {
@@ -77,6 +126,11 @@ struct stocks_hook : df::viewscreen_storesst
         inHook = true;
         inHook_viewscreen = this;
         INTERPOSE_NEXT(view)();
+        if (breakdown_level != interface_breakdown_types::NONE)
+        {
+            init_stores = true;
+            return;
+        }
         if (new_cursor != -1)
             item_cursor = new_cursor;
     }
@@ -108,9 +162,9 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
                     if ((x == 79) && (gps->screen[x][y].chr == '\xDB'))
                         continue;
                     gps->screen[x][y].fore = 3;
-                }                
+                }
             }
-        }       
+        }
         inHook = false;
         inHook_viewscreen = NULL;
     }
