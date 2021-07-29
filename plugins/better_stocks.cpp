@@ -35,33 +35,10 @@ using df::global::ui;
 using df::global::ui_build_selector;
 using df::global::gview;
 
-typedef bool (df::item::*itemFunc)(void);
+typedef bool (__thiscall *itemFunc)(df::item *);
 
-bool item_isHiddenFromStocks (df::item *item)
-{
-    bool ret;
-    __asm
-    {
-        mov ecx, item
-        mov eax, 0x5e97b0
-        call eax
-        mov ret, al
-    }
-    return ret;
-}
-
-bool item_isLocallyOwned (df::item *item)
-{
-    bool ret;
-    __asm
-    {
-        mov ecx, item
-        mov eax, 0x5e97d0
-        call eax
-        mov ret, al
-    }
-    return ret;
-}
+itemFunc item_isHiddenFromStocks = (itemFunc)0x5e97b0;
+itemFunc item_isLocallyOwned = (itemFunc)0x5e97d0;
 
 bool inHook = false;
 df::viewscreen_storesst *inHook_viewscreen = NULL;
