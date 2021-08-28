@@ -102,7 +102,7 @@ command_result df_getplants (color_ostream &out, vector <string> & parameters)
     if (shrubTypes.size() == 0 && woodTypes.size() == 0)
     {
         out.print("Valid plant IDs:\n");
-        for (size_t i = 0; i < world->raws.matgloss.wood.size(); i++)
+        for (size_t i = 0; i < world->raws.matgloss.plant.size(); i++)
         {
             df::matgloss_plant *plant = world->raws.matgloss.plant[i];
             out.print("* (shrub) %s - %s\n", plant->id.c_str(), plant->name.c_str());
