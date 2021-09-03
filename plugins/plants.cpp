@@ -84,11 +84,11 @@ static command_result immolations (color_ostream &out, do_what what, bool shrubs
         for(size_t i = 0 ; i < world->plants.all.size(); i++)
         {
             df::plant *p = world->plants.all[i];
-            bool is_shrub = p->flags >= plant_flags::shrub_forest;
+            bool is_shrub = p->type >= plant_type::shrub_forest;
             if(shrubs && is_shrub || trees && !is_shrub)
             {
                 if (what == do_immolate)
-                    p->damage_flags.bits.is_burning = true;
+                    p->flags.bits.is_burning = true;
                 p->hitpoints = 0;
                 destroyed ++;
             }
@@ -111,7 +111,7 @@ static command_result immolations (color_ostream &out, do_what what, bool shrubs
                     if(tree->pos.x == x && tree->pos.y == y && tree->pos.z == z)
                     {
                         if(what == do_immolate)
-                            tree->damage_flags.bits.is_burning = true;
+                            tree->flags.bits.is_burning = true;
                         tree->hitpoints = 0;
                         didit = true;
                         break;
@@ -211,7 +211,7 @@ command_result df_grow (color_ostream &out, vector <string> & parameters)
         {
             df::plant *p = world->plants.all[i];
             df::tiletype ttype = map.tiletypeAt(df::coord(p->pos.x,p->pos.y,p->pos.z));
-            bool is_shrub = p->flags >= plant_flags::shrub_forest;
+            bool is_shrub = p->type >= plant_type::shrub_forest;
             if(!is_shrub && tileShape(ttype) == tiletype_shape::SAPLING && tileSpecial(ttype) != tiletype_special::DEAD)
             {
                 p->grow_counter = sapling_to_tree_threshold;
@@ -307,13 +307,13 @@ command_result df_createplant (color_ostream &out, vector <string> & parameters)
         bool is_wet = wood_raw->flags.is_set(matgloss_wood_flags::WET);
         bool is_indoor = wood_raw->flags.is_set(matgloss_wood_flags::BIOME_SUBTERRANEAN_RIVER) | wood_raw->flags.is_set(matgloss_wood_flags::BIOME_SUBTERRANEAN_CHASM) | wood_raw->flags.is_set(matgloss_wood_flags::BIOME_SUBTERRANEAN_LAVA);
         if (is_wet && is_indoor)
-            plant->flags = plant_flags::tree_indoor_wet;
+            plant->type = plant_type::tree_indoor_wet;
         else if (is_indoor)
-            plant->flags = plant_flags::tree_indoor_dry;
+            plant->type = plant_type::tree_indoor_dry;
         else if (is_wet)
-            plant->flags = plant_flags::tree_outdoor_wet;
+            plant->type = plant_type::tree_outdoor_wet;
         else
-            plant->flags = plant_flags::tree_outdoor_dry;
+            plant->type = plant_type::tree_outdoor_dry;
         plant->wood_id = wood_id;
     }
     else
@@ -321,15 +321,15 @@ command_result df_createplant (color_ostream &out, vector <string> & parameters)
         plant->hitpoints = 100000;
 
         if (plant_raw->flags.bits.CAVE)
-            plant->flags = plant_flags::shrub_cave;
+            plant->type = plant_type::shrub_cave;
         else if (plant_raw->flags.bits.RIVER)
-            plant->flags = plant_flags::shrub_river;
+            plant->type = plant_type::shrub_river;
         else if (plant_raw->flags.bits.SWAMP)
-            plant->flags = plant_flags::shrub_swamp;
+            plant->type = plant_type::shrub_swamp;
         else if (plant_raw->flags.bits.FOREST)
-            plant->flags = plant_flags::shrub_forest;
+            plant->type = plant_type::shrub_forest;
         else // this shouldn't happen
-            plant->flags = plant_flags::shrub_forest;
+            plant->type = plant_type::shrub_forest;
 
         plant->plant_id = plant_id;
     }
@@ -339,16 +339,16 @@ command_result df_createplant (color_ostream &out, vector <string> & parameters)
 //  plant->temperature_tile_tick = -1;
 
     world->plants.all.push_back(plant);
-    switch (plant->flags)
+    switch (plant->type)
     {
-    case plant_flags::tree_outdoor_wet: world->plants.tree_outside_dry.push_back(plant); break;
-    case plant_flags::tree_outdoor_dry: world->plants.tree_outside_wet.push_back(plant); break;
-    case plant_flags::tree_indoor_dry: world->plants.tree_inside_dry.push_back(plant); break;
-    case plant_flags::tree_indoor_wet: world->plants.tree_inside_wet.push_back(plant); break;
-    case plant_flags::shrub_forest: world->plants.shrub_forest.push_back(plant); break;
-    case plant_flags::shrub_swamp: world->plants.shrub_swamp.push_back(plant); break;
-    case plant_flags::shrub_river: world->plants.shrub_river.push_back(plant); break;
-    case plant_flags::shrub_cave: world->plants.shrub_cave.push_back(plant); break;
+    case plant_type::tree_outdoor_wet: world->plants.tree_outside_dry.push_back(plant); break;
+    case plant_type::tree_outdoor_dry: world->plants.tree_outside_wet.push_back(plant); break;
+    case plant_type::tree_indoor_dry: world->plants.tree_inside_dry.push_back(plant); break;
+    case plant_type::tree_indoor_wet: world->plants.tree_inside_wet.push_back(plant); break;
+    case plant_type::shrub_forest: world->plants.shrub_forest.push_back(plant); break;
+    case plant_type::shrub_swamp: world->plants.shrub_swamp.push_back(plant); break;
+    case plant_type::shrub_river: world->plants.shrub_river.push_back(plant); break;
+    case plant_type::shrub_cave: world->plants.shrub_cave.push_back(plant); break;
     }
 
     if (plant_id)

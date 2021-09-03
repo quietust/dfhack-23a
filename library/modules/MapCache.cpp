@@ -320,7 +320,7 @@ t_matpair MapExtras::BlockInfo::getBaseMaterial(df::tiletype tt, df::coord2d pos
     case PLANT:
         if (auto plant = plants[block->map_pos + df::coord(x,y,0)])
         {
-            if (plant->flags >= plant_flags::shrub_forest)
+            if (plant->type >= plant_type::shrub_forest)
             {
                 rv.mat_type = material_type::PLANT;
                 rv.mat_subtype = plant->plant_id;

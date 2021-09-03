@@ -127,8 +127,8 @@ command_result df_getplants (color_ostream &out, vector <string> & parameters)
             df::tiletype tt = Maps::getTileType(plant->pos);
             df::tiletype_shape shape = tileShape(tt);
             df::tiletype_special special = tileSpecial(tt);
-            bool is_shrub = plant->flags >= plant_flags::shrub_forest && plant->flags <= plant_flags::shrub_cave;
-            bool is_tree = plant->flags >= plant_flags::tree_outdoor_wet && plant->flags <= plant_flags::tree_indoor_wet;
+            bool is_shrub = plant->type >= plant_type::shrub_forest && plant->type <= plant_type::shrub_cave;
+            bool is_tree = plant->type >= plant_type::tree_outdoor_wet && plant->type <= plant_type::tree_indoor_wet;
             if ((is_shrub && (shrubTypes.find(plant->plant_id) != shrubTypes.end())) ||
                 (is_tree && (woodTypes.find(plant->wood_id) != woodTypes.end())))
             {
