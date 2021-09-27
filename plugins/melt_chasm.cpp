@@ -1,4 +1,5 @@
 // Forbid/Melt/Chasm shortcut keys from more places
+// Also allow bulk forbid/melt/chasm from the Stocks screen Category view
 
 #include "Core.h"
 #include <Console.h>
@@ -310,13 +311,68 @@ struct stores_hook : df::viewscreen_storesst
     {
         inHook_stores = true;
         storeshook_screen = this;
-        if (in_right_list && !in_group_mode && item_cursor >= 0 && item_cursor <= items.size() && Screen::isKeyPressed(interface_key::STRING_F))
+        if (in_right_list && item_cursor >= 0 && item_cursor <= items.size())
         {
-            df::item *item = items[item_cursor];
+            if (!in_group_mode && Screen::isKeyPressed(interface_key::STRING_F))
+            {
+                df::item *item = items[item_cursor];
 
-            item->flags.bits.forbid = !item->flags.bits.forbid;
-            if (item->flags.bits.forbid)
-                item_removeFromJobs(item);
+                item->flags.bits.forbid = !item->flags.bits.forbid;
+                if (item->flags.bits.forbid)
+                    item_removeFromJobs(item);
+            }
+            if (in_group_mode && (Screen::isKeyPressed(interface_key::STRING_F) || (ui->tasks.found_chasm && Screen::isKeyPressed(interface_key::STORES_CHASM)) || Screen::isKeyPressed(interface_key::STORES_MELT)))
+            {
+                bool set = true;
+                for (int i = 0; i < items.size(); i++)
+                {
+                    auto item = items[i];
+                    if ((item->getType() == group.item_type[item_cursor]) &&
+                        (item->getSubtype() == group.item_subtype[item_cursor]) &&
+                        (item->getMaterial() == group.material[item_cursor]) &&
+                        (item->getMatgloss() == group.matgloss[item_cursor]))
+                    {
+                        if (Screen::isKeyPressed(interface_key::STRING_F) && item->flags.bits.forbid)
+                            set = false;
+                        if (ui->tasks.found_chasm && Screen::isKeyPressed(interface_key::STORES_CHASM) && item->flags.bits.dump)
+                            set = false;
+                        if (Screen::isKeyPressed(interface_key::STORES_MELT) && item_isMelt(item))
+                            set = false;
+                    }
+                }
+                for (int i = 0; i < items.size(); i++)
+                {
+                    auto item = items[i];
+                    if ((item->getType() == group.item_type[item_cursor]) &&
+                        (item->getSubtype() == group.item_subtype[item_cursor]) &&
+                        (item->getMaterial() == group.material[item_cursor]) &&
+                        (item->getMatgloss() == group.matgloss[item_cursor]))
+                    {
+                        if (Screen::isKeyPressed(interface_key::STRING_F))
+                        {
+                            if (item->flags.bits.forbid != set)
+                                item_removeFromJobs(item);
+                            item->flags.bits.forbid = set;
+                        }
+                        if (ui->tasks.found_chasm && Screen::isKeyPressed(interface_key::STORES_CHASM) && isChasmable(item))
+                        {
+                            if (item->flags.bits.dump != set)
+                            {
+                                if (set)
+                                    item_removeMelt(item);
+                                else
+                                    item_cancelChasmJob(item);
+                                item->flags.bits.dump = set;
+                            }
+                        }
+                        if (Screen::isKeyPressed(interface_key::STORES_MELT) && isMeltable(item))
+                        {
+                            if ((item_isMelt(item) != set) && !item_removeMelt(item))
+                                item_addMelt(item);
+                        }
+                    }
+                }
+            }
         }
         INTERPOSE_NEXT(view)();
     }
@@ -466,13 +522,75 @@ DFhackCExport command_result plugin_onrender ( color_ostream &out)
     }
     if (inHook_stores)
     {
-        int x = 66, y = 21;
-        OutputString(10, x, y, Screen::getKeyDisplay(interface_key::STRING_F));
+        if (storeshook_screen->in_group_mode)
+        {
+            vector<int> num_melt, num_forbid, num_chasm;
+            num_melt.resize(storeshook_screen->group.count.size());
+            num_forbid.resize(storeshook_screen->group.count.size());
+            num_chasm.resize(storeshook_screen->group.count.size());
+            for (int i = 0; i < storeshook_screen->items.size(); i++)
+            {
+                if (!storeshook_screen->items[i])
+                    continue;
+                auto item = storeshook_screen->items[i];
+                auto it = item->getType();
+                auto is = item->getSubtype();
+                auto mt = item->getMaterial();
+                auto mg = item->getMatgloss();
+                for (int j = 0; j < storeshook_screen->group.count.size(); j++)
+                {
+                    if ((storeshook_screen->group.item_type[j] == it) && (storeshook_screen->group.item_subtype[j] == is) && 
+                        (storeshook_screen->group.material[j] == mt) && (storeshook_screen->group.matgloss[j] == mg))
+                    {
+                        num_melt[j] += item_isMelt(item) ? item->getStackSize() : 0;
+                        num_forbid[j] += item->flags.bits.forbid ? item->getStackSize() : 0;
+                        num_chasm[j] += item->flags.bits.dump ? item->getStackSize() : 0;
+                    }
+                }
+            }
 
-        int fg = 8;
-        if (storeshook_screen->in_right_list && !storeshook_screen->in_group_mode)
-            fg = 15;
+            int start_group = storeshook_screen->item_cursor - storeshook_screen->item_cursor % 19;
+            int num_groups = storeshook_screen->group.count.size();
+            for (int i = 0; i < 19; i++)
+            {
+                int y = 2 + i;
+                int cur_group = start_group + i;
+                if ((cur_group < 0) || (cur_group >= num_groups))
+                    break;
+
+                int x = 76;
+                if (num_melt[cur_group] == storeshook_screen->group.count[cur_group])
+                    OutputString(12, x, y, "M");
+                else if (num_melt[cur_group] != 0)
+                    OutputString(4, x, y, "M");
+
+                x = 77;
+                if (num_forbid[cur_group] == storeshook_screen->group.count[cur_group])
+                    OutputString(14, x, y, "F");
+                else if (num_forbid[cur_group] != 0)
+                    OutputString(6, x, y, "F");
+
+                x = 78;
+                if (num_chasm[cur_group] == storeshook_screen->group.count[cur_group])
+                    OutputString(8, x, y, "C");
+                else if (num_chasm[cur_group] != 0)
+                    OutputString(7, x, y, "C");
+            }
+        }
+
+        int x = 66, y = 21;
+        OutputString(12, x, y, Screen::getKeyDisplay(interface_key::STRING_F));
+
+        int fg = storeshook_screen->in_right_list ? 15 : 8;
         OutputString(fg, x, y, ": Forbid");
+
+        x = 67; y = 22;
+        fg = storeshook_screen->in_right_list ? 15 : 8;
+        OutputString(fg, x, y, ": Melt");
+
+        x = 67; y = 23;
+        fg = storeshook_screen->in_right_list ? 15 : 8;
+        OutputString(fg, x, y, ": Chasm");
 
         inHook_stores = false;
         return CR_OK;
