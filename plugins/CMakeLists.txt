@@ -182,6 +182,7 @@ if (BUILD_SUPPORTED)
     DFHACK_PLUGIN(seed_bags seed_bags.cpp)
     DFHACK_PLUGIN(better_stocks better_stocks.cpp)
     DFHACK_PLUGIN(assign_icon assign_icon.cpp)
+    DFHACK_PLUGIN(container_names container_names.cpp)
 endif()
 
 # this is the skeleton plugin. If you want to make your own, make a copy and then change it
