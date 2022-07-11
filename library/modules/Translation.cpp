@@ -80,7 +80,7 @@ bool Translation::copyName(df::language_name * source, df::language_name * targe
         target->parts[i].part_of_speech = source->parts[i].part_of_speech;
     }
     target->language = source->language;
-    target->unknown = source->unknown;
+    target->type = source->type;
     target->has_name = source->has_name;
     return true;
 }
