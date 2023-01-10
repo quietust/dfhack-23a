@@ -1,5 +1,6 @@
 Vermin fish in aquariums/ponds cancel updates of remaining vermin
 Vermin can only escape from artifact containers
+Pet fish crash the game if they airdrown
 
 ----8<----
 This difference file is created by The Interactive Disassembler
@@ -8,3 +9,5 @@ dwarfort.exe
 00169B1B: 84 85
 00169D12: DD D6
 00169D29: C6 BF
+001F77DE: 4B 4D
+001F77F3: 43 45
