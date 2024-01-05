@@ -6,8 +6,8 @@ Don't over-allocate memory blocks
 This difference file is created by The Interactive Disassembler
 
 dwarfort.exe
+0031C306: 0F 00
+0031C309: F0 FF
 0031E74F: 94 95
 003A3B04: F8 00
 003A3B05: 03 00
-0031C306: 0F 00
-0031C309: F0 FF
